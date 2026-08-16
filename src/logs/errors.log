@@ -1,0 +1,355 @@
+2026-08-15 13:11:08.845 | ERROR    | src.aetheros.bootstrap.bootstrapper:start:118 | AetherOS bootstrap failed.
+Traceback (most recent call last):
+
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+    │       │   └ <function main at 0x000001D0CEBAEDA0>
+    │       └ <function run at 0x000001D0CEB928D0>
+    └ <module 'asyncio' from 'C:\\Users\\ayush\\AppData\\Local\\Programs\\Python\\Python314\\Lib\\asyncio\\__init__.py'>
+
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\runners.py", line 205, in run
+    return runner.run(main)
+           │      │   └ <coroutine object main at 0x000001D0CFF12180>
+           │      └ <function Runner.run at 0x000001D0CEB92CF0>
+           └ <asyncio.runners.Runner object at 0x000001D0CFF30EC0>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           │    │     │                  └ <Task pending name='Task-1' coro=<main() running at D:\AetherOS\AetherOS\main.py:50> cb=[_run_until_complete_cb() at C:\Users...
+           │    │     └ <function BaseEventLoop.run_until_complete at 0x000001D0CEB8F110>
+           │    └ <ProactorEventLoop running=True closed=False debug=False>
+           └ <asyncio.runners.Runner object at 0x000001D0CFF30EC0>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 706, in run_until_complete
+    self.run_forever()
+    │    └ <function BaseEventLoop.run_forever at 0x000001D0CEB8F060>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 677, in run_forever
+    self._run_once()
+    │    └ <function BaseEventLoop._run_once at 0x000001D0CEB91220>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 2056, in _run_once
+    handle._run()
+    │      └ <function Handle._run at 0x000001D0CEB017A0>
+    └ <Handle <_asyncio.TaskStepMethWrapper object at 0x000001D0CFCA0DF0>()>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\events.py", line 94, in _run
+    self._context.run(self._callback, *self._args)
+    │    │            │    │           │    └ <member '_args' of 'Handle' objects>
+    │    │            │    │           └ <Handle <_asyncio.TaskStepMethWrapper object at 0x000001D0CFCA0DF0>()>
+    │    │            │    └ <member '_callback' of 'Handle' objects>
+    │    │            └ <Handle <_asyncio.TaskStepMethWrapper object at 0x000001D0CFCA0DF0>()>
+    │    └ <member '_context' of 'Handle' objects>
+    └ <Handle <_asyncio.TaskStepMethWrapper object at 0x000001D0CFCA0DF0>()>
+
+  File "D:\AetherOS\AetherOS\main.py", line 50, in main
+    await app.start()
+          │   └ <function Application.start at 0x000001D0CFF67CC0>
+          └ <src.aetheros.bootstrap.application.Application object at 0x000001D0CFF31400>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 56, in start
+    await self._bootstrapper.start()
+          │    │             └ <function Bootstrapper.start at 0x000001D0CFDC8930>
+          │    └ <src.aetheros.bootstrap.bootstrapper.Bootstrapper object at 0x000001D0CFF31550>
+          └ <src.aetheros.bootstrap.application.Application object at 0x000001D0CFF31400>
+
+> File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 92, in start
+    await self._bootstrap_desktop()
+          │    └ <function Bootstrapper._bootstrap_desktop at 0x000001D0CFDC9170>
+          └ <src.aetheros.bootstrap.bootstrapper.Bootstrapper object at 0x000001D0CFF31550>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 254, in _bootstrap_desktop
+    print(f"[DEBUG BOOTSTRAP DESKTOP] Registery after keyboard : {container.registered_services()}")
+                                                                  │         └ <function ServiceContainer.registered_services at 0x000001D0CFF50F60>
+                                                                  └ <src.aetheros.core.container.container.ServiceContainer object at 0x000001D0CFC98C20>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 97, in registered_services
+    return sorted(
+
+TypeError: '<' not supported between instances of 'ABCMeta' and 'str'
+2026-08-15 13:13:02.969 | ERROR    | src.aetheros.bootstrap.bootstrapper:start:118 | AetherOS bootstrap failed.
+Traceback (most recent call last):
+
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+    │       │   └ <function main at 0x0000023014F4EDA0>
+    │       └ <function run at 0x0000023014F328D0>
+    └ <module 'asyncio' from 'C:\\Users\\ayush\\AppData\\Local\\Programs\\Python\\Python314\\Lib\\asyncio\\__init__.py'>
+
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\runners.py", line 205, in run
+    return runner.run(main)
+           │      │   └ <coroutine object main at 0x00000230177E2180>
+           │      └ <function Runner.run at 0x0000023014F32CF0>
+           └ <asyncio.runners.Runner object at 0x0000023017804EC0>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           │    │     │                  └ <Task pending name='Task-1' coro=<main() running at D:\AetherOS\AetherOS\main.py:50> cb=[_run_until_complete_cb() at C:\Users...
+           │    │     └ <function BaseEventLoop.run_until_complete at 0x0000023014F2F110>
+           │    └ <ProactorEventLoop running=True closed=False debug=False>
+           └ <asyncio.runners.Runner object at 0x0000023017804EC0>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 706, in run_until_complete
+    self.run_forever()
+    │    └ <function BaseEventLoop.run_forever at 0x0000023014F2F060>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 677, in run_forever
+    self._run_once()
+    │    └ <function BaseEventLoop._run_once at 0x0000023014F31220>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 2056, in _run_once
+    handle._run()
+    │      └ <function Handle._run at 0x0000023014EA17A0>
+    └ <Handle <_asyncio.TaskStepMethWrapper object at 0x000002301664CD90>()>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\events.py", line 94, in _run
+    self._context.run(self._callback, *self._args)
+    │    │            │    │           │    └ <member '_args' of 'Handle' objects>
+    │    │            │    │           └ <Handle <_asyncio.TaskStepMethWrapper object at 0x000002301664CD90>()>
+    │    │            │    └ <member '_callback' of 'Handle' objects>
+    │    │            └ <Handle <_asyncio.TaskStepMethWrapper object at 0x000002301664CD90>()>
+    │    └ <member '_context' of 'Handle' objects>
+    └ <Handle <_asyncio.TaskStepMethWrapper object at 0x000002301664CD90>()>
+
+  File "D:\AetherOS\AetherOS\main.py", line 50, in main
+    await app.start()
+          │   └ <function Application.start at 0x0000023017837CC0>
+          └ <src.aetheros.bootstrap.application.Application object at 0x0000023017805400>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 56, in start
+    await self._bootstrapper.start()
+          │    │             └ <function Bootstrapper.start at 0x0000023017698930>
+          │    └ <src.aetheros.bootstrap.bootstrapper.Bootstrapper object at 0x0000023017805550>
+          └ <src.aetheros.bootstrap.application.Application object at 0x0000023017805400>
+
+> File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 92, in start
+    await self._bootstrap_desktop()
+          │    └ <function Bootstrapper._bootstrap_desktop at 0x0000023017699170>
+          └ <src.aetheros.bootstrap.bootstrapper.Bootstrapper object at 0x0000023017805550>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 254, in _bootstrap_desktop
+    print(f"[DEBUG BOOTSTRAP DESKTOP] Registery after keyboard : ",container.registered_services())
+                                                                   │         └ <function ServiceContainer.registered_services at 0x0000023017824F60>
+                                                                   └ <src.aetheros.core.container.container.ServiceContainer object at 0x0000023017588C20>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 97, in registered_services
+    return sorted(
+
+TypeError: '<' not supported between instances of 'str' and 'ABCMeta'
+2026-08-15 13:36:00.535 | ERROR    | src.aetheros.bootstrap.bootstrapper:start:118 | AetherOS bootstrap failed.
+Traceback (most recent call last):
+
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+    │       │   └ <function main at 0x000002248A77EDA0>
+    │       └ <function run at 0x000002248A7628D0>
+    └ <module 'asyncio' from 'C:\\Users\\ayush\\AppData\\Local\\Programs\\Python\\Python314\\Lib\\asyncio\\__init__.py'>
+
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\runners.py", line 205, in run
+    return runner.run(main)
+           │      │   └ <coroutine object main at 0x000002248BAA2180>
+           │      └ <function Runner.run at 0x000002248A762CF0>
+           └ <asyncio.runners.Runner object at 0x000002248BAC0EC0>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           │    │     │                  └ <Task pending name='Task-1' coro=<main() running at D:\AetherOS\AetherOS\main.py:50> cb=[_run_until_complete_cb() at C:\Users...
+           │    │     └ <function BaseEventLoop.run_until_complete at 0x000002248A75F110>
+           │    └ <ProactorEventLoop running=True closed=False debug=False>
+           └ <asyncio.runners.Runner object at 0x000002248BAC0EC0>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 706, in run_until_complete
+    self.run_forever()
+    │    └ <function BaseEventLoop.run_forever at 0x000002248A75F060>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 677, in run_forever
+    self._run_once()
+    │    └ <function BaseEventLoop._run_once at 0x000002248A761220>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 2056, in _run_once
+    handle._run()
+    │      └ <function Handle._run at 0x000002248A6D17A0>
+    └ <Handle <_asyncio.TaskStepMethWrapper object at 0x000002248B833880>()>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\events.py", line 94, in _run
+    self._context.run(self._callback, *self._args)
+    │    │            │    │           │    └ <member '_args' of 'Handle' objects>
+    │    │            │    │           └ <Handle <_asyncio.TaskStepMethWrapper object at 0x000002248B833880>()>
+    │    │            │    └ <member '_callback' of 'Handle' objects>
+    │    │            └ <Handle <_asyncio.TaskStepMethWrapper object at 0x000002248B833880>()>
+    │    └ <member '_context' of 'Handle' objects>
+    └ <Handle <_asyncio.TaskStepMethWrapper object at 0x000002248B833880>()>
+
+  File "D:\AetherOS\AetherOS\main.py", line 50, in main
+    await app.start()
+          │   └ <function Application.start at 0x000002248BADBD70>
+          └ <src.aetheros.bootstrap.application.Application object at 0x000002248BAC1400>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 56, in start
+    await self._bootstrapper.start()
+          │    │             └ <function Bootstrapper.start at 0x000002248B9549E0>
+          │    └ <src.aetheros.bootstrap.bootstrapper.Bootstrapper object at 0x000002248BAC1550>
+          └ <src.aetheros.bootstrap.application.Application object at 0x000002248BAC1400>
+
+> File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 92, in start
+    await self._bootstrap_desktop()
+          │    └ <function Bootstrapper._bootstrap_desktop at 0x000002248B955220>
+          └ <src.aetheros.bootstrap.bootstrapper.Bootstrapper object at 0x000002248BAC1550>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 266, in _bootstrap_desktop
+    print(f"[DEBUG BOOTSTRAP DESKTOP] Registery after keyboard : ",container.registered_services())
+                                                                   │         └ <function ServiceContainer.registered_services at 0x000002248BAE9010>
+                                                                   └ <src.aetheros.core.container.container.ServiceContainer object at 0x000002248B8241A0>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 97, in registered_services
+    return sorted(
+
+TypeError: '<' not supported between instances of 'type' and 'str'
+2026-08-15 13:52:46.678 | ERROR    | src.aetheros.bootstrap.bootstrapper:start:118 | AetherOS bootstrap failed.
+Traceback (most recent call last):
+
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+    │       │   └ <function main at 0x000002935316EDA0>
+    │       └ <function run at 0x00000293531528D0>
+    └ <module 'asyncio' from 'C:\\Users\\ayush\\AppData\\Local\\Programs\\Python\\Python314\\Lib\\asyncio\\__init__.py'>
+
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\runners.py", line 205, in run
+    return runner.run(main)
+           │      │   └ <coroutine object main at 0x0000029355AC60A0>
+           │      └ <function Runner.run at 0x0000029353152CF0>
+           └ <asyncio.runners.Runner object at 0x0000029355AE0EC0>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           │    │     │                  └ <Task pending name='Task-1' coro=<main() running at D:\AetherOS\AetherOS\main.py:50> cb=[_run_until_complete_cb() at C:\Users...
+           │    │     └ <function BaseEventLoop.run_until_complete at 0x000002935314F110>
+           │    └ <ProactorEventLoop running=True closed=False debug=False>
+           └ <asyncio.runners.Runner object at 0x0000029355AE0EC0>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 706, in run_until_complete
+    self.run_forever()
+    │    └ <function BaseEventLoop.run_forever at 0x000002935314F060>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 677, in run_forever
+    self._run_once()
+    │    └ <function BaseEventLoop._run_once at 0x0000029353151220>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 2056, in _run_once
+    handle._run()
+    │      └ <function Handle._run at 0x00000293530C17A0>
+    └ <Handle <_asyncio.TaskStepMethWrapper object at 0x0000029354B57EE0>()>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\events.py", line 94, in _run
+    self._context.run(self._callback, *self._args)
+    │    │            │    │           │    └ <member '_args' of 'Handle' objects>
+    │    │            │    │           └ <Handle <_asyncio.TaskStepMethWrapper object at 0x0000029354B57EE0>()>
+    │    │            │    └ <member '_callback' of 'Handle' objects>
+    │    │            └ <Handle <_asyncio.TaskStepMethWrapper object at 0x0000029354B57EE0>()>
+    │    └ <member '_context' of 'Handle' objects>
+    └ <Handle <_asyncio.TaskStepMethWrapper object at 0x0000029354B57EE0>()>
+
+  File "D:\AetherOS\AetherOS\main.py", line 50, in main
+    await app.start()
+          │   └ <function Application.start at 0x0000029355B0FB60>
+          └ <src.aetheros.bootstrap.application.Application object at 0x0000029355AE1400>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 56, in start
+    await self._bootstrapper.start()
+          │    │             └ <function Bootstrapper.start at 0x0000029355978930>
+          │    └ <src.aetheros.bootstrap.bootstrapper.Bootstrapper object at 0x0000029355AE1550>
+          └ <src.aetheros.bootstrap.application.Application object at 0x0000029355AE1400>
+
+> File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 92, in start
+    await self._bootstrap_desktop()
+          └ <src.aetheros.bootstrap.bootstrapper.Bootstrapper object at 0x0000029355AE1550>
+
+AttributeError: 'Bootstrapper' object has no attribute '_bootstrap_desktop'. Did you mean: '_bootstrap_health'?
+2026-08-15 21:55:51.039 | ERROR    | src.aetheros.tools.executor:execute:65 | Tool '%s' failed.
+Traceback (most recent call last):
+
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+    │       │   └ <function main at 0x0000022A61ACEE50>
+    │       └ <function run at 0x0000022A61AB2980>
+    └ <module 'asyncio' from 'C:\\Users\\ayush\\AppData\\Local\\Programs\\Python\\Python314\\Lib\\asyncio\\__init__.py'>
+
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\runners.py", line 205, in run
+    return runner.run(main)
+           │      │   └ <coroutine object main at 0x0000022A64426260>
+           │      └ <function Runner.run at 0x0000022A61AB2DA0>
+           └ <asyncio.runners.Runner object at 0x0000022A64445010>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\runners.py", line 128, in run
+    return self._loop.run_until_complete(task)
+           │    │     │                  └ <Task pending name='Task-1' coro=<main() running at D:\AetherOS\AetherOS\main.py:51> cb=[_run_until_complete_cb() at C:\Users...
+           │    │     └ <function BaseEventLoop.run_until_complete at 0x0000022A61AAF1C0>
+           │    └ <ProactorEventLoop running=True closed=False debug=False>
+           └ <asyncio.runners.Runner object at 0x0000022A64445010>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 706, in run_until_complete
+    self.run_forever()
+    │    └ <function BaseEventLoop.run_forever at 0x0000022A61AAF110>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 677, in run_forever
+    self._run_once()
+    │    └ <function BaseEventLoop._run_once at 0x0000022A61AB12D0>
+    └ <ProactorEventLoop running=True closed=False debug=False>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\base_events.py", line 2056, in _run_once
+    handle._run()
+    │      └ <function Handle._run at 0x0000022A61A21850>
+    └ <Handle <_asyncio.TaskStepMethWrapper object at 0x0000022A634B7E20>()>
+  File "C:\Users\ayush\AppData\Local\Programs\Python\Python314\Lib\asyncio\events.py", line 94, in _run
+    self._context.run(self._callback, *self._args)
+    │    │            │    │           │    └ <member '_args' of 'Handle' objects>
+    │    │            │    │           └ <Handle <_asyncio.TaskStepMethWrapper object at 0x0000022A634B7E20>()>
+    │    │            │    └ <member '_callback' of 'Handle' objects>
+    │    │            └ <Handle <_asyncio.TaskStepMethWrapper object at 0x0000022A634B7E20>()>
+    │    └ <member '_context' of 'Handle' objects>
+    └ <Handle <_asyncio.TaskStepMethWrapper object at 0x0000022A634B7E20>()>
+
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+          │   └ <function Application.run at 0x0000022A64464040>
+          └ <src.aetheros.bootstrap.application.Application object at 0x0000022A64445550>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 97, in run
+    await self._cli.start()
+          │    │    └ <function CLIRuntime.start at 0x0000022A6445FA00>
+          │    └ <src.aetheros.cli.main.CLIRuntime object at 0x0000022A7AF934D0>
+          └ <src.aetheros.bootstrap.application.Application object at 0x0000022A64445550>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 77, in start
+    await self._loop()
+          │    └ <function CLIRuntime._loop at 0x0000022A6445FCC0>
+          └ <src.aetheros.cli.main.CLIRuntime object at 0x0000022A7AF934D0>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 111, in _loop
+    result = await self._commands.execute(command)
+                   │    │         │       └ ParsedCommand(name='tool', args=['move_mouse(234,534)'])
+                   │    │         └ <function CommandRegistry.execute at 0x0000022A642C3C10>
+                   │    └ <src.aetheros.cli.commands.CommandRegistry object at 0x0000022A7AF93E00>
+                   └ <src.aetheros.cli.main.CLIRuntime object at 0x0000022A7AF934D0>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 93, in execute
+    result = await result
+                   └ <coroutine object CommandRegistry._tool at 0x0000022A7AECF2A0>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 525, in _tool
+    result = await self._tool_service.execute(
+                   │    │             └ <function ToolCommandService.execute at 0x0000022A642C3950>
+                   │    └ <src.aetheros.cli.tool_commands.ToolCommandService object at 0x0000022A7AF93CB0>
+                   └ <src.aetheros.cli.commands.CommandRegistry object at 0x0000022A7AF93E00>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 91, in execute
+    return await self._executor.execute(
+                 │    │         └ <function ToolExecutor.execute at 0x0000022A642BDFE0>
+                 │    └ <src.aetheros.tools.executor.ToolExecutor object at 0x0000022A641A5BE0>
+                 └ <src.aetheros.cli.tool_commands.ToolCommandService object at 0x0000022A7AF93CB0>
+
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 58, in execute
+    return await self._invoke(
+                 │    └ <function ToolExecutor._invoke at 0x0000022A642BE140>
+                 └ <src.aetheros.tools.executor.ToolExecutor object at 0x0000022A641A5BE0>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 86, in _invoke
+    return await result
+                 └ <coroutine object move_mouse at 0x0000022A7B001D40>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\mouse\tools.py", line 23, in move_mouse
+    mouse = container.resolve(MouseService)
+            │         │       └ <class 'src.aetheros.desktop.mouse.controller.MouseService'>
+            │         └ <function ServiceContainer.resolve at 0x0000022A64464B40>
+            └ <src.aetheros.core.container.container.ServiceContainer object at 0x0000022A641A4C20>
+
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 73, in resolve
+    raise KeyError(f"Service '{name}' is not registered.")
+                               └ <class 'src.aetheros.desktop.mouse.controller.MouseService'>
+
+KeyError: "Service '<class 'src.aetheros.desktop.mouse.controller.MouseService'>' is not registered."

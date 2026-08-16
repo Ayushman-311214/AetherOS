@@ -1,19 +1,228 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
 [project]
 name = "aetheros"
 version = "0.1.0"
-description = "Add your description here"
+description = "Autonomous AI Computer Operator"
 readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+
 authors = [
-    { name = "Ayushman-311214", email = "ayushman311214@gmail.com" }
+    { name = "Ayush" }
 ]
-requires-python = ">=3.14"
+
+keywords = [
+    "ai",
+    "llm",
+    "automation",
+    "desktop",
+    "computer-use",
+    "vision",
+    "voice",
+    "agents"
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: Microsoft :: Windows",
+    "License :: OSI Approved :: MIT License"
+]
+
 dependencies = [
+
+    # ----------------------------
+    # Configuration
+    # ----------------------------
+    "python-dotenv>=1.1.0",
+    "pydantic>=2.11.0",
+    "pydantic-settings>=2.10.0",
+
+    # ----------------------------
+    # Logging
+    # ----------------------------
     "loguru>=0.7.3",
+    "rich>=14.1.0",
+
+    # ----------------------------
+    # HTTP
+    # ----------------------------
+    "httpx>=0.28.1",
+    "requests>=2.32.4",
+
+    # ----------------------------
+    # LLM
+    # ----------------------------
+    "openai>=1.100.0",
+    "ollama>=0.5.3",
+
+    # ----------------------------
+    # Async
+    # ----------------------------
+    "anyio>=4.10.0",
+
+    # ----------------------------
+    # JSON
+    # ----------------------------
+    "orjson>=3.11.0",
+
+    # ----------------------------
+    # CLI
+    # ----------------------------
+    "typer>=0.17.0",
+
+    # ----------------------------
+    # Desktop Automation
+    # ----------------------------
+    "pyautogui>=0.9.54",
+    "pynput>=1.8.1",
+    "pyperclip>=1.9.0",
+    "keyboard>=0.13.5",
+    "mouse>=0.7.1",
+    "psutil>=7.0.0",
+    "pywin32>=311",
+
+    # ----------------------------
+    # Images / Vision
+    # ----------------------------
+    "opencv-python>=4.12.0",
+    "numpy>=2.3.2",
+    "Pillow>=11.3.0",
+    "mss>=10.1.0",
+    "paddleocr>=3.2.0",
+    "paddlepaddle>=3.1.1",
+
+    # ----------------------------
+    # Voice
+    # ----------------------------
+    "sounddevice>=0.5.2",
+    "scipy>=1.16.1",
+    "faster-whisper>=1.2.0",
+    "silero-vad>=6.0.0",
+    "torch>=2.8.0",
+    "torchaudio>=2.8.0",
+
+    # ----------------------------
+    # Utilities
+    # ----------------------------
+    "tqdm>=4.67.1",
+    "pyyaml>=6.0.2"
+    
+   
+
+]
+
+[project.optional-dependencies]
+
+browser = [
+    "playwright>=1.55.0"
+]
+
+dev = [
+    "pytest>=8.4.1",
+    "pytest-cov>=6.2.1",
+    "black>=25.1.0",
+    "ruff>=0.12.8",
+    "mypy>=1.17.1",
+    "pre-commit>=4.3.0"
 ]
 
 [project.scripts]
-aetheros = "aetheros:main"
+aether = "cli.main:app"
 
-[build-system]
-requires = ["uv_build>=0.12.1,<0.13.0"]
-build-backend = "uv_build"
+# ============================================================
+# BLACK
+# ============================================================
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+# ============================================================
+# RUFF
+# ============================================================
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "UP",
+    "B",
+]
+
+ignore = [
+    "E501"
+]
+
+# ============================================================
+# MYPY
+# ============================================================
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+# ============================================================
+# PYTEST
+# ============================================================
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests"
+]
+
+python_files = [
+    "test_*.py"
+]
+
+addopts = "-ra -q"
+
+# ============================================================
+# COVERAGE
+# ============================================================
+
+[tool.coverage.run]
+source = [
+    "core",
+    "desktop",
+    "vision",
+    "browser",
+    "memory",
+    "runtime",
+    "tools",
+    "llm",
+    "agents",
+    "cli",
+    "config"
+]
+
+# ============================================================
+# HATCH
+# ============================================================
+
+[tool.hatch.build.targets.wheel]
+packages = [
+    "core",
+    "desktop",
+    "vision",
+    "browser",
+    "memory",
+    "runtime",
+    "tools",
+    "llm",
+    "agents",
+    "cli",
+    "config"
+]

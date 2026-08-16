@@ -1,0 +1,198 @@
+
+#     def _tool(self, args: list[str]) -> str:
+#         """
+#         Execute a registered tool from the CLI.
+
+#         Example:
+#             tool mouse_position
+#         """
+
+#         if self._tool_service is None:
+#             return "Tool Registry is not connected."
+
+#         if not args:
+#             return (
+#                 "\n"
+#                 "Usage:\n"
+#                 "  tool <tool_name> [arguments]\n\n"
+#                 "Example:\n"
+#                 "  tool mouse_position\n"
+#             )
+
+#         tool_name = args[0]
+
+#         print(
+#             f"[DEBUG COMMANDS] Executing tool: {tool_name}"
+#         )
+
+#         if not self._tool_service.exists(tool_name):
+#             return f"Tool not found: {tool_name}"
+
+#         return (
+#             f"\n"
+#             f"Tool '{tool_name}' is registered.\n"
+#             f"Tool execution arguments are the next step."
+#         )
+
+#     async def _tool(self, args: list[str]) -> str:
+#         print("[DEBUG _TOOL] args:", args)
+#         if self._tool_service is None:
+#             return "Tool Registry is not connected."
+
+        
+#         if not args:
+#             return "Usage: tool <name> [key=value ...]"
+
+#         raw = " ".join(args).strip()
+
+#         print("[DEBUG _TOOL] raw:", raw)
+
+
+
+
+#         name = args[0]
+#         print("[DEBUG _TOOL] tool name:", name)
+
+#         print(
+#             "[DEBUG _TOOL] executing:",
+#                 name,
+#                 args,
+# )
+        # try:
+        #     result = await self._tool_service.execute(
+        #     name,
+        #     {},
+        # )
+
+        #     return str(result)
+
+        # except Exception as exc:
+        #     return (
+        #     f"Tool execution failed: {exc}"
+        # )
+
+"""
+    async def _tool(
+            self,
+            args: list[str],
+            ) -> str:
+
+        print("[DEBUG _TOOL] args:", args)
+
+        if self._tool_service is None:
+            return "Tool Registry is not connected."
+
+        if not args:
+            return "Usage: tool <tool_name> [arguments...]"
+
+        raw = " ".join(args).strip()
+
+        print("[DEBUG _TOOL] raw:", raw)
+
+        # ------------------------------------------------------
+        # tool move_mouse(785,963)
+        # ------------------------------------------------------
+
+        if "(" in raw and raw.endswith(")"):
+
+            name, raw_arguments = raw.split("(", 1)
+
+            name = name.strip()
+            raw_arguments = raw_arguments[:-1].strip()
+
+            print(f"[DEBUG _TOOL] raw_arguments : {raw_arguments}, name : {name}")
+
+            arguments = {}
+
+            if raw_arguments:
+
+                values = [
+                    value.strip()
+                    for value in raw_arguments.split(",")
+                ]
+
+                print(f"[DEBUG _TOOL] Values : {values}")
+
+                if name == "move_mouse":
+                    if len(values) != 2:
+                        return (
+                            "Usage: tool move_mouse(x,y)"
+                        )
+         
+                arguments = {
+                        "dx": int(values[0]),
+                        "dy": int(values[1]),
+                }
+
+            print("[DEBUG _TOOL] name:", name)
+            print("[DEBUG _TOOL] arguments:", arguments)
+
+        else:
+
+            # --------------------------------------------------
+            # tool move_mouse 785 963
+            # --------------------------------------------------
+
+            name = args[0]
+
+            remaining = args[1:]
+
+            arguments = {}
+
+            if name == "move_mouse":
+
+                if len(remaining) != 2:
+                    return (
+                        "Usage: tool move_mouse <x> <y>"
+                    )
+
+                arguments = {
+                    "x": int(remaining[0]),
+                    "y": int(remaining[1]),
+                }
+
+            print("[DEBUG _TOOL] name:", name)
+            print("[DEBUG _TOOL] arguments:", arguments)
+
+        # ------------------------------------------------------
+        # Check tool
+        # ------------------------------------------------------
+
+        if not self._tool_service.exists(name):
+            return f"Tool not found: {name}"
+
+        # ------------------------------------------------------
+        # Execute
+        # ------------------------------------------------------
+
+        print(
+            "[DEBUG _TOOL] executing:",
+            name,
+            arguments,
+        )
+
+        try:
+
+            result = await self._tool_service.execute(
+                name,
+                arguments,
+            )
+
+            print(
+                "[DEBUG _TOOL] result:",
+                result,
+            )
+
+            return str(result)
+
+        except Exception as exc:
+
+            print(
+                "[DEBUG _TOOL] ERROR:",
+                type(exc).__name__,
+                exc,
+            )
+
+            return f"Tool execution failed: {exc}"
+"""
+

@@ -1,0 +1,64 @@
+
+"""
+    async def _bootstrap_desktop(self) -> None:
+        self._logger.debug("Initializing desktop services...")
+
+        from ..core.container import container
+        # from ..desktop.mouse.controller import MouseService
+        # from ..desktop.mouse.pyautogui_backend import PyAutoGuiMouse
+
+        # mouse_controller = PyAutoGuiMouse()
+
+        # container.register_singleton(
+        #     PyAutoGuiMouse,
+        #     lambda: mouse_controller,
+        # )
+
+        # container.register_singleton(
+        #     MouseService,
+        #     lambda: MouseService(
+        #         container.resolve(PyAutoGuiMouse)
+        #     ),
+        # )
+
+        print("\n========== TOOL BOOTSTRAP ==========")
+        print(
+        "[DEBUG TOOLS] Before:",
+        tool_registry.names(),
+    )
+        print(
+        "[DEBUG TOOLS] Importing keyboard tools..."
+    )
+        from ..desktop.keyboard.controller import KeyboardService
+        from ..desktop.keyboard.pyautogui_backend import PyAutoGuiKeyboard
+        print(
+        "[DEBUG TOOLS] After keyboard:",
+        tool_registry.names(),
+    )
+        keyboard_controller = PyAutoGuiKeyboard()
+
+        print(f"[DEBUG BOOTSTRAP DESKTOP] Keyboard Controller : {keyboard_controller}")
+
+        print(
+        "[DEBUG TOOLS] Total:",
+        tool_registry.count,
+    )
+        container.register_singleton(
+            PyAutoGuiKeyboard,
+            lambda: keyboard_controller,
+        )
+
+
+        container.register_singleton(
+            KeyboardService,
+            lambda: KeyboardService(
+                container.resolve(PyAutoGuiKeyboard)
+            ),
+        )
+
+        print(f"[DEBUG BOOTSTRAP DESKTOP] Registery after keyboard : ",container.registered_services())
+
+        self._logger.debug(
+            "Desktop services initialized."
+        )
+"""
