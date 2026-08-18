@@ -1,5 +1,6 @@
 from __future__ import annotations
 from ..tools.discovery import tool_discovery
+from ..core.container import container
 
 from ..core.logging.logging import(
     get_logger,
@@ -22,7 +23,7 @@ class Bootstrapper:
         self.tool_registry=tool_registry
         self._started = False
         # Runtime references
-        self._container = None
+        self._container = container
         self._event_bus = None
 
     # ==========================================================
@@ -211,18 +212,18 @@ class Bootstrapper:
     async def _bootstrap_desktop(self) -> None:
         self._logger.debug("Initializing desktop services...")
 
-        from ..core.container import container
+    
         from ..desktop.mouse.controller import MouseService
         from ..desktop.mouse.pyautogui_backend import PyAutoGuiMouse
 
         mouse_controller = PyAutoGuiMouse()
 
-        container.register_singleton(
+        self._container.register_singleton(
             PyAutoGuiMouse,
             lambda: mouse_controller,
         )
 
-        container.register_singleton(
+        self._container.register_singleton(
             MouseService,
             lambda: MouseService(
                 container.resolve(PyAutoGuiMouse)
@@ -230,19 +231,13 @@ class Bootstrapper:
         )
 
         print("\n========== TOOL BOOTSTRAP ==========")
-        print(
-        "[DEBUG TOOLS] Before:",
-        tool_registry.names(),
-    )
+    
         print(
         "[DEBUG TOOLS] Importing keyboard tools..."
     )
         from ..desktop.keyboard.controller import KeyboardService
         from ..desktop.keyboard.pyautogui_backend import PyAutoGuiKeyboard
-        print(
-        "[DEBUG TOOLS] After keyboard:",
-        tool_registry.names(),
-    )
+    
         keyboard_controller = PyAutoGuiKeyboard()
 
         print(f"[DEBUG BOOTSTRAP DESKTOP] Keyboard Controller : {keyboard_controller}")
@@ -263,7 +258,28 @@ class Bootstrapper:
                 container.resolve(PyAutoGuiKeyboard)
             ),
         )
+        
+# ---------------------------------------------------------------
+# Clipboard
+# ---------------------------------------------------------------
+        from ..desktop.clipboard.controller import ClipboardService
+        from ..desktop.clipboard.pyautogui_backend import PyAutoGuiClipboard
+        
+        
+        clipboard_controller = PyAutoGuiClipboard()
 
+        self._container.register_singleton(
+            PyAutoGuiClipboard,
+            lambda: clipboard_controller,
+        )
+
+        self._container.register_singleton(
+            ClipboardService,
+            lambda: ClipboardService(
+                container.resolve(PyAutoGuiClipboard)
+            ),
+        )
+        
         print(f"[DEBUG BOOTSTRAP DESKTOP] Registery after keyboard : ",container.registered_services())
 
         self._logger.debug(
@@ -288,22 +304,17 @@ class Bootstrapper:
             tool_registry
         )
 
-        print(
-            "[DEBUG BOOTSTRAP] Before mouse import:",
-            tool_registry.names()
-        )
+    
 
         print("[DEBUG BOOTSTRAP] Importing mouse tools...")
 
         import src.aetheros.desktop.mouse.tools
         import src.aetheros.desktop.keyboard.tools
+        import src.aetheros.desktop.clipboard.tools
 
         print("[DEBUG BOOTSTRAP] Mouse tools import finished")
 
-        print(
-            "[DEBUG BOOTSTRAP] After mouse import:",
-            tool_registry.names()
-        )
+        
 
         print(
             "[DEBUG BOOTSTRAP] Tool count:",

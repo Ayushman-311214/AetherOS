@@ -111,7 +111,7 @@ class ToolRegistry:
 
     def names(self) -> list[str]:
 
-        return sorted(self._tools.keys())
+        return sorted(self._tools)
 
     def categories(self) -> list[str]:
 

@@ -168,7 +168,8 @@ class CommandRegistry:
 
             try:
                 tool = self._tool_service.get_tool(name)
-
+                tool_args = self._tool_service.get_names()
+                
                 status = (
                     "ON"
                     if tool.enabled
@@ -176,7 +177,7 @@ class CommandRegistry:
                 )
 
                 lines.append(
-                    f"  {name:<30} [{status}]"
+                    f"  {name:<30}      [{status}]"
                 )
 
             except KeyError:
@@ -194,95 +195,15 @@ class CommandRegistry:
     def _desktop(self, args: list[str]) -> str:
         return "Desktop subsystem."
 
-
     def _browser(self, args: list[str]) -> str:
         return "Browser subsystem."
-
 
     def _vision(self, args: list[str]) -> str:
         return "Vision subsystem."
 
-
     def _llm(self, args: list[str]) -> str:
         return "LLM subsystem."
     
-
-
-
-#     def _tool(self, args: list[str]) -> str:
-#         """
-#         Execute a registered tool from the CLI.
-
-#         Example:
-#             tool mouse_position
-#         """
-
-#         if self._tool_service is None:
-#             return "Tool Registry is not connected."
-
-#         if not args:
-#             return (
-#                 "\n"
-#                 "Usage:\n"
-#                 "  tool <tool_name> [arguments]\n\n"
-#                 "Example:\n"
-#                 "  tool mouse_position\n"
-#             )
-
-#         tool_name = args[0]
-
-#         print(
-#             f"[DEBUG COMMANDS] Executing tool: {tool_name}"
-#         )
-
-#         if not self._tool_service.exists(tool_name):
-#             return f"Tool not found: {tool_name}"
-
-#         return (
-#             f"\n"
-#             f"Tool '{tool_name}' is registered.\n"
-#             f"Tool execution arguments are the next step."
-#         )
-
-#     async def _tool(self, args: list[str]) -> str:
-#         print("[DEBUG _TOOL] args:", args)
-#         if self._tool_service is None:
-#             return "Tool Registry is not connected."
-
-        
-#         if not args:
-#             return "Usage: tool <name> [key=value ...]"
-
-#         raw = " ".join(args).strip()
-
-#         print("[DEBUG _TOOL] raw:", raw)
-
-
-
-
-#         name = args[0]
-#         print("[DEBUG _TOOL] tool name:", name)
-
-#         print(
-#             "[DEBUG _TOOL] executing:",
-#                 name,
-#                 args,
-# )
-        # try:
-        #     result = await self._tool_service.execute(
-        #     name,
-        #     {},
-        # )
-
-        #     return str(result)
-
-        # except Exception as exc:
-        #     return (
-        #     f"Tool execution failed: {exc}"
-        # )
-
-
-
     async def _tool(
             self,
             args: list[str],
@@ -332,7 +253,7 @@ class CommandRegistry:
             except Exception as e:
                 return (f"Invalid tool arguments: {e}")
 
-            print(f"[DEBUG _TOOL] Values : {values}")
+            # print(f"[DEBUG _TOOL] Values : {values}")
             
         else:
             name = args[0].strip()
@@ -349,10 +270,10 @@ class CommandRegistry:
 
                 except (ValueError, SyntaxError):
                         values.append(value)
-        print(
-            "[DEBUG _TOOL] Values:",
-            values,
-        )
+        # print(
+        #     "[DEBUG _TOOL] Values:",
+        #     values,
+        # )
             
         if not self._tool_service.exists(name):
             return f"Tool not found : {name}"

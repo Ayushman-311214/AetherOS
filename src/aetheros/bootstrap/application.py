@@ -69,10 +69,7 @@ class Application:
             self._bootstrapper.tool_registry
         )
 
-        print(
-            "[DEBUG APPLICATION] Tools:",
-            self._bootstrapper.tool_registry.names()
-        )
+    
         self._cli = CLIRuntime(
             tool_registry=self._bootstrapper.tool_registry
         )

@@ -67,7 +67,10 @@ class ToolCommandService:
 
     def get_tool(self, name: str):
         return self._registry.get(name)
-
+    
+    def get_names(self)->list[str]:
+        return self._registry.names()
+    
     def exists(self, name: str) -> bool:
         return self._registry.exists(name)
 
