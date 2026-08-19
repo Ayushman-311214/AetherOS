@@ -133,7 +133,7 @@ from pathlib import Path
 
 from loguru import logger
 
-from src.aetheros.config.config_loader import get_settings
+from aetheros.config.config_loader import get_settings
 
 settings = get_settings()
 

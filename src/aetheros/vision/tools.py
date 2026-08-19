@@ -1,10 +1,10 @@
 from __future__ import annotations
 
-from core.container import container
-from tools import tool
+from ..core.container import container
+from ..tools import tool
 
-from desktop.screen.controller import ScreenService
-from vision.controller import VisionService
+from ..desktop.screen.controller import ScreenService
+from .controller import VisionService
 
 
 # ==========================================================

@@ -5,9 +5,9 @@ from pathlib import Path
 
 from ultralytics import YOLO
 
-from vision.image import Image
-from vision.models.detection import Detection
-from vision.providers.base import DetectionProvider
+from ..image import Image
+from ..models.detection import Detection
+from .base import DetectionProvider
 
 
 class YOLOProvider(DetectionProvider):

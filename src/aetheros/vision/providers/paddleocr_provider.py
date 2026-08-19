@@ -6,9 +6,9 @@ import cv2
 
 from paddleocr import PaddleOCR
 
-from vision.image import Image
-from vision.models.text import TextBlock
-from vision.providers.base import OCRProvider
+from ..image import Image
+from ..models.text import TextBlock
+from .base import OCRProvider
 
 
 class PaddleOCRProvider(OCRProvider):

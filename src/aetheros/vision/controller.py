@@ -2,10 +2,10 @@ from __future__ import annotations
 
 from typing import Any
 
-from core.logging import get_logger
+from ..core.logging import get_logger
 
-from vision.image import Image
-from vision.providers.base import (
+from .image import Image
+from .providers.base import (
     OCRProvider,
     VisionProvider,
     DetectionProvider,

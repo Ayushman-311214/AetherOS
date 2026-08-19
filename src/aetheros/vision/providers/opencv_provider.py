@@ -3,8 +3,8 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
-from vision.image import Image
-from vision.providers.base import VisionProvider
+from ..image import Image
+from .base import VisionProvider
 
 
 class OpenCVProvider(VisionProvider):

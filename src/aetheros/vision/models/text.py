@@ -1,100 +1,114 @@
 from __future__ import annotations
 
-import asyncio
-
-import cv2
-
-from paddleocr import PaddleOCR
-
-from vision.image import Image
-from vision.models.text import TextBlock
-from vision.providers.base import OCRProvider
+from dataclasses import dataclass, field
+from typing import Any
 
 
-class PaddleOCRProvider(OCRProvider):
+@dataclass(slots=True)
+class TextBlock:
     """
-    PaddleOCR implementation.
-
-    Loads the OCR model once and reuses it.
+    Represents detected text from OCR.
     """
 
-    def __init__(
-        self,
-        language: str = "en",
-        use_angle_cls: bool = True,
-    ) -> None:
+    text: str
+    confidence: float
 
-        self._ocr = PaddleOCR(
-            lang=language,
-            use_angle_cls=use_angle_cls,
+    left: int
+    top: int
+    right: int
+    bottom: int
+
+    metadata: dict[str, Any] = field(
+        default_factory=dict
+    )
+
+    # ==========================================================
+    # Properties
+    # ==========================================================
+
+    @property
+    def width(self) -> int:
+        return self.right - self.left
+
+    @property
+    def height(self) -> int:
+        return self.bottom - self.top
+
+    @property
+    def area(self) -> int:
+        return self.width * self.height
+
+    @property
+    def center(self) -> tuple[int, int]:
+        return (
+            self.left + self.width // 2,
+            self.top + self.height // 2,
         )
 
     @property
-    def name(self) -> str:
-        return "PaddleOCR"
-
-    @property
-    def version(self) -> str:
-        return "2.x"
+    def bbox(self) -> tuple[int, int, int, int]:
+        return (
+            self.left,
+            self.top,
+            self.right,
+            self.bottom,
+        )
 
     # ==========================================================
-    # OCR
+    # Utilities
     # ==========================================================
 
-    async def read_text(
+    def contains(
         self,
-        image: Image,
-    ) -> list[TextBlock]:
+        x: int,
+        y: int,
+    ) -> bool:
+        """
+        Check whether a point lies inside the text block.
+        """
 
-        return await asyncio.to_thread(
-            self._read_sync,
-            image,
+        return (
+            self.left <= x <= self.right
+            and
+            self.top <= y <= self.bottom
         )
 
-    # ==========================================================
-    # Internal
-    # ==========================================================
-
-    def _read_sync(
+    def matches(
         self,
-        image: Image,
-    ) -> list[TextBlock]:
+        query: str,
+        case_sensitive: bool = False,
+    ) -> bool:
+        """
+        Check if text contains query.
+        """
 
-        rgb = cv2.cvtColor(
-            image.data,
-            cv2.COLOR_BGR2RGB,
+        if case_sensitive:
+            return query in self.text
+
+        return query.lower() in self.text.lower()
+
+    def to_dict(self) -> dict[str, Any]:
+        """
+        Convert to serializable dictionary.
+        """
+
+        return {
+            "text": self.text,
+            "confidence": self.confidence,
+            "left": self.left,
+            "top": self.top,
+            "right": self.right,
+            "bottom": self.bottom,
+            "width": self.width,
+            "height": self.height,
+            "center": self.center,
+            "metadata": self.metadata,
+        }
+
+    def __repr__(self) -> str:
+        return (
+            f"TextBlock("
+            f"text={self.text!r}, "
+            f"confidence={self.confidence:.2f}, "
+            f"bbox={self.bbox})"
         )
-
-        result = self._ocr.ocr(
-            rgb,
-            cls=True,
-        )
-
-        blocks: list[TextBlock] = []
-
-        if not result:
-            return blocks
-
-        for line in result:
-
-            if line is None:
-                continue
-
-            for box, (text, confidence) in line:
-
-                xs = [int(p[0]) for p in box]
-                ys = [int(p[1]) for p in box]
-
-                blocks.append(
-                    TextBlock(
-                        text=text,
-                        confidence=float(confidence),
-
-                        left=min(xs),
-                        top=min(ys),
-                        right=max(xs),
-                        bottom=max(ys),
-                    )
-                )
-
-        return blocks
