@@ -20,12 +20,13 @@ class CommandRegistry:
     Registry for AetherOS CLI commands.
     """
 
-    def __init__(self,tool_service=None) -> None:
+    def __init__(self,tool_service=None, llm_service=None,) -> None:
         # self._commands: dict[str, CommandHandler] = {}
         self._commands = {}
         self._tool_service = tool_service
         # print("[TOOL_SERVICE] --------------> ",tool_service)
-
+        self._llm_service = llm_service
+        
         self.register("help", self._help)
         self.register("status", self._status)
         self.register("tools", self._tools)
@@ -35,6 +36,9 @@ class CommandRegistry:
         self.register("browser", self._browser)
         self.register("vision", self._vision)
         self.register("llm", self._llm)
+
+        self.register("ask", self._ask)
+
 
         self.register("clear", self._clear)
 
@@ -84,10 +88,10 @@ class CommandRegistry:
     )
         result=handler(command.args)
 
-        print(
-        "[DEBUG COMMANDS] handler result:",
-        result,
-    )
+    #     print(
+    #     "[DEBUG COMMANDS] handler result:",
+    #     result,
+    # )
 
         if inspect.isawaitable(result):
             result = await result
@@ -106,6 +110,7 @@ class CommandRegistry:
 
                 help       Show available commands
                 status     Show system status
+                ask        Send a message to the LLM
                 tools      List registered tools
                 desktop    Desktop operations
                 browser    Browser operations
@@ -202,7 +207,28 @@ class CommandRegistry:
         return "Vision subsystem."
 
     def _llm(self, args: list[str]) -> str:
-        return "LLM subsystem."
+        """
+        Show LLM provider status and model information.
+        """
+
+        if self._llm_service is None:
+            return (
+                "\n"
+                "LLM\n"
+                "---\n"
+                "Status : NOT CONNECTED\n"
+            )
+
+        provider = self._llm_service
+
+        return (
+            "\n"
+            "LLM Status\n"
+            "----------\n"
+            f"Provider : {provider.name}\n"
+            f"Model    : {provider.model}\n"
+            "Status   : ONLINE\n"
+        )
     
     async def _tool(
             self,
@@ -249,7 +275,7 @@ class CommandRegistry:
                     # for value in raw_arguments.split(",")
                     ]
                 else:
-                    value=[]
+                    values=[]
             except Exception as e:
                 return (f"Invalid tool arguments: {e}")
 
@@ -292,7 +318,7 @@ class CommandRegistry:
             tool_definition,
         )
         print("[DEBUG _TOOL] name:", name)
-        print("[DEBUG _TOOL] arguments:", arguments)
+        # print("[DEBUG _TOOL] arguments:", arguments)
     # ==========================================================
     # Get underlying function
     # ==========================================================
@@ -466,3 +492,48 @@ class CommandRegistry:
             return (
                 f"Tool execution failed: {exc}"
             )
+            
+            
+    async def _ask(
+    self,
+    args: list[str],
+) -> str:
+
+        if self._llm_service is None:
+            return (
+                "\n"
+                "LLM\n"
+                "---\n"
+                "Status : NOT CONNECTED\n"
+            )
+
+        if not args:
+            return "Usage: ask <message>"
+
+        prompt = " ".join(args).strip()
+
+        if not prompt:
+            return "Usage: ask <message>"
+
+        try:
+            response = await self._llm_service.generate(
+                messages=[
+                    {
+                        "role": "user",
+                        "content": prompt,
+                    }
+                ]
+            )
+
+            return response
+
+        except Exception as exc:
+            return (
+                f"LLM request failed: "
+                f"{type(exc).__name__}: {exc}"
+            )
+                
+                
+                
+                
+            

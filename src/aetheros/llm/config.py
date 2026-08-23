@@ -3,11 +3,18 @@ from __future__ import annotations
 import os
 from dataclasses import dataclass
 
+from dotenv import load_dotenv
+
+load_dotenv()
+
 
 @dataclass(slots=True)
 class LLMConfig:
     """
     Configuration for an OpenAI-compatible LLM provider.
+
+    Values can be provided manually or loaded from environment variables.
+    Manual values always take priority.
     """
 
     api_key: str
@@ -21,29 +28,39 @@ class LLMConfig:
     def from_env(
         cls,
         *,
-        api_key_env: str = "OPENAI_API_KEY",
+        api_key: str | None = None,
+        model: str | None = None,
+        base_url: str | None = None,
+        api_key_env: str = "LLM_API_KEY",
         model_env: str = "LLM_MODEL",
         base_url_env: str = "LLM_BASE_URL",
     ) -> "LLMConfig":
 
-        api_key = os.getenv(api_key_env)
-
-        if not api_key:
-            raise RuntimeError(
-                f"Missing environment variable: {api_key_env}"
-            )
-
-        model = os.getenv(
-            model_env,
-            "gpt-4o-mini",
+        # Manual value → environment → default
+        resolved_api_key = (
+            api_key
+            or os.getenv(api_key_env)
         )
 
-        base_url = os.getenv(
-            base_url_env
+        if not resolved_api_key:
+            raise RuntimeError(
+                f"Missing API key. Provide 'api_key' "
+                f"or set {api_key_env}."
+            )
+
+        resolved_model = (
+            model
+            or os.getenv(model_env)
+            or "gpt-4o-mini"
+        )
+
+        resolved_base_url = (
+            base_url
+            or os.getenv(base_url_env)
         )
 
         return cls(
-            api_key=api_key,
-            model=model,
-            base_url=base_url,
+            api_key=resolved_api_key,
+            model=resolved_model,
+            base_url=resolved_base_url,
         )

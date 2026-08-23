@@ -1,7 +1,20 @@
 .env
-__pycache__
-.idea
-venv
-.pytest_cache
-.vscode
-.claude
+__pycache__/
+.idea/
+venv/
+venv*/
+.pytest_cache/
+.vscode/
+.claude/
+
+# Logs
+*.log
+
+# Runtime/generated files
+src/aetheros/logs/
+src/logs/
+
+# Archives / test artifacts
+*.zip
+.env
+.env

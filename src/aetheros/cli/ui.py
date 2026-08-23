@@ -107,6 +107,7 @@ class CLIUI:
             ("help", "Show available commands"),
             ("status", "Show system status"),
             ("tools", "List registered tools"),
+            ("ask", "Send a message to the LLM"),
             ("desktop", "Desktop operations"),
             ("browser", "Browser operations"),
             ("vision", "Vision operations"),

@@ -3,8 +3,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Any
 
-from core.interfaces.screen_controller import ScreenController
-from core.logging import get_logger
+from ...core.interfaces.screen_controller import ScreenshotController
+from ...core.logging import get_logger
 
 
 class ScreenService:
@@ -19,7 +19,7 @@ class ScreenService:
 
     def __init__(
         self,
-        controller: ScreenController,
+        controller: ScreenshotController,
     ) -> None:
 
         self._controller = controller

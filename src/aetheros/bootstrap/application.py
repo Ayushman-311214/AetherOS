@@ -7,6 +7,7 @@ from ..cli.main import CLIRuntime
 
 import asyncio
 from ..tools.registry import tool_registry
+from ..core.container import container
 
 class Application:
     """
@@ -60,6 +61,9 @@ class Application:
         # ----------------------------------------------
         from ..cli import CLIRuntime
 
+        llm_provider = container.resolve(
+            "llm_provider"
+        )
         print(
             "[DEBUG APPLICATION] Bootstrap complete."
         )
@@ -71,7 +75,8 @@ class Application:
 
     
         self._cli = CLIRuntime(
-            tool_registry=self._bootstrapper.tool_registry
+            tool_registry=self._bootstrapper.tool_registry,
+            llm_service=llm_provider,
         )
 
         self._running = True

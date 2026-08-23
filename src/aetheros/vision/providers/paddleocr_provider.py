@@ -3,6 +3,9 @@ from __future__ import annotations
 import asyncio
 
 import cv2
+import os
+os.environ["FLAGS_enable_pir_api"] = "0"
+os.environ["FLAGS_use_mkldnn"] = "0"
 
 from paddleocr import PaddleOCR
 
@@ -27,6 +30,7 @@ class PaddleOCRProvider(OCRProvider):
         self._ocr = PaddleOCR(
             lang=language,
             use_angle_cls=use_angle_cls,
+            enable_mkldnn=False,
         )
 
     @property
@@ -56,44 +60,63 @@ class PaddleOCRProvider(OCRProvider):
     # ==========================================================
 
     def _read_sync(
-        self,
-        image: Image,
-    ) -> list[TextBlock]:
+    self,
+    image: Image,
+) -> list[TextBlock]:
 
         rgb = cv2.cvtColor(
             image.data,
             cv2.COLOR_BGR2RGB,
         )
 
-        result = self._ocr.ocr(
-            rgb,
-            cls=True,
-        )
+        results = self._ocr.predict(rgb)
 
         blocks: list[TextBlock] = []
 
-        if not result:
+        if not results:
             return blocks
 
-        for line in result:
-
-            if line is None:
+        for result in results:
+            if result is None:
                 continue
 
-            for box, (text, confidence) in line:
+            # PaddleOCR 3.x returns structured prediction results.
+            # Extract the underlying result dictionary.
+            data = getattr(result, "json", None)
 
-                xs = [int(p[0]) for p in box]
-                ys = [int(p[1]) for p in box]
+            if callable(data):
+                data = data()
+
+            if not isinstance(data, dict):
+                continue
+
+            # PaddleOCR 3.x OCR result fields.
+            rec_texts = data.get("rec_texts", [])
+            rec_scores = data.get("rec_scores", [])
+            rec_boxes = data.get("rec_boxes", [])
+
+            for text, confidence, box in zip(
+                rec_texts,
+                rec_scores,
+                rec_boxes,
+            ):
+                if not text:
+                    continue
+
+                # rec_boxes are normally [x1, y1, x2, y2]
+                if len(box) != 4:
+                    continue
+
+                x1, y1, x2, y2 = [int(v) for v in box]
 
                 blocks.append(
                     TextBlock(
-                        text=text,
+                        text=str(text),
                         confidence=float(confidence),
-
-                        left=min(xs),
-                        top=min(ys),
-                        right=max(xs),
-                        bottom=max(ys),
+                        left=x1,
+                        top=y1,
+                        right=x2,
+                        bottom=y2,
                     )
                 )
 

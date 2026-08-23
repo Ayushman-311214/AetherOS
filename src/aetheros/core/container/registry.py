@@ -6,7 +6,7 @@ container=ServiceContainer()
 container.register_singleton(
     "settings",
     get_settings,
-   
+    
 )
 
 container.register_singleton(

@@ -1,6 +1,7 @@
 import asyncio
 
-from src.aetheros.llm.config import LLMConfig
+# from ...src.aetheros.llm.config import LLMConfig
+from  src.aetheros.llm.config import LLMConfig
 from src.aetheros.llm.providers.openai_compatible import (
     OpenAICompatibleProvider,
 )

@@ -10,7 +10,7 @@ class CLIRuntime:
     Interactive AetherOS CLI runtime.
     """
 
-    def __init__(self, tool_registry=None) -> None:
+    def __init__(self, tool_registry=None,llm_service=None,) -> None:
         print("\n[DEBUG CLI] ===== CLI INIT =====")
         print("[DEBUG CLI] received registry:", tool_registry)
 
@@ -51,7 +51,8 @@ class CLIRuntime:
 
 
         self._commands = CommandRegistry(
-            self._tool_service
+            self._tool_service,
+            llm_service,
         )
 
         self._ui = CLIUI()

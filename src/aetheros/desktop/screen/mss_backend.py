@@ -8,7 +8,7 @@ import mss.tools
 import numpy as np
 from PIL import Image
 
-from core.interfaces.screen_controller import ScreenController
+from ...core.interfaces.screen_controller import ScreenController
 
 
 class MSSScreen(ScreenController):

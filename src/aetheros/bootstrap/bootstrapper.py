@@ -1,4 +1,6 @@
 from __future__ import annotations
+
+from ..vision.providers.base import BaseVisionProvider
 from ..tools.discovery import tool_discovery
 from ..core.container import container
 
@@ -287,6 +289,59 @@ class Bootstrapper:
         )
 
 
+    async def _bootstrap_vision(self) -> None:
+        self._logger.debug(
+            "Initializing vision services..."
+        )
+
+        from ..vision.controller import VisionService
+        from ..vision.providers.opencv_provider import OpenCVProvider
+        from ..vision.providers.paddleocr_provider import PaddleOCRProvider
+
+        # ---------------------------------------------------------
+        # OpenCV provider
+        # ---------------------------------------------------------
+
+        opencv = OpenCVProvider()
+
+        self._container.register_singleton(
+            OpenCVProvider,
+            lambda: opencv,
+        )
+
+        # ---------------------------------------------------------
+        # PaddleOCR provider
+        # ---------------------------------------------------------
+
+        ocr = PaddleOCRProvider()
+
+        self._container.register_singleton(
+            PaddleOCRProvider,
+            lambda: ocr,
+        )
+
+        # ---------------------------------------------------------
+        # Vision service
+        # ---------------------------------------------------------
+
+        self._container.register_singleton(
+            VisionService,
+            lambda: VisionService(
+                ocr=self._container.resolve(PaddleOCRProvider),
+                cv=self._container.resolve(OpenCVProvider),
+            ),
+        )
+
+        self._logger.info(
+            "Vision services initialized."
+        )
+
+        print(
+            "[DEBUG BOOTSTRAP VISION] Registry:",
+            self._container.registered_services(),
+        )
+        
+    
 
     async def _bootstrap_tools(self) -> None:
         print("\n========== TOOL BOOTSTRAP START ==========")
@@ -311,10 +366,10 @@ class Bootstrapper:
         import src.aetheros.desktop.mouse.tools
         import src.aetheros.desktop.keyboard.tools
         import src.aetheros.desktop.clipboard.tools
+        print("[DEBUG BOOTSTRAP] Desktop tools import finished")
+        import src.aetheros.vision.tools
+        print("[DEBUG BOOTSTRAP] Vision tools import finished")
 
-        print("[DEBUG BOOTSTRAP] Mouse tools import finished")
-
-        
 
         print(
             "[DEBUG BOOTSTRAP] Tool count:",
@@ -323,12 +378,8 @@ class Bootstrapper:
 
         print("========== TOOL BOOTSTRAP END ==========\n")
 
-
-    async def _bootstrap_vision(self) -> None:
-        self._logger.debug(
-            "Initializing vision services..."
-        )
-
+    
+        
     async def _bootstrap_browser(self) -> None:
         self._logger.debug(
             "Initializing browser services..."
@@ -340,10 +391,91 @@ class Bootstrapper:
         )
 
     async def _bootstrap_llm(self) -> None:
-        self._logger.debug(
+        self._logger.info(
             "Initializing LLM providers..."
         )
 
+        from ..core.container import container
+
+        from ..llm.config import LLMConfig
+        from ..llm.manager import LLMProviderManager
+        from ..llm.providers.openai_compatible import (
+            OpenAICompatibleProvider,
+        )
+
+        # ----------------------------------------------------------
+        # Configuration
+        # ----------------------------------------------------------
+
+        config = LLMConfig.from_env()
+
+        self._logger.debug(
+            "LLM model: %s",
+            config.model,
+        )
+
+        self._logger.debug(
+            "LLM base URL: %s",
+            config.base_url,
+        )
+
+        # ----------------------------------------------------------
+        # Provider
+        # ----------------------------------------------------------
+
+        provider = OpenAICompatibleProvider(
+            config,
+            provider_name="openai-compatible",
+        )
+
+        await provider.initialize()
+
+        # ----------------------------------------------------------
+        # Manager
+        # ----------------------------------------------------------
+
+        manager = LLMProviderManager()
+
+        manager.register(
+            provider
+        )
+
+        manager.set_active(
+            provider.name
+        )
+
+        # ----------------------------------------------------------
+        # Container
+        # ----------------------------------------------------------
+
+        container.register_singleton(
+            LLMProviderManager,
+            lambda: manager,
+        )
+
+        container.register_singleton(
+            "llm_provider",
+            lambda: provider,
+        )
+
+        # ----------------------------------------------------------
+        # Health
+        # ----------------------------------------------------------
+
+        healthy = await provider.health_check()
+
+        if healthy:
+            self._logger.info(
+                "LLM provider '%s' is healthy.",
+                provider.name,
+            )
+        else:
+            self._logger.warning(
+                "LLM provider '%s' failed health check.",
+                provider.name,
+            )
+            
+            
     async def _bootstrap_lifecycle(self) -> None:
         self._logger.debug(
             "Initializing lifecycle manager..."

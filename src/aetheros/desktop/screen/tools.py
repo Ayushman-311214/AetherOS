@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from core.container import container
-from tools import tool
+from ...core.container import container
+from ...tools import tool
 
 from .controller import ScreenService
 

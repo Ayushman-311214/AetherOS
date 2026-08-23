@@ -47,7 +47,7 @@ class ToolCommandService:
 
         print(
             "[DEBUG TOOL SERVICE] Registry names:",
-            names,
+            
         )
 
         return names
