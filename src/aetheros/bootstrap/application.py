@@ -61,30 +61,25 @@ class Application:
         # ----------------------------------------------
         from ..cli import CLIRuntime
 
+        # Both are handed over: the loop drives `ask`, while `llm` reports the
+        # provider's name and model, which the loop does not expose.
         llm_provider = container.resolve(
             "llm_provider"
         )
-        print(
-            "[DEBUG APPLICATION] Bootstrap complete."
+
+        tool_loop = container.resolve(
+            "llm_tool_loop"
         )
 
-        print(
-            "[DEBUG APPLICATION] Registry:",
-            self._bootstrapper.tool_registry
-        )
-
-    
         self._cli = CLIRuntime(
             tool_registry=self._bootstrapper.tool_registry,
             llm_service=llm_provider,
+            tool_loop=tool_loop,
         )
 
         self._running = True
 
         self._logger.info("AetherOS started successfully.")
-
-
-
 
     async def run(self) -> None:
         if not self._running:

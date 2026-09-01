@@ -1,4 +1,0 @@
-curl https://api.bluesminds.com/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk-sLm91YrZ4hzZj1haNqVmZrpgmQzLSlJ0KRbiBb1dBgtt7WJ0" \
-  -d '{"model":"meta/llama-3.1-8b-instruct","messages":[{"role":"user","content":"Say hello in one sentence."}]}'

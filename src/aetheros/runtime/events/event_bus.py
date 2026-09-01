@@ -6,8 +6,8 @@ from collections import defaultdict
 from collections.abc import Awaitable, Callable
 from typing import Any
 
-from core.logging import get_logger
-from runtime.events.events import Event
+from ...core.logging import get_logger
+from .events import Event
 
 logger = get_logger("event_bus")
 

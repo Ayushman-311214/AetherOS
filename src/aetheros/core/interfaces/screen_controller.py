@@ -1,159 +1,97 @@
-# from __future__ import annotations
-
-# from abc import ABC, abstractmethod
-# from pathlib import Path
-# from typing import Any
-
-
-# class ScreenController(ABC):
-#     """
-#     Abstract interface for screen operations.
-
-#     Every screen implementation (MSS, PIL, DXGI, etc.)
-#     must implement this interface.
-#     """
-
-#     # ==========================================================
-#     # Screen Information
-#     # ==========================================================
-
-#     @abstractmethod
-#     def size(self) -> tuple[int, int]:
-#         """
-#         Returns the primary screen resolution.
-
-#         Example:
-#             (1920, 1080)
-#         """
-#         ...
-
-#     @abstractmethod
-#     def monitors(self) -> list[dict[str, Any]]:
-#         """
-#         Returns information about all connected monitors.
-#         """
-#         ...
-
-#     # ==========================================================
-#     # Screenshot
-#     # ==========================================================
-
-#     @abstractmethod
-#     def screenshot(
-#         self,
-#         save_path: str | Path | None = None,
-#     ) -> Any:
-#         """
-#         Capture the entire screen.
-
-#         Returns:
-#             Image object
-#         """
-#         ...
-
-#     @abstractmethod
-#     def screenshot_region(
-#         self,
-#         x: int,
-#         y: int,
-#         width: int,
-#         height: int,
-#         save_path: str | Path | None = None,
-#     ) -> Any:
-#         """
-#         Capture a region of the screen.
-#         """
-#         ...
-
-#     @abstractmethod
-#     def screenshot_monitor(
-#         self,
-#         monitor: int,
-#         save_path: str | Path | None = None,
-#     ) -> Any:
-#         """
-#         Capture an entire monitor.
-#         """
-#         ...
-
-#     # ==========================================================
-#     # Pixel Operations
-#     # ==========================================================
-
-#     @abstractmethod
-#     def pixel(
-#         self,
-#         x: int,
-#         y: int,
-#     ) -> tuple[int, int, int]:
-#         """
-#         Returns RGB color of a pixel.
-#         """
-#         ...
-
-#     @abstractmethod
-#     def pixel_matches(
-#         self,
-#         x: int,
-#         y: int,
-#         rgb: tuple[int, int, int],
-#         tolerance: int = 0,
-#     ) -> bool:
-#         """
-#         Check whether a pixel matches a given color.
-#         """
-#         ...
-
-#     # ==========================================================
-#     # Utilities
-#     # ==========================================================
-
-#     @abstractmethod
-#     def save(
-#         self,
-#         image: Any,
-#         path: str | Path,
-#     ) -> None:
-#         """
-#         Save an image to disk.
-#         """
-#         ...
-
-
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from pathlib import Path
+from typing import Any
+
+import numpy as np
 
 
-class ScreenshotController(ABC):
+class ScreenController(ABC):
     """
-    Abstract interface for screen capture operations.
+    Abstract interface for raw screen-capture backends (MSS, DXGI, ...).
+
+    Capture returns pixels rather than a file path: the vision engine consumes
+    frames in memory, and forcing every capture through a temporary PNG would
+    add disk I/O to the OCR path for no benefit. When a saved file *is* the
+    product, capture a frame and hand it to :meth:`save` — that keeps one
+    capture backend rather than two whose colour handling can drift apart.
+
+    Colour space
+    ------------
+    ``capture`` and ``capture_region`` return **BGR** ``uint8`` arrays of shape
+    ``(height, width, 3)``. BGR is what OpenCV, PaddleOCR and PaddleX all treat
+    as the default for a raw numpy array, so returning anything else here would
+    silently swap the red and blue channels of every downstream consumer.
     """
+
+    # ==========================================================
+    # Screen Capture
+    # ==========================================================
 
     @abstractmethod
-    def capture(self) -> Path:
+    def capture(self) -> np.ndarray:
         """
-        Capture the full screen and return the image path.
+        Capture the primary monitor as a BGR array.
         """
         ...
 
     @abstractmethod
     def capture_region(
         self,
-        x: int,
-        y: int,
+        left: int,
+        top: int,
         width: int,
         height: int,
-    ) -> Path:
+    ) -> np.ndarray:
         """
-        Capture a screen region and return the image path.
+        Capture a rectangular region as a BGR array.
+        """
+        ...
+
+    # ==========================================================
+    # Utilities
+    # ==========================================================
+
+    @abstractmethod
+    def save(
+        self,
+        image: np.ndarray,
+        path: str | Path,
+    ) -> None:
+        """
+        Write a BGR array to disk, preserving its colours.
+        """
+        ...
+
+    # ==========================================================
+    # Screen Information
+    # ==========================================================
+
+    @abstractmethod
+    def size(self) -> tuple[int, int]:
+        """
+        Return the primary monitor resolution as ``(width, height)``.
         """
         ...
 
     @abstractmethod
-    def screen_size(self) -> tuple[int, int]:
+    def monitors(self) -> list[dict[str, Any]]:
         """
-        Return screen width and height.
+        Return metadata for every connected monitor.
         """
         ...
+
+    # ==========================================================
+    # Lifecycle
+    # ==========================================================
+
+    def close(self) -> None:
+        """
+        Release backend resources.
+
+        Concrete, not abstract: a backend holding no OS handle has nothing to
+        release, and shutdown code should be able to call this unconditionally.
+        """
+
+        return None

@@ -20,16 +20,6 @@ class ToolCommandService:
         self._registry = registry
         self._executor = executor
 
-        print("[DEBUG TOOL SERVICE] Registry:", self._registry)
-        print(
-            "[DEBUG TOOL SERVICE] Count:",
-            self._registry.count,
-        )
-        print(
-            "[DEBUG TOOL SERVICE] Tools:",
-            self._registry.names(),
-        )
-
     # ==========================================================
     # Discovery
     # ==========================================================
@@ -39,18 +29,7 @@ class ToolCommandService:
         Return registered tool names.
         """
 
-        print(
-            "[DEBUG TOOL SERVICE] list_tools() called"
-        )
-
-        names = self._registry.names()
-
-        print(
-            "[DEBUG TOOL SERVICE] Registry names:",
-            
-        )
-
-        return names
+        return self._registry.names()
 
     def list_categories(self) -> list[str]:
         return self._registry.categories()
@@ -68,9 +47,12 @@ class ToolCommandService:
     def get_tool(self, name: str):
         return self._registry.get(name)
     
-    def get_names(self)->list[str]:
-        return self._registry.names()
+    # def get_args(self,name:str):
+    #     return self._registry.args(name)
     
+    def get_names(self) -> list[str]:
+        return self._registry.names()
+
     def exists(self, name: str) -> bool:
         return self._registry.exists(name)
 
@@ -85,14 +67,15 @@ class ToolCommandService:
         self,
         name: str,
         arguments: dict[str, Any] | None = None,
-    ) -> str:
+    ) -> Any:
         """
         Execute a registered AetherOS tool.
+
+        Raises ToolError on failure; the CLI command that calls this reports the
+        message to the user.
         """
-        arguments = arguments or {}
 
         return await self._executor.execute(
             name,
             arguments or {},
         )
-        return str(result)

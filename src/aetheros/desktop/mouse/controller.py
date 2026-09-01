@@ -30,20 +30,21 @@ class MouseService:
 
     async def move(
         self,
-        dx: int,
-        dy: int,
+        x: int,
+        y: int,
         duration: float = 0.0,
     ) -> None:
 
-        self._logger.debug(
-            "Moving mouse to (%s, %s)",
-            dx,
-            dy,
-        )
+        # bind(), not %-style args: loguru formats with str.format, so
+        # positional args would be dropped silently.
+        self._logger.bind(
+            x=x,
+            y=y,
+        ).debug("Moving mouse to absolute position.")
 
         self._controller.move_to(
-            dx=dx,
-            dy=dy,
+            x=x,
+            y=y,
             duration=duration,
         )
 
@@ -93,6 +94,39 @@ class MouseService:
     async def middle_click(self) -> None:
 
         self._controller.middle_click()
+
+    # ==========================================================
+    # Button State
+    # ==========================================================
+
+    async def mouse_down(
+        self,
+        button: str = "left",
+    ) -> None:
+        """
+        Press a button and leave it held.
+
+        Exposed separately from click() because a held button is what makes
+        press-drag-release sequences possible: selecting a range of text,
+        dragging a scrollbar, drawing on a canvas. drag_to() covers the common
+        case in one call; this is for the cases it cannot express.
+        """
+
+        self._logger.bind(button=button).debug("Holding mouse button.")
+
+        self._controller.mouse_down(button=button)
+
+    async def mouse_up(
+        self,
+        button: str = "left",
+    ) -> None:
+        """
+        Release a held button.
+        """
+
+        self._logger.bind(button=button).debug("Releasing mouse button.")
+
+        self._controller.mouse_up(button=button)
 
     # ==========================================================
     # Drag

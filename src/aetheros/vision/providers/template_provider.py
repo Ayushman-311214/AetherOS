@@ -3,6 +3,8 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
+from ...core.errors.base_error import ErrorContext
+from ...core.errors.vision_error import VisionError
 from ..image import Image
 from ..models.match import TemplateMatch
 from .base import TemplateProvider
@@ -45,23 +47,51 @@ class OpenCVTemplateProvider(TemplateProvider):
             List of matches above threshold
         """
 
-        # Convert to grayscale for better matching
-        img_gray = cv2.cvtColor(
-            image.data,
-            cv2.COLOR_BGR2GRAY,
-        ) if image.channels == 3 else image.data
+        if not 0.0 <= threshold <= 1.0:
+            raise VisionError(
+                code="INVALID_ARGUMENT",
+                message=(
+                    f"Match threshold must be within 0.0-1.0, got {threshold}."
+                ),
+                context=self._context("find"),
+            )
 
-        template_gray = cv2.cvtColor(
-            template.data,
-            cv2.COLOR_BGR2GRAY,
-        ) if template.channels == 3 else template.data
+        # matchTemplate requires the template to fit inside the source; it
+        # raises a bare cv2.error naming neither image otherwise.
+        if (
+            template.width > image.width
+            or template.height > image.height
+        ):
+            raise VisionError(
+                code="TEMPLATE_TOO_LARGE",
+                message=(
+                    f"Template ({template.width}x{template.height}) is larger "
+                    f"than the search image ({image.width}x{image.height})."
+                ),
+                context=self._context("find"),
+            )
+
+        # Grayscale for matching. Image.gray() picks the conversion from the
+        # declared colour space and flattens alpha, so a 4-channel screenshot
+        # cannot reach matchTemplate with a channel count the template lacks.
+        img_gray = image.gray().data
+        template_gray = template.gray().data
 
         # Perform template matching
-        result = cv2.matchTemplate(
-            img_gray,
-            template_gray,
-            method,
-        )
+        try:
+            result = cv2.matchTemplate(
+                img_gray,
+                template_gray,
+                method,
+            )
+
+        except cv2.error as exc:
+            raise VisionError(
+                code="TEMPLATE_MATCH_FAILED",
+                message="Template matching failed.",
+                context=self._context("find"),
+                cause=exc,
+            ) from exc
 
         # Find locations above threshold
         locations = np.where(result >= threshold)
@@ -154,6 +184,7 @@ class OpenCVTemplateProvider(TemplateProvider):
             scaled_template_img = Image(
                 data=scaled_template,
                 source=template.source,
+                color_space=template.color_space,
             )
 
             # Find matches at this scale
@@ -172,3 +203,16 @@ class OpenCVTemplateProvider(TemplateProvider):
         )
 
         return all_matches
+
+    # ==========================================================
+    # Internal
+    # ==========================================================
+
+    @staticmethod
+    def _context(operation: str) -> ErrorContext:
+
+        return ErrorContext(
+            module="vision.template",
+            operation=operation,
+            details={"provider": "opencv"},
+        )

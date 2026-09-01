@@ -1,9 +1,11 @@
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 from dotenv import load_dotenv
+
+from ..config.config_loader import get_settings
 
 load_dotenv()
 
@@ -17,7 +19,9 @@ class LLMConfig:
     Manual values always take priority.
     """
 
-    api_key: str
+    # repr=False keeps the key out of the dataclass repr, so it cannot leak
+    # into a log line, an exception message, or a traceback frame dump.
+    api_key: str = field(repr=False)
     model: str
     base_url: str | None = None
 
@@ -48,11 +52,19 @@ class LLMConfig:
                 f"or set {api_key_env}."
             )
 
+        # The fallback comes from configuration (Settings.DEFAULT_MODEL),
+        # never from a model identifier hardcoded here.
         resolved_model = (
             model
             or os.getenv(model_env)
-            or "gpt-4o-mini"
+            or get_settings().DEFAULT_MODEL
         )
+
+        if not resolved_model:
+            raise RuntimeError(
+                f"Missing model. Provide 'model', set {model_env}, "
+                f"or configure DEFAULT_MODEL."
+            )
 
         resolved_base_url = (
             base_url

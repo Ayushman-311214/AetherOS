@@ -3,7 +3,7 @@ requires = ["hatchling>=1.27.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "aetheros"
+name = "AetherOS"
 version = "0.1.0"
 description = "Autonomous AI Computer Operator"
 readme = "README.md"
@@ -11,7 +11,7 @@ requires-python = ">=3.12"
 license = { text = "MIT" }
 
 authors = [
-    { name = "Ayush" }
+    { name = "Ayushman" }
 ]
 
 keywords = [
@@ -112,7 +112,6 @@ dependencies = [
     "tqdm>=4.67.1",
     "pyyaml>=6.0.2"
     
-   
 
 ]
 
@@ -124,6 +123,17 @@ browser = [
 
 dev = [
     "pytest>=8.4.1",
+
+    # Declared because the whole async surface of the suite depends on it.
+    # Every async test carries an explicit @pytest.mark.asyncio (there is no
+    # asyncio_mode set below), so without this plugin those tests do not fail —
+    # they are collected, skipped with an "unknown mark" warning, and the run
+    # still reports green. It was already present in the working venv, which is
+    # exactly why the omission went unnoticed; a fresh `pip install -e .[dev]`
+    # would have produced a suite that silently stopped testing the executor,
+    # the verifier and the automation engine.
+    "pytest-asyncio>=0.24.0",
+
     "pytest-cov>=6.2.1",
     "black>=25.1.0",
     "ruff>=0.12.8",
@@ -132,7 +142,7 @@ dev = [
 ]
 
 [project.scripts]
-aether = "cli.main:app"
+aether = "aetheros.cli.entrypoint:main"
 
 # ============================================================
 # BLACK
@@ -189,23 +199,27 @@ python_files = [
 
 addopts = "-ra -q"
 
+# The package lives at src/aetheros, so `import aetheros` only resolves once
+# src/ is on sys.path. Setting it here means the suite runs from a clean
+# checkout without an editable install — and, more importantly, that it always
+# imports the *working tree* rather than a stale copy in site-packages.
+pythonpath = [
+    "src"
+]
+
+# Registered so that a genuine typo in a marker name still raises a warning
+# instead of being lost among "unknown mark" noise.
+markers = [
+    "integration: exercises a real backend (OCR model, display) rather than a fake",
+]
+
 # ============================================================
 # COVERAGE
 # ============================================================
 
 [tool.coverage.run]
 source = [
-    "core",
-    "desktop",
-    "vision",
-    "browser",
-    "memory",
-    "runtime",
-    "tools",
-    "llm",
-    "agents",
-    "cli",
-    "config"
+    "src/aetheros"
 ]
 
 # ============================================================
@@ -213,16 +227,10 @@ source = [
 # ============================================================
 
 [tool.hatch.build.targets.wheel]
+# The distribution is the single `aetheros` package under src/. The previous
+# list named eleven top-level directories (core, desktop, vision, ...) that do
+# not exist at the repository root, so the built wheel contained no Python
+# modules at all and `import aetheros` failed after installation.
 packages = [
-    "core",
-    "desktop",
-    "vision",
-    "browser",
-    "memory",
-    "runtime",
-    "tools",
-    "llm",
-    "agents",
-    "cli",
-    "config"
+    "src/aetheros"
 ]

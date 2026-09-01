@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from importlib.metadata import PackageNotFoundError, version as package_version
 from pathlib import Path
 from typing import Any
 
@@ -10,7 +11,7 @@ from playwright.async_api import (
     async_playwright,
 )
 
-from browser.providers.base import BrowserProvider
+from .base import BrowserProvider
 
 
 class PlaywrightProvider(BrowserProvider):
@@ -25,6 +26,33 @@ class PlaywrightProvider(BrowserProvider):
         self._page: Page | None = None
 
     # ==========================================================
+    # Provider information
+    # ==========================================================
+
+    @property
+    def name(self) -> str:
+        return "playwright"
+
+    @property
+    def version(self) -> str:
+        """
+        The installed Playwright version.
+
+        Read from package metadata rather than hard-coded: a pinned string goes
+        stale on the next upgrade, and this value ends up in audit logs where a
+        wrong version is worse than no version.
+        """
+
+        try:
+            return package_version("playwright")
+
+        except PackageNotFoundError:
+            # Importable but not installed as a distribution — a vendored or
+            # editable checkout. The provider still works; only the version is
+            # unknown, and saying so beats inventing a number.
+            return "unknown"
+
+    # ==========================================================
     # Internal
     # ==========================================================
 
@@ -33,6 +61,22 @@ class PlaywrightProvider(BrowserProvider):
         if self._page is None:
             raise RuntimeError("Browser has not been launched.")
         return self._page
+
+    @property
+    def _live_context(self) -> BrowserContext:
+        """
+        The browser context, or a diagnosable error.
+
+        Reaching through ``self._context`` directly gives
+        ``AttributeError: 'NoneType' object has no attribute 'new_page'``, which
+        tells an agent nothing. This mirrors :attr:`page` so every entry point
+        fails the same legible way.
+        """
+
+        if self._context is None:
+            raise RuntimeError("Browser has not been launched.")
+
+        return self._context
 
     # ==========================================================
     # Lifecycle
@@ -64,6 +108,15 @@ class PlaywrightProvider(BrowserProvider):
 
         if self._playwright:
             await self._playwright.stop()
+
+        # Cleared, not just closed: leaving the handles set means `page` hands
+        # back a dead Page, so the next tool call fails somewhere inside
+        # Playwright instead of saying "Browser has not been launched." It also
+        # makes close() idempotent, which shutdown relies on.
+        self._page = None
+        self._context = None
+        self._browser = None
+        self._playwright = None
 
     # ==========================================================
     # Navigation
@@ -204,11 +257,11 @@ class PlaywrightProvider(BrowserProvider):
 
     async def new_tab(self) -> None:
 
-        self._page = await self._context.new_page()
+        self._page = await self._live_context.new_page()
 
-    async def pages(self):
+    async def pages(self) -> list[Any]:
 
-        return self._context.pages
+        return list(self._live_context.pages)
 
     # ==========================================================
     # Downloads

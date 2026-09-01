@@ -1,0 +1,979 @@
+2026-08-24 09:34:11.248 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\vision\tools.py", line 82, in capture_screen
+    screen = container.resolve(ScreenService)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 73, in resolve
+    raise KeyError(f"Service '{name}' is not registered.")
+KeyError: "Service '<class 'src.aetheros.desktop.screen.controller.ScreenService'>' is not registered."
+2026-08-26 15:16:32.788 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\screen\tools.py", line 103, in save_screenshot
+    await screen.save(
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\screen\controller.py", line 90, in save
+    self._controller.save(
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\screen\mss_backend.py", line 127, in save
+    if not cv2.imwrite(str(target), image):
+cv2.error: OpenCV(5.0.0) D:\a\opencv-python\opencv-python\opencv\modules\imgcodecs\src\loadsave.cpp:1072: error: (-2:Unspecified error) could not find a writer for the specified extension in function 'cv::imwrite_'
+
+2026-08-26 15:16:35.340 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\screen\tools.py", line 103, in save_screenshot
+    await screen.save(
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\screen\controller.py", line 90, in save
+    self._controller.save(
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\screen\mss_backend.py", line 127, in save
+    if not cv2.imwrite(str(target), image):
+cv2.error: OpenCV(5.0.0) D:\a\opencv-python\opencv-python\opencv\modules\imgcodecs\src\loadsave.cpp:1072: error: (-2:Unspecified error) could not find a writer for the specified extension in function 'cv::imwrite_'
+
+2026-08-26 15:16:42.400 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\screen\tools.py", line 103, in save_screenshot
+    await screen.save(
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\screen\controller.py", line 90, in save
+    self._controller.save(
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\screen\mss_backend.py", line 127, in save
+    if not cv2.imwrite(str(target), image):
+cv2.error: OpenCV(5.0.0) D:\a\opencv-python\opencv-python\opencv\modules\imgcodecs\src\loadsave.cpp:1072: error: (-2:Unspecified error) could not find a writer for the specified extension in function 'cv::imwrite_'
+
+2026-08-26 15:17:51.357 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 82, in goto_url
+    await _browser().goto(url)
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 27, in _browser
+    return container.resolve(BrowserService)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 508, in <lambda>
+    self._container.resolve(PlaywrightProvider)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 502, in <lambda>
+    lambda: PlaywrightProvider(),
+TypeError: Can't instantiate abstract class PlaywrightProvider without an implementation for abstract methods 'name', 'version'
+2026-08-26 15:18:22.120 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 82, in goto_url
+    await _browser().goto(url)
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 27, in _browser
+    return container.resolve(BrowserService)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 508, in <lambda>
+    self._container.resolve(PlaywrightProvider)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 502, in <lambda>
+    lambda: PlaywrightProvider(),
+TypeError: Can't instantiate abstract class PlaywrightProvider without an implementation for abstract methods 'name', 'version'
+2026-08-26 15:18:32.174 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 82, in goto_url
+    await _browser().goto(url)
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 27, in _browser
+    return container.resolve(BrowserService)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 508, in <lambda>
+    self._container.resolve(PlaywrightProvider)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 502, in <lambda>
+    lambda: PlaywrightProvider(),
+TypeError: Can't instantiate abstract class PlaywrightProvider without an implementation for abstract methods 'name', 'version'
+2026-08-26 15:39:57.224 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 56, in open_browser
+    await _browser().launch(
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 27, in _browser
+    return container.resolve(BrowserService)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 508, in <lambda>
+    self._container.resolve(PlaywrightProvider)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 502, in <lambda>
+    lambda: PlaywrightProvider(),
+TypeError: Can't instantiate abstract class PlaywrightProvider without an implementation for abstract methods 'name', 'version'
+2026-08-26 15:39:57.234 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 82, in goto_url
+    await _browser().goto(url)
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 27, in _browser
+    return container.resolve(BrowserService)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 508, in <lambda>
+    self._container.resolve(PlaywrightProvider)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 502, in <lambda>
+    lambda: PlaywrightProvider(),
+TypeError: Can't instantiate abstract class PlaywrightProvider without an implementation for abstract methods 'name', 'version'
+2026-08-26 15:39:57.241 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 166, in page_title
+    return await _browser().title()
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 27, in _browser
+    return container.resolve(BrowserService)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 508, in <lambda>
+    self._container.resolve(PlaywrightProvider)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 502, in <lambda>
+    lambda: PlaywrightProvider(),
+TypeError: Can't instantiate abstract class PlaywrightProvider without an implementation for abstract methods 'name', 'version'
+2026-08-26 15:39:57.246 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 175, in current_url
+    return await _browser().url()
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 27, in _browser
+    return container.resolve(BrowserService)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 508, in <lambda>
+    self._container.resolve(PlaywrightProvider)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 502, in <lambda>
+    lambda: PlaywrightProvider(),
+TypeError: Can't instantiate abstract class PlaywrightProvider without an implementation for abstract methods 'name', 'version'
+2026-08-26 15:39:57.251 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 201, in element_text
+    return await _browser().text(selector)
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 27, in _browser
+    return container.resolve(BrowserService)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 508, in <lambda>
+    self._container.resolve(PlaywrightProvider)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 502, in <lambda>
+    lambda: PlaywrightProvider(),
+TypeError: Can't instantiate abstract class PlaywrightProvider without an implementation for abstract methods 'name', 'version'
+2026-08-26 15:39:57.254 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 201, in element_text
+    return await _browser().text(selector)
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 27, in _browser
+    return container.resolve(BrowserService)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 508, in <lambda>
+    self._container.resolve(PlaywrightProvider)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 502, in <lambda>
+    lambda: PlaywrightProvider(),
+TypeError: Can't instantiate abstract class PlaywrightProvider without an implementation for abstract methods 'name', 'version'
+2026-08-26 15:39:57.259 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 139, in fill_input
+    await _browser().fill(
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 27, in _browser
+    return container.resolve(BrowserService)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 508, in <lambda>
+    self._container.resolve(PlaywrightProvider)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 502, in <lambda>
+    lambda: PlaywrightProvider(),
+TypeError: Can't instantiate abstract class PlaywrightProvider without an implementation for abstract methods 'name', 'version'
+2026-08-26 15:39:57.263 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 124, in click_element
+    await _browser().click(selector)
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 27, in _browser
+    return container.resolve(BrowserService)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 508, in <lambda>
+    self._container.resolve(PlaywrightProvider)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 502, in <lambda>
+    lambda: PlaywrightProvider(),
+TypeError: Can't instantiate abstract class PlaywrightProvider without an implementation for abstract methods 'name', 'version'
+2026-08-26 15:39:57.266 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 201, in element_text
+    return await _browser().text(selector)
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 27, in _browser
+    return container.resolve(BrowserService)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 508, in <lambda>
+    self._container.resolve(PlaywrightProvider)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 502, in <lambda>
+    lambda: PlaywrightProvider(),
+TypeError: Can't instantiate abstract class PlaywrightProvider without an implementation for abstract methods 'name', 'version'
+2026-08-26 15:39:57.269 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 256, in execute_javascript
+    return await _browser().evaluate(script)
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 27, in _browser
+    return container.resolve(BrowserService)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 508, in <lambda>
+    self._container.resolve(PlaywrightProvider)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 502, in <lambda>
+    lambda: PlaywrightProvider(),
+TypeError: Can't instantiate abstract class PlaywrightProvider without an implementation for abstract methods 'name', 'version'
+2026-08-26 15:39:57.273 | ERROR    | src.aetheros.tools.executor:_run:204 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 64, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 51, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 432, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 75, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 78, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 180, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 248, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 67, in close_browser
+    await _browser().close()
+  File "D:\AetherOS\AetherOS\src\aetheros\browser\tools.py", line 27, in _browser
+    return container.resolve(BrowserService)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 508, in <lambda>
+    self._container.resolve(PlaywrightProvider)
+  File "D:\AetherOS\AetherOS\src\aetheros\core\container\container.py", line 64, in resolve
+    instance = self._singleton_factories[name]()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\bootstrapper.py", line 502, in <lambda>
+    lambda: PlaywrightProvider(),
+TypeError: Can't instantiate abstract class PlaywrightProvider without an implementation for abstract methods 'name', 'version'
+2026-09-01 07:41:34.941 | ERROR    | src.aetheros.tools.executor:_run:238 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 24, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 11, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 70, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 104, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 435, in _tool
+    result = await self._tool_service.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\tool_commands.py", line 78, in execute
+    return await self._executor.execute(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 107, in execute
+    result = await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 215, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 311, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\screen\tools.py", line 103, in save_screenshot
+    await screen.save(
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\screen\controller.py", line 90, in save
+    self._controller.save(
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\screen\mss_backend.py", line 127, in save
+    if not cv2.imwrite(str(target), image):
+cv2.error: OpenCV(5.0.0) D:\a\opencv-python\opencv-python\opencv\modules\imgcodecs\src\loadsave.cpp:1072: error: (-2:Unspecified error) could not find a writer for the specified extension in function 'cv::imwrite_'
+

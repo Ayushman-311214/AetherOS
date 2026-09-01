@@ -15,10 +15,8 @@ class ServiceContainer:
     """
 
     def __init__(self) -> None:
-        # self._singletons: dict[str, Any] = {}
-        # self._singleton_factories: dict[str, Callable[[], Any]] = {}
-        # self._factories: dict[str, Callable[[], Any]] = {}
-
+        # Keys are usually the service class object itself, so a caller resolves
+        # by type rather than by a stringly-typed name.
         self._singletons: dict[Any, Any] = {}
         self._singleton_factories: dict[Any, Callable[[], Any]] = {}
         self._factories: dict[Any, Callable[[], Any]] = {}
@@ -83,7 +81,18 @@ class ServiceContainer:
             or name in self._factories
         )
 
-    def remove(self, name: str) -> None:
+    def is_instantiated(self, name: Any) -> bool:
+        """
+        Whether a singleton has actually been built yet.
+
+        Shutdown code needs this: ``resolve()`` would *construct* a service that
+        was registered but never used, so tearing down by resolving would load an
+        OCR model on the way out of the process.
+        """
+
+        return name in self._singletons
+
+    def remove(self, name: Any) -> None:
         self._singletons.pop(name, None)
         self._singleton_factories.pop(name, None)
         self._factories.pop(name, None)
@@ -94,11 +103,6 @@ class ServiceContainer:
         self._factories.clear()
 
     def registered_services(self) -> list[str]:
-        # return sorted(
-        #     set(self._singletons)
-        #     | set(self._singleton_factories)
-        #     | set(self._factories)
-        # )
 
         services = (
             set(self._singletons)

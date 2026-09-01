@@ -1,9 +1,41 @@
 from __future__ import annotations
 
-from core.container import container
-from tools import tool
+from typing import Any
 
-from browser.controller import BrowserService
+from ..core.container import container
+from ..core.errors.browser_error import BrowserError
+from ..tools import tool
+
+from .controller import BrowserService
+
+
+# ==========================================================
+# Internal helpers
+# ==========================================================
+
+def _browser() -> BrowserService:
+    """
+    Resolve the browser service, or explain why it is missing.
+
+    The container raises ``KeyError: Service '<class ...BrowserService>' is not
+    registered``, which tells an agent nothing it can act on. Playwright being an
+    optional extra is the one realistic reason for that, so it becomes a domain
+    error carrying the install command.
+    """
+
+    try:
+        return container.resolve(BrowserService)
+
+    except KeyError as exc:
+        raise BrowserError(
+            code="UNAVAILABLE",
+            message="Browser automation is not available in this environment.",
+            hint=(
+                "Install the browser extra and its runtime: "
+                "pip install aetheros[browser] && playwright install chromium"
+            ),
+            cause=exc,
+        ) from exc
 
 
 # ==========================================================
@@ -12,28 +44,27 @@ from browser.controller import BrowserService
 
 @tool(
     category="browser",
-    description="Launch a browser instance.",
+    description=(
+        "Launch a browser instance. Must be called before any other browser "
+        "tool. Set headless to true to run without a visible window."
+    ),
 )
 async def open_browser(
     headless: bool = False,
 ) -> None:
 
-    browser = container.resolve(BrowserService)
-
-    await browser.launch(
+    await _browser().launch(
         headless=headless,
     )
 
 
 @tool(
     category="browser",
-    description="Close the browser.",
+    description="Close the browser and release its process.",
 )
 async def close_browser() -> None:
 
-    browser = container.resolve(BrowserService)
-
-    await browser.close()
+    await _browser().close()
 
 
 # ==========================================================
@@ -42,37 +73,31 @@ async def close_browser() -> None:
 
 @tool(
     category="browser",
-    description="Navigate to a URL.",
+    description="Navigate to a URL. Requires open_browser first.",
 )
 async def goto_url(
     url: str,
 ) -> None:
 
-    browser = container.resolve(BrowserService)
-
-    await browser.goto(url)
+    await _browser().goto(url)
 
 
 @tool(
     category="browser",
-    description="Go back.",
+    description="Go back to the previous page in the browser history.",
 )
 async def browser_back() -> None:
 
-    browser = container.resolve(BrowserService)
-
-    await browser.back()
+    await _browser().back()
 
 
 @tool(
     category="browser",
-    description="Go forward.",
+    description="Go forward to the next page in the browser history.",
 )
 async def browser_forward() -> None:
 
-    browser = container.resolve(BrowserService)
-
-    await browser.forward()
+    await _browser().forward()
 
 
 @tool(
@@ -81,9 +106,7 @@ async def browser_forward() -> None:
 )
 async def browser_reload() -> None:
 
-    browser = container.resolve(BrowserService)
-
-    await browser.reload()
+    await _browser().reload()
 
 
 # ==========================================================
@@ -98,23 +121,22 @@ async def click_element(
     selector: str,
 ) -> None:
 
-    browser = container.resolve(BrowserService)
-
-    await browser.click(selector)
+    await _browser().click(selector)
 
 
 @tool(
     category="browser",
-    description="Fill an input element.",
+    description=(
+        "Replace the contents of an input element with the given text, "
+        "addressed by CSS selector."
+    ),
 )
 async def fill_input(
     selector: str,
     text: str,
 ) -> None:
 
-    browser = container.resolve(BrowserService)
-
-    await browser.fill(
+    await _browser().fill(
         selector,
         text,
     )
@@ -122,15 +144,13 @@ async def fill_input(
 
 @tool(
     category="browser",
-    description="Hover over an element.",
+    description="Hover the pointer over an element, addressed by CSS selector.",
 )
 async def hover_element(
     selector: str,
 ) -> None:
 
-    browser = container.resolve(BrowserService)
-
-    await browser.hover(selector)
+    await _browser().hover(selector)
 
 
 # ==========================================================
@@ -139,35 +159,64 @@ async def hover_element(
 
 @tool(
     category="browser",
-    description="Get the page title.",
+    description="Get the title of the current page.",
 )
 async def page_title() -> str:
 
-    browser = container.resolve(BrowserService)
-
-    return await browser.title()
+    return await _browser().title()
 
 
 @tool(
     category="browser",
-    description="Get the current URL.",
+    description="Get the URL of the current page.",
 )
 async def current_url() -> str:
 
-    browser = container.resolve(BrowserService)
-
-    return await browser.url()
+    return await _browser().url()
 
 
 @tool(
     category="browser",
-    description="Get the HTML source.",
+    description=(
+        "Get the full HTML source of the current page. This can be very large; "
+        "prefer element_text when only one element's content is needed."
+    ),
 )
 async def page_html() -> str:
 
-    browser = container.resolve(BrowserService)
+    return await _browser().html()
 
-    return await browser.html()
+
+@tool(
+    category="browser",
+    description=(
+        "Get the visible text of a single element, addressed by CSS selector. "
+        "Cheaper and more focused than page_html."
+    ),
+)
+async def element_text(
+    selector: str,
+) -> str:
+
+    return await _browser().text(selector)
+
+
+# ==========================================================
+# Waiting
+# ==========================================================
+
+@tool(
+    category="browser",
+    description=(
+        "Wait until an element matching the CSS selector appears on the page. "
+        "Use this after a navigation or click instead of a fixed delay."
+    ),
+)
+async def wait_for_element(
+    selector: str,
+) -> None:
+
+    await _browser().wait_for_selector(selector)
 
 
 # ==========================================================
@@ -176,15 +225,13 @@ async def page_html() -> str:
 
 @tool(
     category="browser",
-    description="Take a browser screenshot.",
+    description="Save a full-page screenshot of the browser to the given path.",
 )
 async def browser_screenshot(
     path: str,
 ) -> str:
 
-    browser = container.resolve(BrowserService)
-
-    await browser.screenshot(path)
+    await _browser().screenshot(path)
 
     return path
 
@@ -195,12 +242,15 @@ async def browser_screenshot(
 
 @tool(
     category="browser",
-    description="Execute JavaScript.",
+    description=(
+        "Evaluate a JavaScript expression in the current page and return its "
+        "result. The script runs with the page's full privileges, including any "
+        "logged-in session, so prefer the dedicated click, fill and text tools "
+        "for ordinary interaction."
+    ),
 )
 async def execute_javascript(
     script: str,
-):
+) -> Any:
 
-    browser = container.resolve(BrowserService)
-
-    return await browser.evaluate(script)
+    return await _browser().evaluate(script)

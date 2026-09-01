@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from core.errors.base_error import BaseError, ErrorContext
+from .base_error import BaseError, ErrorContext
 
 
 class BrowserError(BaseError):

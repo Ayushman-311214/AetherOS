@@ -129,6 +129,7 @@
 #         enqueue=True,
 #     )
 
+import sys
 from pathlib import Path
 
 from loguru import logger
@@ -142,16 +143,39 @@ LOG_DIR = settings.LOG_DIR
 LOG_DIR.mkdir(exist_ok=True)
 
 
-def configure_handlers() -> None:
+def configure_handlers(
+    *,
+    console: bool = False,
+) -> None:
+    """
+    Configure every AetherOS log sink.
+
+    Parameters
+    ----------
+    console:
+        Attach a console sink. Off by default: AetherOS renders its own
+        terminal UI (see ``cli.ui.CLIUI``) and interleaved log lines would
+        corrupt it. When enabled the sink writes to ``stderr`` so that log
+        output never mixes into the CLI's stdout.
+
+    Notes
+    -----
+    ``diagnose`` is disabled on every sink. Loguru's diagnose mode dumps
+    the local variables of each frame in a traceback, and frames inside the
+    LLM bootstrap hold an ``LLMConfig`` whose repr would otherwise write the
+    API key into ``error.log``.
+    """
 
     logger.remove()
 
-    # Console
-    logger.add(
-        sink=lambda msg: print(msg, end=""),
-        colorize=True,
-        level=settings.LOG_LEVEL,
-    )
+    # Console (opt-in, stderr, never stdout)
+    if console:
+        logger.add(
+            sink=sys.stderr,
+            colorize=True,
+            level=settings.LOG_LEVEL,
+            diagnose=False,
+        )
 
     # Application log
     logger.add(
@@ -161,6 +185,7 @@ def configure_handlers() -> None:
         compression="zip",
         enqueue=True,
         level="INFO",
+        diagnose=False,
     )
 
     # Error log
@@ -172,7 +197,7 @@ def configure_handlers() -> None:
         enqueue=True,
         level="ERROR",
         backtrace=True,
-        diagnose=True,
+        diagnose=False,
     )
 
     # Debug log
@@ -182,6 +207,7 @@ def configure_handlers() -> None:
         retention="14 days",
         enqueue=True,
         level="DEBUG",
+        diagnose=False,
     )
 
     # JSON log
@@ -190,4 +216,5 @@ def configure_handlers() -> None:
         serialize=True,
         enqueue=True,
         rotation="25 MB",
+        diagnose=False,
     )

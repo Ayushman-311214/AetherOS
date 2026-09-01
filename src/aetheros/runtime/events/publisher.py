@@ -1,7 +1,7 @@
 from __future__ import annotations
 
-from runtime.events.event_bus import EventBus
-from runtime.events.events import Event
+from .event_bus import EventBus
+from .events import Event
 
 _event_bus: EventBus | None = None
 

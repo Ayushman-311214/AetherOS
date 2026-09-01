@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import json
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -143,29 +142,29 @@ class OpenAICompatibleProvider(LLMProvider):
             )
         )
 
+        if not response.choices:
+            return {
+                "content": "",
+                "tool_calls": [],
+            }
+
         message = response.choices[0].message
 
         tool_calls: list[dict[str, Any]] = []
 
         for call in message.tool_calls or []:
 
-            raw_arguments = (
-                call.function.arguments
-                or "{}"
-            )
-
-            try:
-                arguments = json.loads(
-                    raw_arguments
-                )
-            except json.JSONDecodeError:
-                arguments = {}
-
+            # Arguments are passed through as the raw JSON string the model
+            # produced. Parsing belongs to llm.tool_calls, which is the single
+            # place that decides what a malformed payload means; decoding here
+            # as well would swallow the error into an empty dict, and the model
+            # would then be told "missing required argument" instead of
+            # "your JSON was invalid".
             tool_calls.append(
                 {
                     "id": call.id,
                     "name": call.function.name,
-                    "arguments": arguments,
+                    "arguments": call.function.arguments,
                 }
             )
 

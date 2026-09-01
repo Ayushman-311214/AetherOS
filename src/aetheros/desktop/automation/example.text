@@ -1,0 +1,386 @@
+
+
+3. Dry run first. Same JSON through validate_workflow, which runs AutomationEngine.validate() — every tool name, argument, verification method and recovery strategy checked against the live registry, nothing executed.
+
+How the model knows what keys are legal
+
+It's in the tool description, and the description is generated at import time by _step_reference() in tools.py, built from verifier.methods and recovery_runner.names. So the list the model is shown cannot drift from what the engine accepts. The legal keys are exactly the allowed set in Step.from_dict:
+
+
+
+
+
+
+
+
+
+
+# A real one, using only tools that exist today
+
+This is the clipboard round-trip — safe, no windows, no files, and every tool in it is registered right now:
+
+```json
+{
+  "name": "clipboard_round_trip",
+  "description": "Set the clipboard, then confirm by reading it back.",
+  "stop_on_failure": true,
+  "steps": [
+    {
+      "name": "clear the clipboard",
+      "tool": "clear_clipboard",
+      "verify": {
+        "method": "clipboard",
+        "mode": "is_empty"
+      }
+    },
+    {
+      "name": "put a marker on the clipboard",
+      "tool": "set_clipboard",
+      "arguments": { "text": "aetheros-probe-4417" },
+      "verify": {
+        "method": "clipboard",
+        "mode": "equals",
+        "expected": "aetheros-probe-4417"
+      },
+      "recovery": ["settle"],
+      "max_attempts": 2
+    },
+    {
+      "name": "capture the screen",
+      "tool": "screenshot",
+      "wait_before": 0.2
+    }
+  ]
+}
+```
+
+Note step 1 and step 2 both **verify through a different path than the tool they call** — `set_clipboard` reports its own success, but the `clipboard` verification method reads the OS clipboard back independently. That separation is the whole point; a tool cannot mark its own homework.
+
+# A fuller one, showing every feature
+
+```json
+{
+  "name": "open_chart_and_capture",
+  "description": "Launch the app, focus it, search, screenshot the result.",
+  "stop_on_failure": true,
+  "rollback_on_failure": true,
+  "steps": [
+    {
+      "name": "launch",
+      "tool": "launch_application",
+      "arguments": { "name": "chrome" },
+      "verify": {
+        "method": "process",
+        "target": "chrome.exe",
+        "mode": "exists"
+      },
+      "timeout_seconds": 15,
+      "rollback": {
+        "tool": "close_application",
+        "arguments": { "name": "chrome" }
+      }
+    },
+    {
+      "name": "dismiss any leftover dialog",
+      "tool": "press_key",
+      "arguments": { "key": "escape" },
+      "when": {
+        "method": "window",
+        "target": "Restore pages?",
+        "mode": "exists"
+      },
+      "continue_on_failure": true
+    },
+    {
+      "name": "focus",
+      "tool": "focus_window",
+      "arguments": { "title": "Chrome" },
+      "verify": {
+        "method": "window",
+        "target": "Chrome",
+        "mode": "contains"
+      },
+      "timeout_seconds": 5,
+      "recovery": ["dismiss_dialog", "clear_hover", "settle"],
+      "max_attempts": 3,
+      "fallback": {
+        "tool": "hotkey",
+        "arguments": { "keys": ["alt", "tab"] }
+      }
+    },
+    {
+      "name": "type the query",
+      "tool": "type_text",
+      "arguments": { "text": "reliance share price" },
+      "recovery": ["release_modifiers"],
+      "wait_after": 0.5
+    }
+  ]
+}
+```
+
+Read the interesting fields:
+
+- **`when` on step 2** — a *precondition*. If no such window exists the step reports `skipped`, not `failed`, and the workflow carries on. This is how you say "only press Escape if there's actually a dialog."
+- **`timeout_seconds` on steps 1 and 3** — turns `verify` from one check into a poll. A process appears in milliseconds; a Chrome window takes seconds. Without this, step 1's verification runs before the process exists and fails a launch that actually worked.
+- **`recovery` on step 3** — runs *between* attempts, not after the last one. `clear_hover` moves the mouse off whatever tooltip was eating the click; `settle` just waits.
+- **`fallback` on step 3** — tried once, only after all three attempts are gone. Succeeding through it reports `recovered`, not `succeeded`, so the fragility stays visible.
+- **`rollback` on step 1** — runs only if the *whole workflow* fails and `rollback_on_failure` is true. Steps are undone newest-first.
+
+The caveat I flagged earlier still applies to this second example: `launch_application`, `focus_window` and `close_application` are not registered yet. Dry-running it today would fail with `unknown tool` on three steps — which is the correct behaviour, and the reason to dry-run.
+
+# Always dry-run the non-trivial one first
+
+Same JSON, different tool:
+
+```json
+{
+  "name": "open_chart_and_capture",
+  "steps": [ ...identical... ]
+}
+```
+
+through `validate_workflow` instead of `run_workflow`. It checks every tool name against the registry, every argument through the same validator the executor uses, every `method` against the live verification table, and every `recovery` name — and touches nothing. You get a per-step verdict back.
+
+# What comes back
+
+```json
+{
+  "execution_id": "exec-a3f19c load-bearing",
+  "workflow": "clipboard_round_trip",
+  "status": "succeeded",
+  "success": true,
+  "dry_run": false,
+  "step_count": 3,
+  "duration_ms": 412.77,
+  "steps": [
+    {
+      "name": "put a marker on the clipboard",
+      "tool": "set_clipboard",
+      "status": "succeeded",
+      "attempts": 1,
+      "duration_ms": 38.2,
+      "verification": {
+        "status": "passed",
+        "verified": true,
+        "condition": "clipboard equals 'aetheros-probe-4417'",
+        "expected": "aetheros-probe-4417",
+        "actual": "aetheros-probe-4417"
+      }
+    }
+  ]
+}
+```
+
+`success` sits at the top level because that's the key a model reliably reads, but each step keeps **its own** verification underneath. Collapsing twelve step verifications into one boolean would either hide a failed read-back or mark the whole run unverified because one step couldn't be checked.
+
+Two shapes I'd treat as illustrative rather than exact: the precise `mode` spelling for an empty-clipboard check (`is_empty` vs `absent`), and the exact argument name on `hotkey` (`keys` vs `combination`). Both are settled by dry-running — which is faster than my guessing.
+
+
+
+
+
+
+
+
+
+# A real one, using only tools that exist today
+
+This is the clipboard round-trip — safe, no windows, no files, and every tool in it is registered right now:
+
+```json
+{
+  "name": "clipboard_round_trip",
+  "description": "Set the clipboard, then confirm by reading it back.",
+  "stop_on_failure": true,
+  "steps": [
+    {
+      "name": "clear the clipboard",
+      "tool": "clear_clipboard",
+      "verify": {
+        "method": "clipboard",
+        "mode": "is_empty"
+      }
+    },
+    {
+      "name": "put a marker on the clipboard",
+      "tool": "set_clipboard",
+      "arguments": { "text": "aetheros-probe-4417" },
+      "verify": {
+        "method": "clipboard",
+        "mode": "equals",
+        "expected": "aetheros-probe-4417"
+      },
+      "recovery": ["settle"],
+      "max_attempts": 2
+    },
+    {
+      "name": "capture the screen",
+      "tool": "screenshot",
+      "wait_before": 0.2
+    }
+  ]
+}
+```
+
+Note step 1 and step 2 both **verify through a different path than the tool they call** — `set_clipboard` reports its own success, but the `clipboard` verification method reads the OS clipboard back independently. That separation is the whole point; a tool cannot mark its own homework.
+
+# A fuller one, showing every feature
+
+```json
+{
+  "name": "open_chart_and_capture",
+  "description": "Launch the app, focus it, search, screenshot the result.",
+  "stop_on_failure": true,
+  "rollback_on_failure": true,
+  "steps": [
+    {
+      "name": "launch",
+      "tool": "launch_application",
+      "arguments": { "name": "chrome" },
+      "verify": {
+        "method": "process",
+        "target": "chrome.exe",
+        "mode": "exists"
+      },
+      "timeout_seconds": 15,
+      "rollback": {
+        "tool": "close_application",
+        "arguments": { "name": "chrome" }
+      }
+    },
+    {
+      "name": "dismiss any leftover dialog",
+      "tool": "press_key",
+      "arguments": { "key": "escape" },
+      "when": {
+        "method": "window",
+        "target": "Restore pages?",
+        "mode": "exists"
+      },
+      "continue_on_failure": true
+    },
+    {
+      "name": "focus",
+      "tool": "focus_window",
+      "arguments": { "title": "Chrome" },
+      "verify": {
+        "method": "window",
+        "target": "Chrome",
+        "mode": "contains"
+      },
+      "timeout_seconds": 5,
+      "recovery": ["dismiss_dialog", "clear_hover", "settle"],
+      "max_attempts": 3,
+      "fallback": {
+        "tool": "hotkey",
+        "arguments": { "keys": ["alt", "tab"] }
+      }
+    },
+    {
+      "name": "type the query",
+      "tool": "type_text",
+      "arguments": { "text": "reliance share price" },
+      "recovery": ["release_modifiers"],
+      "wait_after": 0.5
+    }
+  ]
+}
+```
+
+Read the interesting fields:
+
+- **`when` on step 2** — a *precondition*. If no such window exists the step reports `skipped`, not `failed`, and the workflow carries on. This is how you say "only press Escape if there's actually a dialog."
+- **`timeout_seconds` on steps 1 and 3** — turns `verify` from one check into a poll. A process appears in milliseconds; a Chrome window takes seconds. Without this, step 1's verification runs before the process exists and fails a launch that actually worked.
+- **`recovery` on step 3** — runs *between* attempts, not after the last one. `clear_hover` moves the mouse off whatever tooltip was eating the click; `settle` just waits.
+- **`fallback` on step 3** — tried once, only after all three attempts are gone. Succeeding through it reports `recovered`, not `succeeded`, so the fragility stays visible.
+- **`rollback` on step 1** — runs only if the *whole workflow* fails and `rollback_on_failure` is true. Steps are undone newest-first.
+
+The caveat I flagged earlier still applies to this second example: `launch_application`, `focus_window` and `close_application` are not registered yet. Dry-running it today would fail with `unknown tool` on three steps — which is the correct behaviour, and the reason to dry-run.
+
+# Always dry-run the non-trivial one first
+
+Same JSON, different tool:
+
+```json
+{
+  "name": "open_chart_and_capture",
+  "steps": [ ...identical... ]
+}
+```
+
+through `validate_workflow` instead of `run_workflow`. It checks every tool name against the registry, every argument through the same validator the executor uses, every `method` against the live verification table, and every `recovery` name — and touches nothing. You get a per-step verdict back.
+
+# What comes back
+
+```json
+{
+  "execution_id": "exec-a3f19c load-bearing",
+  "workflow": "clipboard_round_trip",
+  "status": "succeeded",
+  "success": true,
+  "dry_run": false,
+  "step_count": 3,
+  "duration_ms": 412.77,
+  "steps": [
+    {
+      "name": "put a marker on the clipboard",
+      "tool": "set_clipboard",
+      "status": "succeeded",
+      "attempts": 1,
+      "duration_ms": 38.2,
+      "verification": {
+        "status": "passed",
+        "verified": true,
+        "condition": "clipboard equals 'aetheros-probe-4417'",
+        "expected": "aetheros-probe-4417",
+        "actual": "aetheros-probe-4417"
+      }
+    }
+  ]
+}
+```
+
+`success` sits at the top level because that's the key a model reliably reads, but each step keeps **its own** verification underneath. Collapsing twelve step verifications into one boolean would either hide a failed read-back or mark the whole run unverified because one step couldn't be checked.
+
+Two shapes I'd treat as illustrative rather than exact: the precise `mode` spelling for an empty-clipboard check (`is_empty` vs `absent`), and the exact argument name on `hotkey` (`keys` vs `combination`). Both are settled by dry-running — which is faster than my guessing.
+
+**Short answer: workflow ek data hai, code nahi — aur abhi koi file me nahi likhi jaati.** Har run pe fresh banti hai.
+
+Teen possible raaste hain; do exist karte hain, teesra nahi.
+
+## Path A — LLM banata hai (yehi asli path hai)
+
+Model registry me `run_workflow` dekhta hai, uska schema padhta hai, aur ek tool call emit karta hai jisme `name` + `steps` array hota hai. Wahi JSON:
+
+`run_workflow(...)` → `automation/tools.py::_build()` → `Workflow.from_dict()` → `automation_engine.execute()`
+
+Bas. JSON kabhi disk pe nahi jaata. Frozen dataclass ban ke ek call ke liye memory me rehta hai, phir chala jaata hai.
+
+## Path B — Python code se banana (tests yahi karte hain)
+
+```python
+workflow = Workflow(
+    name="clipboard_probe",
+    steps=(Step(tool="set_clipboard", arguments={"text": "hi"}),),
+)
+result = await automation_engine.execute(workflow)
+```
+
+Ye legal hai aur `tests/desktop/test_automation.py` isi tarah banata hai. Lekin production me koi agent isko is tarah nahi call karta — sab `run_workflow` tool se aata hai.
+
+## Path C — file likh ke system use kare → **abhi hai hi nahi**
+
+Koi `workflows/` directory nahi, koi `.yaml`/`.json` loader nahi, kahin `open_browser.json` padhne wala code nahi. Aisi koi cheez nahi jo file dekh ke chalaye.
+
+## Kyun file nahi?
+
+Kyunki desktop state har baar badalta hai — window ka title, app kahan installed hai, dialog aaya ya nahi, kitna slow load hua. Ek fix file un sab ko handle nahi kar sakti. Isliye `when`, `verify`, `timeout_seconds`, `recovery`, `fallback` exist karte hain: same shape khud ko adjust kar leta hai. Aap ne pehle poocha tha "ek task ke liye ek rule hardcode karte hain kya" — jawab yahi hai, nahi, kyunki hardcoded rule pehli hi UI change pe toot jaata hai.
+
+## Par agar aap file-based chahte ho, wo sasta hai
+
+Note karne wali baat: **file format already defined hai.** `Workflow.from_dict()` aur `Step.from_dict()` pura validation karte hain — unknown keys reject, limits clamp, nesting one level. To ek loader jo `json.loads(path.read_text())` kar ke `Workflow.from_dict()` ko de de — bas ~20 lines, koi naya format design nahi karna.
+
+Aur ye add karne layak hai un cases ke liye jahan LLM ki improvisation nahi chahiye: roz subah market-open capture, health check sequence, regression scripts. Wahan reproducible aur auditable hona better hai. Do saaf categories ban jaati hain — LLM-composed (adaptive, one-off) aur saved (fixed, repeatable).
+
+Ek honest caveat jo main pehle bhi bola tha: ye sab code jaisa likha gaya hai wahi describe kar raha hoon. Automation modules ab tak import ya run nahi hue, to `from_dict` ka behaviour observed nahi hai — likha hua hai.

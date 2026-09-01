@@ -14,6 +14,7 @@ from .registry import (
 )
 
 from .executor import (
+    ToolExecutionResult,
     ToolExecutor,
     tool_executor,
 )
@@ -43,6 +44,7 @@ __all__ = [
     "tool_registry",
 
     # Executor
+    "ToolExecutionResult",
     "ToolExecutor",
     "tool_executor",
 

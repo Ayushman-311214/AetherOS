@@ -27,12 +27,17 @@ class MouseController(ABC):
     @abstractmethod
     def move_to(
         self,
-        dx: int,
-        dy: int,
+        x: int,
+        y: int,
         duration: float = 0.0,
     ) -> None:
         """
-        Move the mouse to an absolute position.
+        Move the mouse to an absolute screen position.
+
+        Named ``x``/``y`` rather than ``dx``/``dy`` deliberately: the names
+        reach an LLM verbatim in the ``move_mouse`` tool schema, and ``dx`` next
+        to :meth:`move_relative`'s genuine ``dx`` made the two indistinguishable
+        from the signature alone.
         """
         ...
 
@@ -163,5 +168,23 @@ class MouseController(ABC):
     ) -> None:
         """
         Horizontal scroll.
+        """
+        ...
+
+    # ==========================================================
+    # State
+    # ==========================================================
+
+    @abstractmethod
+    def is_pressed(
+        self,
+        button: str,
+    ) -> bool:
+        """
+        Returns True if the button is currently held down.
+
+        Declared here because MouseService already exposes it. It was previously
+        implemented on the PyAutoGUI backend only, so the service was reaching
+        past its own interface and any second backend would have broken it.
         """
         ...

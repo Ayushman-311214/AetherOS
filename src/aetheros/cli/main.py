@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from ..core.logging import get_logger
+
 from .commands import CommandRegistry
 from .parser import CommandParser
 from .ui import CLIUI
@@ -10,55 +12,45 @@ class CLIRuntime:
     Interactive AetherOS CLI runtime.
     """
 
-    def __init__(self, tool_registry=None,llm_service=None,) -> None:
-        print("\n[DEBUG CLI] ===== CLI INIT =====")
-        print("[DEBUG CLI] received registry:", tool_registry)
+    def __init__(
+        self,
+        tool_registry=None,
+        llm_service=None,
+        tool_loop=None,
+    ) -> None:
 
-        if tool_registry is not None:
-            print(
-                "[DEBUG CLI] registry id:",
-                id(tool_registry)
-        )
-            print(
-            "[DEBUG CLI] registry count:",
-            tool_registry.count
-        )
-
-            print(
-            "[DEBUG CLI] registry tools:",
-            tool_registry.names()
-        )
-        else:
-            print("[DEBUG CLI] NO TOOL REGISTRY RECEIVED!")
+        self._logger = get_logger("cli")
 
         self._parser = CommandParser()
+        self._ui = CLIUI()
 
         self._tool_service = None
-        
+
         if tool_registry is not None:
             from .tool_commands import ToolCommandService
-            print(
-            "[DEBUG CLI] Creating ToolCommandService..."
-        )
+
             self._tool_service = ToolCommandService(
                 tool_registry
             )
 
-            print(
-            "[DEBUG CLI] ToolCommandService created:",
-            self._tool_service
-        )   
-
-
         self._commands = CommandRegistry(
             self._tool_service,
             llm_service,
+            tool_loop=tool_loop,
         )
 
-        self._ui = CLIUI()
-
         self._running = False
-        print("[DEBUG CLI] ===== CLI INIT COMPLETE =====\n")
+
+        self._logger.bind(
+            tool_count=(
+                tool_registry.count
+                if tool_registry is not None
+                else 0
+            ),
+            has_llm=llm_service is not None,
+            has_tool_loop=tool_loop is not None,
+        ).info("CLI runtime initialized.")
+
     # ==========================================================
     # Lifecycle
     # ==========================================================
@@ -100,7 +92,7 @@ class CLIRuntime:
                 break
 
             except KeyboardInterrupt:
-                print()
+                self._ui.console.print()
                 self._running = False
                 break
 
@@ -117,4 +109,4 @@ class CLIRuntime:
                 break
 
             if result:
-                print("result ===============>",result)
+                self._ui.answer(str(result))

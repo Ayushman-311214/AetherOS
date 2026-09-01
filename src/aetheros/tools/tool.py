@@ -18,6 +18,7 @@ def tool(
     enabled: bool = True,
     tags: list[str] | None = None,
     metadata: dict[str, Any] | None = None,
+    timeout_seconds: float | None = None,
 ):
     """
     Decorator used to register a function as an AetherOS tool.
@@ -29,6 +30,10 @@ def tool(
         )
         def move_mouse(x, y):
             ...
+
+    ``timeout_seconds`` overrides the executor's default budget for this tool
+    alone. Set it only where the work is genuinely slow — full-screen OCR, model
+    loading — never to paper over a tool that hangs.
     """
 
     def decorator(
@@ -42,10 +47,15 @@ def tool(
             or inspect.getdoc(function)
             or ""
         )
-        print(
-            f"[DEBUG TOOL] Creating ToolDefinition: "
-            f"{tool_name}"
-        )
+
+        is_async = inspect.iscoroutinefunction(function)
+
+        # `function` is the raw, undecorated callable on purpose. The executor
+        # calls it directly, and both the schema generator and the validator
+        # resolve its annotations with typing.get_type_hints() — which
+        # evaluates them against the *defining* module's globals. Storing a
+        # wrapper defined in this module would resolve them here instead and
+        # raise NameError for every tool.
         definition = ToolDefinition(
             name=tool_name,
             description=tool_description,
@@ -54,31 +64,25 @@ def tool(
             enabled=enabled,
             tags=tags or [],
             metadata=metadata or {},
-            # is_async=inspect.iscoroutinefunction(function),
-            # module=function.__module__,
-            # qualname=function.__qualname__,
+            is_async=is_async,
+            timeout_seconds=timeout_seconds,
         )
-        print(
-            f"[DEBUG TOOL] Registering: {tool_name}"
-        )
+
         tool_registry.register(definition)
-        print(
-            f"[DEBUG TOOL] Registered successfully: "
-            f"{tool_name}"
-        )
+
         @wraps(function)
         async def async_wrapper(*args, **kwargs):
             return await function(*args, **kwargs)
 
         @wraps(function)
         def sync_wrapper(*args, **kwargs):
-
             return function(*args, **kwargs)
 
-        inspect.getdoc(function)
-        # inspect.iscoroutinefunction(function)
-        # if inspect.iscoroutinefunction(function):
-        #     return async_wrapper
+        # Return a wrapper of the same kind as the wrapped function, so that
+        # `inspect.iscoroutinefunction()` on the decorated name stays truthful
+        # for any caller that imports the tool directly.
+        if is_async:
+            return async_wrapper
 
         return sync_wrapper
 

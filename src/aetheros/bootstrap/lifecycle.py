@@ -3,7 +3,7 @@ from __future__ import annotations
 import asyncio
 from typing import Protocol
 
-from core.logging import get_logger
+from ..core.logging import get_logger
 
 
 class LifecycleComponent(Protocol):

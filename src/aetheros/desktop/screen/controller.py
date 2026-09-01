@@ -1,9 +1,10 @@
 from __future__ import annotations
 
 from pathlib import Path
-from typing import Any
 
-from ...core.interfaces.screen_controller import ScreenshotController
+import numpy as np
+
+from ...core.interfaces.screen_controller import ScreenController
 from ...core.logging import get_logger
 
 
@@ -15,11 +16,16 @@ class ScreenService:
 
     The concrete implementation is delegated to the
     configured ScreenController backend.
+
+    Every frame returned here is a **BGR** ``uint8`` array — see
+    :class:`~aetheros.core.interfaces.screen_controller.ScreenController`. The
+    vision engine wraps it with ``Image.from_numpy(frame)``, whose default
+    colour space matches.
     """
 
     def __init__(
         self,
-        controller: ScreenshotController,
+        controller: ScreenController,
     ) -> None:
 
         self._controller = controller
@@ -29,19 +35,15 @@ class ScreenService:
     # Screenshot
     # ==========================================================
 
-    async def capture(
-        self,
-    ) -> Any:
+    async def capture(self) -> np.ndarray:
         """
         Capture the primary screen.
 
         Returns:
-            Backend-specific image object.
+            BGR image array of shape (height, width, 3).
         """
 
-        self._logger.debug(
-            "Capturing primary screen."
-        )
+        self._logger.debug("Capturing primary screen.")
 
         return self._controller.capture()
 
@@ -51,18 +53,19 @@ class ScreenService:
         top: int,
         width: int,
         height: int,
-    ) -> Any:
+    ) -> np.ndarray:
         """
         Capture a screen region.
         """
 
-        self._logger.debug(
-            "Capturing region (%s,%s,%s,%s)",
-            left,
-            top,
-            width,
-            height,
-        )
+        # bind(), not %-style args: loguru formats with str.format, so
+        # positional args would be dropped silently.
+        self._logger.bind(
+            left=left,
+            top=top,
+            width=width,
+            height=height,
+        ).debug("Capturing screen region.")
 
         return self._controller.capture_region(
             left=left,
@@ -77,11 +80,11 @@ class ScreenService:
 
     async def save(
         self,
-        image: Any,
+        image: np.ndarray,
         path: str | Path,
     ) -> None:
         """
-        Save an image to disk.
+        Save a captured frame to disk.
         """
 
         self._controller.save(
@@ -93,20 +96,29 @@ class ScreenService:
     # Information
     # ==========================================================
 
-    async def size(
-        self,
-    ) -> tuple[int, int]:
+    async def size(self) -> tuple[int, int]:
         """
-        Returns the primary screen size.
+        Returns the primary screen size as (width, height).
         """
 
         return self._controller.size()
 
-    async def monitors(
-        self,
-    ) -> list[dict]:
+    async def monitors(self) -> list[dict]:
         """
         Returns information about connected monitors.
         """
 
         return self._controller.monitors()
+
+    # ==========================================================
+    # Lifecycle
+    # ==========================================================
+
+    async def shutdown(self) -> None:
+        """
+        Release the backend's screen handle.
+        """
+
+        self._logger.debug("Releasing screen capture backend.")
+
+        self._controller.close()

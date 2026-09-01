@@ -1,9 +1,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from typing import Any
 
 from ..image import Image
+from ..models import Detection, TemplateMatch, TextBlock
 
 
 # ==========================================================
@@ -26,6 +26,19 @@ class BaseVisionProvider(ABC):
     def version(self) -> str:
         """Provider version."""
         raise NotImplementedError
+
+    @property
+    def available(self) -> bool:
+        """
+        Whether this provider can actually run.
+
+        Concrete and ``True`` by default: providers built on always-present
+        dependencies are always usable. Providers wrapping an optional package
+        or a downloadable model override this so callers can degrade gracefully
+        instead of discovering the problem as an ImportError at import time.
+        """
+
+        return True
 
 
 # ==========================================================
@@ -84,7 +97,15 @@ class OCRProvider(BaseVisionProvider):
     async def read_text(
         self,
         image: Image,
-    ) -> list[str]:
+    ) -> list[TextBlock]:
+        """
+        Recognise text, returning one block per detected region.
+
+        Returns an empty list when the image contains no readable text — that is
+        a valid result, not an error. Genuine failures (backend unavailable,
+        model missing, malformed input) raise
+        :class:`~aetheros.core.errors.vision_error.VisionError`.
+        """
         raise NotImplementedError
 
 
@@ -101,7 +122,7 @@ class DetectionProvider(BaseVisionProvider):
     async def detect(
         self,
         image: Image,
-    ) -> list[Any]:
+    ) -> list[Detection]:
         raise NotImplementedError
 
 
@@ -120,5 +141,5 @@ class TemplateProvider(BaseVisionProvider):
         image: Image,
         template: Image,
         threshold: float = 0.90,
-    ) -> list[Any]:
+    ) -> list[TemplateMatch]:
         raise NotImplementedError

@@ -123,7 +123,33 @@ from loguru import logger
 
 from .handlers import configure_handlers
 
-configure_handlers()
+_CONFIGURED = False
+
+
+def setup_logging(
+    *,
+    console: bool = False,
+    force: bool = False,
+):
+    """
+    Configure AetherOS logging. Idempotent unless ``force`` is set.
+
+    This is the single logging entry point. ``core.logging.logging``
+    delegates here so that only one set of loguru sinks is ever installed;
+    two independent configurations would each call ``logger.remove()`` and
+    silently discard the other's handlers.
+    """
+
+    global _CONFIGURED
+
+    if _CONFIGURED and not force:
+        return logger
+
+    configure_handlers(console=console)
+
+    _CONFIGURED = True
+
+    return logger
 
 
 def get_logger(module: str):
@@ -133,4 +159,32 @@ def get_logger(module: str):
     Example:
         logger = get_logger("vision")
     """
+
+    if not _CONFIGURED:
+        setup_logging()
+
     return logger.bind(module=module)
+
+
+def enable_console_logging() -> None:
+    """
+    Re-configure logging with a stderr console sink attached.
+    """
+
+    setup_logging(console=True, force=True)
+
+
+def disable_console_logging() -> None:
+    """
+    Re-configure logging with file sinks only.
+    """
+
+    setup_logging(console=False, force=True)
+
+
+__all__ = [
+    "get_logger",
+    "setup_logging",
+    "enable_console_logging",
+    "disable_console_logging",
+]

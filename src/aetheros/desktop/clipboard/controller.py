@@ -77,10 +77,9 @@ class ClipboardService:
         self,
         paths: list[str | Path],
     ) -> None:
-        self._logger.debug(
-            "Copying %d file(s) to clipboard.",
-            len(paths),
-        )
+        self._logger.bind(
+            files=len(paths),
+        ).debug("Copying files to clipboard.")
 
         self._controller.copy_files(
             paths=paths,

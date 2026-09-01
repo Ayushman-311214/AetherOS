@@ -1,8 +1,14 @@
 from __future__ import annotations
 
 import inspect
-from typing import Any, get_origin, get_args
+from typing import Any, get_args, get_origin
 
+from .annotations import (
+    is_unconstrained,
+    public_parameters,
+    resolve_hints,
+    unwrap_optional,
+)
 from .registry import ToolDefinition
 
 
@@ -51,19 +57,24 @@ class ToolSchemaGenerator:
 
         signature = inspect.signature(function)
 
+        # Annotations are PEP 563 strings inside the tool modules; resolving
+        # them is what makes `dx: int` advertise "integer" instead of
+        # defaulting to "string".
+        hints = resolve_hints(function)
+
         properties: dict[str, Any] = {}
 
         required: list[str] = []
 
-        for name, parameter in signature.parameters.items():
+        for parameter in public_parameters(signature):
 
-            annotation = parameter.annotation
+            name = parameter.name
 
             properties[name] = self._parameter_schema(
-                annotation
+                hints.get(name, parameter.annotation)
             )
 
-            if parameter.default is inspect._empty:
+            if parameter.default is inspect.Parameter.empty:
                 required.append(name)
 
         return {
@@ -82,14 +93,23 @@ class ToolSchemaGenerator:
         annotation: Any,
     ) -> dict[str, Any]:
 
-        if annotation is inspect._empty:
+        # No usable annotation (missing, bare Any, or unresolvable): accept a
+        # string rather than claiming a type the function does not require.
+        if is_unconstrained(annotation):
+            return {
+                "type": "string"
+            }
+
+        annotation = unwrap_optional(annotation)
+
+        if is_unconstrained(annotation):
             return {
                 "type": "string"
             }
 
         origin = get_origin(annotation)
 
-        if origin is list:
+        if origin in (list, set, frozenset, tuple):
 
             return {
                 "type": "array"
@@ -99,12 +119,6 @@ class ToolSchemaGenerator:
 
             return {
                 "type": "object"
-            }
-
-        if origin is tuple:
-
-            return {
-                "type": "array"
             }
 
         if origin is None:

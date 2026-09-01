@@ -20,6 +20,22 @@ class ToolDefinition:
     tags: list[str] = field(default_factory=list)
     metadata: dict[str, Any] = field(default_factory=dict)
 
+    # Recorded by the @tool decorator. The executor treats
+    # inspect.iscoroutinefunction(function) as authoritative and uses this
+    # only as a hint, so a hand-built ToolDefinition still executes correctly.
+    is_async: bool = False
+
+    # Per-tool execution budget, in seconds. None means "use the executor's
+    # default", which is deliberately short so a wedged pyautogui call cannot
+    # hang an agent.
+    #
+    # A single global timeout cannot serve both ends of this registry: a mouse
+    # click that has not returned in 30s is broken, while a full-screen OCR pass
+    # legitimately takes 90s+ on CPU. The default was silently failing every
+    # vision tool — they worked correctly and were cancelled anyway — so the
+    # slow ones declare their own budget rather than everything paying for them.
+    timeout_seconds: float | None = None
+
 
 class ToolRegistry:
     """
@@ -48,10 +64,7 @@ class ToolRegistry:
         self,
         tool: ToolDefinition,
     ) -> None:
-        print(
-        f"[DEBUG REGISTRY] register() called: "
-        f"{tool.name}"
-    )
+
         if tool.name in self._tools:
             raise ValueError(
                 f"Tool '{tool.name}' already registered."
@@ -62,16 +75,7 @@ class ToolRegistry:
         self._categories[
             tool.category
         ].add(tool.name)
-        print(
-        f"[DEBUG REGISTRY] registered successfully: "
-        f"{tool.name}"
-    )
 
-        print(
-        f"[DEBUG REGISTRY] current tools: "
-        f"{list(self._tools.keys())}"
-    )
-    
     def unregister(
         self,
         name: str,
@@ -94,6 +98,12 @@ class ToolRegistry:
 
         return self._tools[name]
 
+    # def args(
+    #     self,
+    #     name:str
+    # )->ToolDefinition:
+    #     return self._tools[name,"description"]
+    
     def exists(
         self,
         name: str,

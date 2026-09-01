@@ -11,6 +11,16 @@
 # __all__ = ["logger", "setup_logging"]
 
 
-from .logger import get_logger
+from .logger import (
+    disable_console_logging,
+    enable_console_logging,
+    get_logger,
+    setup_logging,
+)
 
-__all__ = ["get_logger"]
+__all__ = [
+    "get_logger",
+    "setup_logging",
+    "enable_console_logging",
+    "disable_console_logging",
+]

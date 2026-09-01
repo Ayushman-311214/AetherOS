@@ -3,6 +3,8 @@ from __future__ import annotations
 import cv2
 import numpy as np
 
+from ...core.errors.base_error import ErrorContext
+from ...core.errors.vision_error import VisionError
 from ..image import Image
 from .base import VisionProvider
 
@@ -12,6 +14,10 @@ class OpenCVProvider(VisionProvider):
     OpenCV implementation of VisionProvider.
 
     Responsible for image processing operations.
+
+    Operations that reduce an image to one channel return an ``Image`` tagged
+    ``color_space="gray"``. Leaving the tag at its BGR default would make a
+    later ``rgb()`` call try to reorder channels that no longer exist.
     """
 
     @property
@@ -33,17 +39,22 @@ class OpenCVProvider(VisionProvider):
         height: int,
     ) -> Image:
 
+        if width <= 0 or height <= 0:
+            raise VisionError(
+                code="INVALID_ARGUMENT",
+                message=(
+                    f"Resize target must be positive, got {width}x{height}."
+                ),
+                context=self._context("resize"),
+            )
+
         resized = cv2.resize(
             image.data,
             (width, height),
             interpolation=cv2.INTER_LINEAR,
         )
 
-        return Image(
-            data=resized,
-            source=image.source,
-            metadata=image.metadata.copy(),
-        )
+        return self._derive(image, resized)
 
     # ==========================================================
     # Grayscale
@@ -53,20 +64,15 @@ class OpenCVProvider(VisionProvider):
         self,
         image: Image,
     ) -> Image:
+        """
+        Convert to single-channel.
 
-        if image.channels == 1:
-            return image
+        Delegates to :meth:`Image.gray`, which picks the conversion from the
+        image's declared colour space — a fixed ``COLOR_BGR2GRAY`` would weight
+        the red and blue channels wrongly for RGB input.
+        """
 
-        gray = cv2.cvtColor(
-            image.data,
-            cv2.COLOR_BGR2GRAY,
-        )
-
-        return Image(
-            data=gray,
-            source=image.source,
-            metadata=image.metadata.copy(),
-        )
+        return image.gray()
 
     # ==========================================================
     # Gaussian Blur
@@ -78,17 +84,23 @@ class OpenCVProvider(VisionProvider):
         kernel: int = 5,
     ) -> Image:
 
+        if kernel <= 0 or kernel % 2 == 0:
+            raise VisionError(
+                code="INVALID_ARGUMENT",
+                message=(
+                    f"Gaussian blur kernel must be a positive odd number, "
+                    f"got {kernel}."
+                ),
+                context=self._context("blur"),
+            )
+
         blurred = cv2.GaussianBlur(
             image.data,
             (kernel, kernel),
             0,
         )
 
-        return Image(
-            data=blurred,
-            source=image.source,
-            metadata=image.metadata.copy(),
-        )
+        return self._derive(image, blurred)
 
     # ==========================================================
     # Edge Detection
@@ -101,22 +113,23 @@ class OpenCVProvider(VisionProvider):
         high: int = 200,
     ) -> Image:
 
-        gray = image
-
-        if image.channels != 1:
-            gray = await self.grayscale(image)
+        if low < 0 or high < 0 or low >= high:
+            raise VisionError(
+                code="INVALID_ARGUMENT",
+                message=(
+                    f"Canny thresholds must satisfy 0 <= low < high, "
+                    f"got low={low}, high={high}."
+                ),
+                context=self._context("edges"),
+            )
 
         edge = cv2.Canny(
-            gray.data,
+            image.gray().data,
             low,
             high,
         )
 
-        return Image(
-            data=edge,
-            source=image.source,
-            metadata=image.metadata.copy(),
-        )
+        return self._derive(image, edge, color_space="gray")
 
     # ==========================================================
     # Threshold
@@ -128,23 +141,23 @@ class OpenCVProvider(VisionProvider):
         value: int = 127,
     ) -> Image:
 
-        gray = image
-
-        if image.channels != 1:
-            gray = await self.grayscale(image)
+        if not 0 <= value <= 255:
+            raise VisionError(
+                code="INVALID_ARGUMENT",
+                message=(
+                    f"Threshold must be within 0-255, got {value}."
+                ),
+                context=self._context("threshold"),
+            )
 
         _, binary = cv2.threshold(
-            gray.data,
+            image.gray().data,
             value,
             255,
             cv2.THRESH_BINARY,
         )
 
-        return Image(
-            data=binary,
-            source=image.source,
-            metadata=image.metadata.copy(),
-        )
+        return self._derive(image, binary, color_space="gray")
 
     # ==========================================================
     # Morphology
@@ -157,21 +170,13 @@ class OpenCVProvider(VisionProvider):
         iterations: int = 1,
     ) -> Image:
 
-        kernel = np.ones(
-            (kernel_size, kernel_size),
-            np.uint8,
-        )
-
-        result = cv2.dilate(
-            image.data,
-            kernel,
-            iterations=iterations,
-        )
-
-        return Image(
-            data=result,
-            source=image.source,
-            metadata=image.metadata.copy(),
+        return self._derive(
+            image,
+            cv2.dilate(
+                image.data,
+                self._kernel(kernel_size, "dilate"),
+                iterations=iterations,
+            ),
         )
 
     async def erode(
@@ -181,19 +186,56 @@ class OpenCVProvider(VisionProvider):
         iterations: int = 1,
     ) -> Image:
 
-        kernel = np.ones(
-            (kernel_size, kernel_size),
-            np.uint8,
+        return self._derive(
+            image,
+            cv2.erode(
+                image.data,
+                self._kernel(kernel_size, "erode"),
+                iterations=iterations,
+            ),
         )
 
-        result = cv2.erode(
-            image.data,
-            kernel,
-            iterations=iterations,
-        )
+    # ==========================================================
+    # Internal
+    # ==========================================================
+
+    def _kernel(
+        self,
+        size: int,
+        operation: str,
+    ) -> np.ndarray:
+
+        if size <= 0:
+            raise VisionError(
+                code="INVALID_ARGUMENT",
+                message=f"Kernel size must be positive, got {size}.",
+                context=self._context(operation),
+            )
+
+        return np.ones((size, size), np.uint8)
+
+    @staticmethod
+    def _derive(
+        image: Image,
+        data: np.ndarray,
+        color_space: str | None = None,
+    ) -> Image:
+        """
+        Wrap transformed pixels, carrying provenance and colour space over.
+        """
 
         return Image(
-            data=result,
+            data=data,
             source=image.source,
+            color_space=color_space or image.color_space,
             metadata=image.metadata.copy(),
+        )
+
+    @staticmethod
+    def _context(operation: str) -> ErrorContext:
+
+        return ErrorContext(
+            module="vision.processing",
+            operation=operation,
+            details={"provider": "opencv"},
         )
