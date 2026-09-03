@@ -14,6 +14,7 @@ propagates.
 from __future__ import annotations
 
 import json
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -25,6 +26,13 @@ from .tool_calls import (
     ToolCall,
     parse_llm_response,
 )
+
+# Optional progress callbacks for a caller that has to show what the loop is
+# doing while it runs — the voice pipeline and the HUD are the reason these
+# exist. They are awaited around the executor call, not around the whole
+# iteration, so a hook sees exactly the calls that actually ran.
+ToolStartHook = Callable[[str, dict[str, Any]], Awaitable[None]]
+ToolFinishedHook = Callable[[str, bool, str | None], Awaitable[None]]
 
 DEFAULT_SYSTEM_PROMPT = (
     "You are AetherOS, an autonomous computer operator. "
@@ -129,6 +137,8 @@ class LLMToolLoop:
         *,
         system_prompt: str | None = None,
         max_iterations: int | None = None,
+        on_tool_start: ToolStartHook | None = None,
+        on_tool_finished: ToolFinishedHook | None = None,
     ) -> str:
         """
         Run the loop and return the model's final answer text.
@@ -138,6 +148,8 @@ class LLMToolLoop:
             user_message,
             system_prompt=system_prompt,
             max_iterations=max_iterations,
+            on_tool_start=on_tool_start,
+            on_tool_finished=on_tool_finished,
         )
 
         return result.content
@@ -148,6 +160,8 @@ class LLMToolLoop:
         *,
         system_prompt: str | None = None,
         max_iterations: int | None = None,
+        on_tool_start: ToolStartHook | None = None,
+        on_tool_finished: ToolFinishedHook | None = None,
     ) -> AgentLoopResult:
         """
         Run the loop and return the full record of what happened.
@@ -347,9 +361,22 @@ class LLMToolLoop:
                     executed_counts.get(signature, 0) + 1
                 )
 
+                await self._notify(
+                    on_tool_start,
+                    call.name,
+                    call.arguments,
+                )
+
                 result = await self._executor.execute_safe(
                     call.name,
                     call.arguments,
+                )
+
+                await self._notify(
+                    on_tool_finished,
+                    call.name,
+                    result.ok,
+                    result.error,
                 )
 
                 executed_any = True
@@ -446,6 +473,34 @@ class LLMToolLoop:
             tool_results=tuple(invocations),
             messages=tuple(messages),
         )
+
+    # ==========================================================
+    # Progress hooks
+    # ==========================================================
+
+    async def _notify(
+        self,
+        hook: Callable[..., Awaitable[None]] | None,
+        *args: Any,
+    ) -> None:
+        """
+        Await an optional progress hook without letting it break the run.
+
+        A hook belongs to a presentation layer — the HUD is driven through
+        one — and a display that fails must not abort a conversation that is
+        otherwise fine, nor lose the tool result already in hand.
+        """
+
+        if hook is None:
+            return
+
+        try:
+            await hook(*args)
+
+        except Exception:
+            self._logger.exception(
+                "A tool progress hook failed; continuing the run."
+            )
 
     # ==========================================================
     # Message construction

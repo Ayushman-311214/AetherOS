@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..core.logging.logging import get_logger
-from ..llm.agent_loop import IterationLimitExceeded, LLMToolLoop
+from ..llm.agent_loop import LLMToolLoop
 from ..llm.engine import LLMEngine
 from ..tools.executor import ToolExecutor, tool_executor
 from .config import VoiceConfig
@@ -47,11 +47,24 @@ class LLMLoopReasoner:
         container: Any,
     ) -> LLMLoopReasoner:
         """
-        Build a reasoner from whatever LLM provider is registered.
+        Build a reasoner from whatever LLM layer is registered.
+
+        The already-built LLMEngine is preferred over constructing one from
+        the raw provider, because bootstrap registers it with a
+        `tool_provider` bound to the live ToolRegistry. A locally built
+        `LLMEngine(provider)` has no tool provider, so `available_tools()`
+        returns an empty list and the model is offered nothing to call —
+        voice would be able to talk but not to act.
 
         Raises:
-            KeyError: no LLM provider has been registered.
+            KeyError: neither an LLM engine nor a provider is registered.
         """
+
+        if container.has(LLMEngine):
+            return cls(
+                config=config,
+                engine=container.resolve(LLMEngine),
+            )
 
         provider = container.resolve("llm_provider")
 
@@ -75,28 +88,33 @@ class LLMLoopReasoner:
         Produce a spoken reply to `text`.
         """
 
-        try:
-            response = await self._loop.run(
-                text,
-                system_prompt=self._config.system_prompt,
-                max_iterations=self._config.max_iterations,
-                on_tool_start=on_tool_start,
-                on_tool_finished=on_tool_finished,
+        result = await self._loop.run_detailed(
+            text,
+            system_prompt=self._config.system_prompt,
+            max_iterations=self._config.max_iterations,
+            on_tool_start=on_tool_start,
+            on_tool_finished=on_tool_finished,
+        )
+
+        # run_detailed never raises for a bounded outcome: it returns the
+        # partial answer with a stopped_reason. Saying that partial answer is
+        # the point — silence is worse than an incomplete reply out loud.
+        if result.stopped_reason != "final_answer":
+
+            self._logger.bind(
+                stopped_reason=result.stopped_reason,
+                iterations=result.iterations,
+                tool_calls=len(result.tool_results),
+            ).warning(
+                "Reasoning stopped without a final answer."
             )
 
-        except IterationLimitExceeded as exc:
+        content = result.content.strip()
 
-            self._logger.warning(
-                f"Reasoning hit the iteration limit after "
-                f"{self._config.max_iterations} steps."
-            )
+        if content:
+            return content
 
-            # Say whatever the model last managed rather than nothing.
-            return exc.partial or (
-                "I ran out of steps before finishing that."
-            )
-
-        return response.strip()
+        return "I ran out of steps before finishing that."
 
 
 class EchoReasoner:

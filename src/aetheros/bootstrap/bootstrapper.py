@@ -30,6 +30,12 @@ class Bootstrapper:
         self._container = container
         self._event_bus = None
 
+        # Both are optional subsystems, gated on AETHEROS_HUD_ENABLED and
+        # AETHEROS_VOICE_ENABLED. They stay None when disabled or when startup
+        # degraded, and shutdown reads them to decide what to tear down.
+        self._hud = None
+        self._voice = None
+
     # ==========================================================
     # Properties
     # ==========================================================
@@ -45,6 +51,20 @@ class Bootstrapper:
     @property
     def event_bus(self):
         return self._event_bus
+
+    @property
+    def hud(self):
+        """
+        The running HUD service, or None when the overlay is not up.
+        """
+        return self._hud
+
+    @property
+    def voice(self):
+        """
+        The running voice service, or None when voice is not up.
+        """
+        return self._voice
 
     # ==========================================================
     # Startup
@@ -106,6 +126,17 @@ class Bootstrapper:
             await self._bootstrap_memory()
             await self._bootstrap_llm()
 
+            # HUD before voice: the overlay subscribes to the voice events on
+            # the bus, and VoiceServiceStarted is the event that takes it from
+            # OFFLINE to IDLE. Starting voice first would publish that event
+            # into a bus with no subscriber and leave the overlay dark.
+            await self._bootstrap_hud()
+
+            # Voice last of the subsystems: its reasoner resolves the
+            # tool-enabled LLMEngine registered by _bootstrap_llm, and a spoken
+            # turn can call any tool registered by _bootstrap_tools.
+            await self._bootstrap_voice()
+
             # --------------------------------------------------
             # Lifecycle
             # --------------------------------------------------
@@ -151,6 +182,11 @@ class Bootstrapper:
 
         await self._shutdown_health()
         await self._shutdown_lifecycle()
+        # Reverse of startup: voice stops before the HUD so the overlay is
+        # still subscribed when VoiceServiceStopped is published and can show
+        # OFFLINE rather than freezing on its last state.
+        await self._shutdown_voice()
+        await self._shutdown_hud()
         await self._shutdown_llm()
         await self._shutdown_memory()
         await self._shutdown_browser()
@@ -212,11 +248,30 @@ class Bootstrapper:
             "Initializing event bus..."
         )
 
-        # EventBus will be connected here.
-        #
-        # Example:
-        #
-        # self._event_bus = EventBus()
+        from ..runtime.events.event_bus import EventBus
+        from ..runtime.events.publisher import set_event_bus
+
+        # One bus per application, created here because it has to exist before
+        # any producer or consumer is built: the HUD subscribes during its own
+        # startup and the voice pipeline publishes from its first turn.
+        self._event_bus = EventBus()
+
+        # Registered under both keys deliberately. `EventBus` is what a typed
+        # constructor asks for; the string is what a @tool or a CLI command can
+        # name without importing the runtime package.
+        self._container.register_singleton(
+            EventBus,
+            lambda: self._event_bus,
+        )
+
+        self._container.register_singleton(
+            "event_bus",
+            lambda: self._event_bus,
+        )
+
+        # The module-level publish() helper resolves through this, so anything
+        # that fires an event without holding a bus reference works too.
+        set_event_bus(self._event_bus)
 
         self._logger.info(
             "Event system initialized."
@@ -726,6 +781,179 @@ class Bootstrapper:
             # first request rather than blocking startup entirely.
             bound.warning("LLM provider failed its health check.")
 
+    async def _bootstrap_hud(self) -> None:
+        self._logger.debug(
+            "Initializing HUD..."
+        )
+
+        from ..hud.config import HUDConfig
+        from ..hud.service import HUDService
+
+        config = HUDConfig.from_env()
+
+        # HUDService.start() does not consult config.enabled — the gate is
+        # deliberately the caller's, so the service stays usable from a test or
+        # a demo without an environment variable. This is that caller.
+        if not config.enabled:
+            self._logger.debug(
+                "HUD is disabled; set AETHEROS_HUD_ENABLED=true to enable it."
+            )
+            return
+
+        # Importing the package does not import Qt (see hud/__init__), so
+        # construction here is cheap and safe on a headless machine. Qt only
+        # loads inside the child process the service spawns.
+        if not self._qt_available():
+            # Checked here rather than left to the child, because the child's
+            # stderr goes to DEVNULL: a missing PySide6 would otherwise surface
+            # only as exit code 1 with no explanation, and HUDService.start()
+            # would still have returned True.
+            self._logger.warning(
+                "PySide6 is not installed; the HUD overlay is unavailable. "
+                "Install with: pip install aetheros[hud]"
+            )
+            return
+
+        hud = HUDService(
+            config=config,
+            event_bus=self._event_bus,
+        )
+
+        self._container.register_singleton(
+            HUDService,
+            lambda: hud,
+        )
+
+        self._container.register_singleton(
+            "hud_service",
+            lambda: hud,
+        )
+
+        self._hud = hud
+
+        started = await hud.start()
+
+        if not started:
+            # Not fatal. The overlay is a display, and losing it must not stop
+            # a session that can still do everything through the CLI.
+            self._logger.bind(
+                error=hud.failure,
+            ).warning(
+                "The HUD did not start; continuing without the overlay."
+            )
+            return
+
+        self._logger.bind(
+            theme=config.theme,
+            position=config.position,
+            fps=config.fps,
+        ).info("HUD initialized.")
+
+    async def _bootstrap_voice(self) -> None:
+        self._logger.debug(
+            "Initializing voice services..."
+        )
+
+        from ..voice.config import VoiceConfig
+        from ..voice.service import VoiceService
+
+        config = VoiceConfig.from_env()
+
+        if not config.enabled:
+            self._logger.debug(
+                "Voice is disabled; set AETHEROS_VOICE_ENABLED=true "
+                "to enable it."
+            )
+
+            # The overlay leaves OFFLINE on VoiceServiceStarted, so with voice
+            # off it would otherwise sit dark forever. Show the resting state
+            # instead: the HUD is still useful as a status surface.
+            self._show_hud_idle()
+
+            return
+
+        voice = VoiceService(
+            config=config,
+            event_bus=self._event_bus,
+            container=self._container,
+        )
+
+        self._container.register_singleton(
+            VoiceService,
+            lambda: voice,
+        )
+
+        self._container.register_singleton(
+            "voice_service",
+            lambda: voice,
+        )
+
+        self._voice = voice
+
+        try:
+            # start() degrades on its own for a missing microphone or an
+            # unavailable TTS backend; it raises only when no reasoner can be
+            # resolved, which means the LLM layer did not come up.
+            await voice.start()
+
+        except Exception:
+            self._logger.exception(
+                "Voice services failed to start; continuing without voice."
+            )
+
+            self._voice = None
+            self._container.remove(VoiceService)
+            self._container.remove("voice_service")
+
+            self._show_hud_idle()
+
+            return
+
+        status = voice.status()
+
+        self._logger.bind(
+            stt=status["stt"],
+            tts=status["tts"],
+            activator=status["activator"],
+            hotkey=status["hotkey"],
+            can_listen=status["can_listen"],
+        ).info("Voice services initialized.")
+
+        if not voice.can_listen:
+            self._logger.bind(
+                reason=status["blocked"],
+            ).warning(
+                "Voice cannot listen; spoken input is unavailable."
+            )
+
+    @staticmethod
+    def _qt_available() -> bool:
+        """
+        Whether PySide6 can be imported.
+
+        find_spec rather than a try/import, for the same reason as
+        _browser_available: importing Qt in the parent process is expensive and
+        pointless — only the child ever needs it.
+        """
+
+        return importlib.util.find_spec("PySide6") is not None
+
+    def _show_hud_idle(self) -> None:
+        """
+        Park the overlay at IDLE when nothing will publish voice events.
+        """
+
+
+
+        hud = self._hud
+
+        if hud is None or not hud.is_running:
+            return
+
+        from ..hud.state import HUDState
+
+        hud.show(HUDState.IDLE)
+
     async def _bootstrap_lifecycle(self) -> None:
         self._logger.debug(
             "Initializing lifecycle manager..."
@@ -753,6 +981,53 @@ class Bootstrapper:
         self._logger.debug(
             "Stopping lifecycle manager..."
         )
+
+    async def _shutdown_voice(self) -> None:
+        self._logger.debug(
+            "Stopping voice services..."
+        )
+
+        voice = self._voice
+
+        if voice is None:
+            return
+
+        self._voice = None
+
+        try:
+            # stop() cancels an in-flight turn, releases the microphone and the
+            # hotkey hook, and publishes VoiceServiceStopped.
+            await voice.stop()
+
+        except Exception:
+            # Shutdown continues regardless: a stuck audio device must not stop
+            # the remaining subsystems from tearing down.
+            self._logger.exception(
+                "Voice services did not shut down cleanly."
+            )
+
+    async def _shutdown_hud(self) -> None:
+        self._logger.debug(
+            "Stopping HUD..."
+        )
+
+        hud = self._hud
+
+        if hud is None:
+            return
+
+        self._hud = None
+
+        try:
+            # Asks the child to quit, then waits out a short grace period before
+            # killing it. Left alone, the overlay would outlive the CLI and stay
+            # on screen with nothing behind it.
+            await hud.stop()
+
+        except Exception:
+            self._logger.exception(
+                "The HUD did not shut down cleanly."
+            )
 
     async def _shutdown_llm(self) -> None:
         self._logger.debug(
@@ -832,6 +1107,15 @@ class Bootstrapper:
         self._logger.debug(
             "Stopping event bus..."
         )
+
+        bus = self._event_bus
+
+        if bus is not None:
+            # Dropping the reference alone would not release the handlers: the
+            # HUD registers bound methods on the bus, so a restart in the same
+            # process would leave the previous overlay's callbacks subscribed
+            # and publishing into a dead pipe.
+            await bus.clear()
 
         self._event_bus = None
 

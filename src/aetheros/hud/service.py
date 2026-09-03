@@ -91,6 +91,14 @@ class HUDService:
         #: amplitude defers this way; state and text go immediately.
         self._dirty = False
 
+        #: Wakes the pump when the snapshot changes.
+        #:
+        #: Without it the pump's sleep is chosen from the state it saw at
+        #: the top of the tick, so an update arriving just after a resting
+        #: tick waits out the full resting interval before it is sent -
+        #: a quarter-second stall on the first frame of every turn.
+        self._wake = asyncio.Event()
+
         #: A state that is waiting for the ERROR dwell to expire.
         self._pending_state: HUDState | None = None
         self._error_until = 0.0
@@ -223,6 +231,7 @@ class HUDService:
         # claim to be listening for something that is not running.
         self._snapshot = HUDSnapshot(state=HUDState.OFFLINE)
         self._dirty = False
+        self._wake.clear()
 
         await self._subscribe()
 
@@ -633,6 +642,11 @@ class HUDService:
 
         self._snapshot = snapshot
 
+        # The pump's next wait was sized for the previous snapshot, so it
+        # is woken either way: to send a deferred update now, or to pick
+        # up the cadence the new state calls for.
+        self._wake.set()
+
         if immediate:
             self._send()
 
@@ -674,7 +688,19 @@ class HUDService:
 
                 self._tick()
 
-                await asyncio.sleep(self._interval())
+                # A timeout rather than a plain sleep: the interval is the
+                # resting cadence, and `_push` cuts it short the moment
+                # there is something new to show.
+                try:
+                    await asyncio.wait_for(
+                        self._wake.wait(),
+                        timeout=self._interval(),
+                    )
+
+                except (asyncio.TimeoutError, TimeoutError):
+                    pass
+
+                self._wake.clear()
 
         except asyncio.CancelledError:
             raise

@@ -121,6 +121,15 @@ browser = [
     "playwright>=1.55.0"
 ]
 
+# The HUD overlay runs in a child process (`python -m aetheros.hud.app --ipc`)
+# that imports Qt at module level. Kept optional rather than required because
+# Qt is a large download that a headless or server install has no use for:
+# `aetheros.hud` itself is deliberately Qt-free, so configuration, state and
+# the service are importable and testable without this extra installed.
+hud = [
+    "PySide6>=6.7.0"
+]
+
 dev = [
     "pytest>=8.4.1",
 

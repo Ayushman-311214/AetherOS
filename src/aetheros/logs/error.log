@@ -977,3 +977,147 @@ Traceback (most recent call last):
     if not cv2.imwrite(str(target), image):
 cv2.error: OpenCV(5.0.0) D:\a\opencv-python\opencv-python\opencv\modules\imgcodecs\src\loadsave.cpp:1072: error: (-2:Unspecified error) could not find a writer for the specified extension in function 'cv::imwrite_'
 
+2026-09-03 21:28:37.115 | ERROR    | src.aetheros.cli.commands:_ask:493 - LLM request failed.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 24, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\main.py", line 11, in main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 94, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 73, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 107, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 101, in execute
+    result = await result
+> File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 486, in _ask
+    result = await self._tool_loop.run_detailed(prompt)
+  File "D:\AetherOS\AetherOS\src\aetheros\llm\agent_loop.py", line 216, in run_detailed
+    response = await self._engine.tool_call(
+  File "D:\AetherOS\AetherOS\src\aetheros\llm\engine.py", line 126, in tool_call
+    return await self._provider.tool_call(
+  File "D:\AetherOS\AetherOS\src\aetheros\llm\providers\openai_compatible.py", line 136, in tool_call
+    await self._client.chat.completions.create(
+  File "D:\AetherOS\AetherOS\venv312\Lib\site-packages\openai\resources\chat\completions\completions.py", line 2907, in create
+    return await self._post(
+  File "D:\AetherOS\AetherOS\venv312\Lib\site-packages\openai\_base_client.py", line 1992, in post
+    return await self.request(cast_to, opts, stream=stream, stream_cls=stream_cls)
+  File "D:\AetherOS\AetherOS\venv312\Lib\site-packages\openai\_base_client.py", line 1777, in request
+    raise self._make_status_error_from_response(err.response) from None
+openai.AuthenticationError: Error code: 401 - {'error': {'message': 'User not found.', 'code': 401}}
+2026-09-03 21:37:17.944 | ERROR    | src.aetheros.voice.pipeline:_fail:552 - Voice turn failed (thinking): Error code: 401 - {'error': {'message': 'User not found.', 'code': 401}}
+2026-09-03 21:38:09.284 | ERROR    | src.aetheros.voice.pipeline:_fail:552 - Voice turn failed (thinking): Error code: 401 - {'error': {'message': 'User not found.', 'code': 401}}
+2026-09-03 21:38:39.144 | ERROR    | src.aetheros.voice.pipeline:_fail:552 - Voice turn failed (thinking): Error code: 401 - {'error': {'message': 'User not found.', 'code': 401}}
+2026-09-03 21:53:11.808 | ERROR    | src.aetheros.tools.executor:_run:238 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\process\psutil_backend.py", line 422, in open_url
+    os.startfile(candidate)  # type: ignore[attr-defined]
+OSError: [WinError 15609] Install failed. Please contact your software vendor: 'https://www.google.com/search?q=Kale+Kalyani+Song'
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 24, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\voice\pipeline.py", line 295, in _listen_turn
+    result = await self._reason_and_speak(transcript.text)
+  File "D:\AetherOS\AetherOS\src\aetheros\voice\pipeline.py", line 395, in _reason_and_speak
+    response = await self._reasoner.respond(
+  File "D:\AetherOS\AetherOS\src\aetheros\voice\reasoner.py", line 91, in respond
+    result = await self._loop.run_detailed(
+  File "D:\AetherOS\AetherOS\src\aetheros\llm\agent_loop.py", line 370, in run_detailed
+    result = await self._executor.execute_safe(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 130, in execute_safe
+    return await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 215, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 311, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\application\tools.py", line 105, in launch_url
+    return await applications.launch_url(url)
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\application\controller.py", line 237, in launch_url
+    await self._processes.open_url(url)
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\process\controller.py", line 74, in open_url
+    return self._controller.open_url(url)
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\process\psutil_backend.py", line 425, in open_url
+    raise DesktopError(
+src.aetheros.core.errors.desktop_error.DesktopError: [DESKTOP_PROCESS_OPEN_FAILED] The shell could not open https://www.google.com/search?q=Kale+Kalyani+Song: [WinError 15609] Install failed. Please contact your software vendor: 'https://www.google.com/search?q=Kale+Kalyani+Song'.
+Hint: Check that a default browser is configured.
+2026-09-03 21:54:09.614 | ERROR    | src.aetheros.voice.pipeline:_fail:552 - Voice turn failed (thinking): Voice turn exceeded 90s.
+2026-09-03 21:56:14.257 | ERROR    | src.aetheros.tools.executor:_run:238 - Tool raised an exception.
+Traceback (most recent call last):
+  File "D:\AetherOS\AetherOS\main.py", line 24, in <module>
+    asyncio.run(main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\voice\pipeline.py", line 295, in _listen_turn
+    result = await self._reason_and_speak(transcript.text)
+  File "D:\AetherOS\AetherOS\src\aetheros\voice\pipeline.py", line 395, in _reason_and_speak
+    response = await self._reasoner.respond(
+  File "D:\AetherOS\AetherOS\src\aetheros\voice\reasoner.py", line 91, in respond
+    result = await self._loop.run_detailed(
+  File "D:\AetherOS\AetherOS\src\aetheros\llm\agent_loop.py", line 370, in run_detailed
+    result = await self._executor.execute_safe(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 130, in execute_safe
+    return await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 215, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 311, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\screen\tools.py", line 103, in save_screenshot
+    await screen.save(
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\screen\controller.py", line 90, in save
+    self._controller.save(
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\screen\mss_backend.py", line 117, in save
+    raise VisionError(
+src.aetheros.core.errors.vision_error.VisionError: [VISION_SAVE_FAILED] Directory does not exist: \tmp
+2026-09-03 22:07:57.445 | ERROR    | src.aetheros.voice.pipeline:_fail:552 - Voice turn failed (executing): Voice turn exceeded 90s.

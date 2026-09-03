@@ -65,7 +65,8 @@ class VoiceConfig:
     # Feature flags
     # ----------------------------------------------------------
 
-    enabled: bool = False
+    # enabled: bool = False
+    enabled: bool = True
 
     #: Hard kill switch for audio input.
     #

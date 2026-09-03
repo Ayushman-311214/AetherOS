@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import asyncio
+import threading
+
 from ..core.logging import get_logger
 
 from .commands import CommandRegistry
@@ -85,7 +88,7 @@ class CLIRuntime:
         while self._running:
 
             try:
-                text = self._ui.prompt()
+                text = await self._read_line()
 
             except EOFError:
                 self._running = False
@@ -110,3 +113,55 @@ class CLIRuntime:
 
             if result:
                 self._ui.answer(str(result))
+
+    async def _read_line(self) -> str:
+        """
+        Read one prompt line without blocking the event loop.
+
+        `console.input()` blocks until Enter is pressed, and on the event loop
+        thread that stalls every other task for as long as the prompt sits
+        idle: the HUD's pump task stops draining the overlay's pipe and the
+        voice hotkey's `call_soon_threadsafe` is never serviced. Both
+        subsystems would appear frozen precisely while the user is waiting at
+        the prompt to use them.
+
+        A dedicated daemon thread rather than `asyncio.to_thread`, because the
+        default executor is joined during `asyncio.run` teardown. A worker
+        still parked inside `input()` at that point — which is exactly the
+        state Ctrl+C leaves it in — would hold the interpreter open waiting for
+        a keypress that will never come.
+        """
+
+        loop = asyncio.get_running_loop()
+
+        future: asyncio.Future[str] = loop.create_future()
+
+        def deliver(result: str | None, error: BaseException | None) -> None:
+
+            # The loop may have moved on — a cancelled read has no one waiting.
+            if future.done():
+                return
+
+            if error is not None:
+                future.set_exception(error)
+            else:
+                future.set_result(result or "")
+
+        def worker() -> None:
+
+            try:
+                text = self._ui.prompt()
+
+            except BaseException as exc:  # noqa: BLE001 - relayed to the awaiter
+                loop.call_soon_threadsafe(deliver, None, exc)
+
+            else:
+                loop.call_soon_threadsafe(deliver, text, None)
+
+        threading.Thread(
+            target=worker,
+            name="aetheros-cli-prompt",
+            daemon=True,
+        ).start()
+
+        return await future
