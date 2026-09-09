@@ -27,7 +27,7 @@ class Bootstrapper:
         self.tool_registry=tool_registry
         self._started = False
         # Runtime references
-        self._container = container
+        self._container = None
         self._event_bus = None
 
         # Both are optional subsystems, gated on AETHEROS_HUD_ENABLED and
@@ -125,6 +125,7 @@ class Bootstrapper:
             await self._bootstrap_tools()
             await self._bootstrap_memory()
             await self._bootstrap_llm()
+            self._bootstrap_agents()
 
             # HUD before voice: the overlay subscribes to the voice events on
             # the bus, and VoiceServiceStarted is the event that takes it from
@@ -276,7 +277,6 @@ class Bootstrapper:
         self._logger.info(
             "Event system initialized."
         )
-
 
     async def _bootstrap_desktop(self) -> None:
         self._logger.debug("Initializing desktop services...")
@@ -454,7 +454,6 @@ class Bootstrapper:
         self._logger.info(
             "Desktop services initialized."
         )
-
 
     async def _bootstrap_vision(self) -> None:
         self._logger.debug(
@@ -651,6 +650,56 @@ class Bootstrapper:
             "Browser services initialized."
         )
 
+
+
+    def _bootstrap_agents(self) -> None:
+        self._logger.debug(
+            "Initializing agent system..."
+        )
+
+        # ╔══════════════════════════════════════════╗
+        # ║              Task Agent                  ║
+        # ╚══════════════════════════════════════════╝
+
+        from ..agents.tasks.manager import TaskManager
+        from ..agents.agent import Agent
+        from ..agents.context import ContextBuilder
+        from ..agents.execution import ToolExecutionCoordinator
+        from ..agents.planner import AgentPlanner
+        from ..tools.executor import ToolExecutor
+
+        task_manager = TaskManager(
+            event_bus=self._event_bus,
+        )
+        self._container.register_singleton(
+            TaskManager,
+            lambda: task_manager,
+        )
+
+        def build_agent() -> Agent:
+            provider = self._container.resolve("llm_provider")
+            coordinator = ToolExecutionCoordinator(
+                ToolExecutor(tool_registry),
+                registry=tool_registry,
+            )
+            return Agent(
+                task_manager=task_manager,
+                planner=AgentPlanner(provider, registry=tool_registry),
+                context_builder=ContextBuilder(registry=tool_registry),
+                llm_loop=self._container.resolve("llm_tool_loop"),
+                execution_coordinator=coordinator,
+            )
+
+        self._container.register_singleton(Agent, build_agent)
+
+
+
+        self._logger.info(
+            "Agent system initialized."
+        )
+
+
+
     @staticmethod
     def _browser_available() -> bool:
         """
@@ -788,7 +837,7 @@ class Bootstrapper:
 
         from ..hud.config import HUDConfig
         from ..hud.service import HUDService
-
+        from ..cli.ui import CLIUI
         config = HUDConfig.from_env()
 
         # HUDService.start() does not consult config.enabled — the gate is
@@ -815,6 +864,7 @@ class Bootstrapper:
             return
 
         hud = HUDService(
+            ui=CLIUI(),
             config=config,
             event_bus=self._event_bus,
         )

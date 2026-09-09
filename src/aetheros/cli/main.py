@@ -2,13 +2,16 @@ from __future__ import annotations
 
 import asyncio
 import threading
+from typing import Any
 
 from ..core.logging import get_logger
 
 from .commands import CommandRegistry
 from .parser import CommandParser
 from .ui import CLIUI
-
+from ..runtime.events.event_bus import EventBus
+from ..runtime.events.events import Event
+from ..hud.service import HUDService
 
 class CLIRuntime:
     """
@@ -20,15 +23,24 @@ class CLIRuntime:
         tool_registry=None,
         llm_service=None,
         tool_loop=None,
-    ) -> None:
+        event : Event | None = None,
+        event_bus : EventBus | None = None,
+        ) -> None:
 
         self._logger = get_logger("cli")
 
+        self._event_bus = event_bus
+        self._event=event
         self._parser = CommandParser()
         self._ui = CLIUI()
 
         self._tool_service = None
 
+        
+        
+        
+    
+        
         if tool_registry is not None:
             from .tool_commands import ToolCommandService
 
@@ -113,6 +125,7 @@ class CLIRuntime:
 
             if result:
                 self._ui.answer(str(result))
+                
 
     async def _read_line(self) -> str:
         """
@@ -165,3 +178,92 @@ class CLIRuntime:
         ).start()
 
         return await future
+    
+    
+    # def hud_text(self):
+    #     text = HUDService._on_transcribed()
+    #     self._ui.success(text)
+        
+    # def _handlers(self) -> dict[type[Event], Any]:
+    #         """
+    #         The events the overlay actually reacts to.
+    
+    #         VoiceStateChanged drives the animation; the rest only fill in
+    #         text. Deliberately not every voice event: subscribing to
+    #         something the HUD does not display would just add work on the
+    #         publishing path.
+    
+    #         The voice event types are imported here rather than at module
+    #         level so the HUD package has no structural dependency on the
+    #         voice package. The overlay is then startable, and testable, with
+    #         voice absent entirely — which is the same isolation that lets
+    #         voice run with the overlay absent.
+    #         """
+    
+    #         from ..voice.events import (
+    #             LLMThinkingFinished,
+    #             SpeechStarted,
+    #             SpeechTranscribed,
+    #             ToolExecutionFinished,
+    #             ToolExecutionStarted,
+    #             VoiceAudioLevel,
+    #             VoiceError,
+    #             VoiceServiceStarted,
+    #             VoiceServiceStopped,
+    #             VoiceStateChanged,
+    #         )
+    
+    #         return {
+    #             # VoiceStateChanged: self._on_state_changed,
+    #             # VoiceAudioLevel: self._on_audio_level,
+    #             SpeechTranscribed: self._on_transcribed,
+    #             # LLMThinkingFinished: self._on_response,
+    #             # ToolExecutionStarted: self._on_tool_started,
+    #             # ToolExecutionFinished: self._on_tool_finished,
+    #             # SpeechStarted: self._on_speech_started,
+    #             # VoiceError: self._on_error,
+    #             # VoiceServiceStarted: self._on_voice_started,
+    #             # VoiceServiceStopped: self._on_voice_stopped,
+    #         }
+    
+    # async def _subscribe(self) -> None:
+    
+    #         bus = self._bus
+    
+    #         if bus is None or self._subscribed:
+    #             return
+    
+    #         try:
+    #             handlers = self._handlers()
+    
+    #         except Exception:
+    #             # Voice is not installed or failed to import. The overlay
+    #             # still works; it just has nothing driving it, which is
+    #             # exactly the standalone case.
+    #             self._logger.opt(exception=True).warning(
+    #                 "The CLI could not subscribe to voice events."
+    #             )
+    
+    #             return
+    
+    #         for event_type, handler in handlers.items():
+    #             await bus.subscribe(event_type, handler)
+    
+    #         self._subscribed = True
+    
+    # def _on_transcribed(self, event: Event) -> None:
+    #     """
+    #     Update the overlay with the latest transcript.
+
+    #     The HUD is not a transcript display; it only shows the current
+    #     utterance while it is being spoken. A new utterance retires the
+    #     previous answer, so the overlay never shows this turn's question
+    #     beside the last one's reply.
+    #     """
+
+    #     # A new utterance retires the previous answer, so the overlay
+    #     transcript=getattr(event, "text", "")
+    #     self._ui.success(transcript)
+    
+    
+    

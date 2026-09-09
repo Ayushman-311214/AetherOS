@@ -131,6 +131,75 @@ class LLMToolLoop:
     # Public
     # ==========================================================
 
+    async def run_state(
+        self,
+        state: Any,
+        context_builder: Any,
+        planner: Any,
+        coordinator: Any,
+    ) -> None:
+        """Run the loop against AgentState and the agent-layer coordinator.
+
+        The existing ``run_detailed`` API remains unchanged for CLI and voice
+        callers. This entry point is the incremental integration seam for the
+        high-level Agent: state owns history, ContextBuilder owns projection,
+        Planner owns model decisions, and the coordinator owns tool execution.
+        """
+
+        from ..agents.state import Message
+
+        while state.has_iterations_left and not state.is_terminal:
+            iteration = await state.next_iteration()
+            context = context_builder.build(state)
+            plan = await planner.plan(state, context)
+
+            if plan.error is not None:
+                await state.record_error(
+                    plan.error.message,
+                    error_type=plan.error.error_type,
+                    iteration=iteration,
+                    recoverable=plan.error.recoverable,
+                )
+
+            if plan.is_failure:
+                await state.fail(
+                    plan.action.reason,
+                    error_type=plan.action.error_type,
+                )
+                return
+
+            if plan.is_final:
+                await state.add_message(Message.assistant(plan.action.content))
+                await state.complete(plan.action.content)
+                return
+
+            if plan.tool_calls:
+                calls = tuple(_planned_action_to_tool_call(action) for action in plan.tool_calls)
+                await state.add_message(Message.assistant(plan.content, tool_calls=calls))
+                results = await coordinator.execute_many(
+                    state,
+                    plan.tool_calls,
+                    iteration=iteration,
+                )
+                await state.extend_messages(
+                    [
+                        Message.tool(tool_call_id=result.call_id, content=result.content)
+                        for result in results
+                    ]
+                )
+            elif plan.action.is_continue:
+                await state.record_observation(
+                    plan.action.reason,
+                    source="planner",
+                    iteration=iteration,
+                )
+
+        if not state.is_terminal:
+            await state.complete(
+                self._limit_message(state.max_iterations),
+                stopped_reason="max_iterations",
+            )
+
     async def run(
         self,
         user_message: str,
@@ -711,3 +780,19 @@ class LLMToolLoop:
             bound.bind(
                 error_type=result.error_type,
             ).warning("Tool call failed; reporting back to the model.")
+
+
+def _planned_action_to_tool_call(action: Any) -> ToolCall:
+    """Convert a validated planner action into a provider call value."""
+
+    from ..agents.planner.actions import ActionType
+
+    if action.type is not ActionType.TOOL_CALL or not action.call_id:
+        raise ValueError("Only identified tool-call actions can be executed.")
+
+    return ToolCall(
+        id=action.call_id,
+        name=action.tool_name or "",
+        arguments=action.arguments,
+        raw_arguments=action.raw_arguments,
+    )

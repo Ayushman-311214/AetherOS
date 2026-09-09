@@ -151,7 +151,7 @@ dev = [
 ]
 
 [project.scripts]
-aether = "aetheros.cli.entrypoint:main"
+aether = "aetheros.__main__:main"
 
 # ============================================================
 # BLACK

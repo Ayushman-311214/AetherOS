@@ -10,7 +10,6 @@ from uuid import uuid4
 class Event:
     """
     Base class for all events in AetherOS.
-
     Every event inherits from this class.
     """
 

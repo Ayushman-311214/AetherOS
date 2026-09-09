@@ -273,7 +273,7 @@ class VoiceService:
             self._logger.warning(f"Listening unavailable: {self._listen_blocked}")
 
             return TurnResult(error=self._listen_blocked)
-
+    
         return await pipeline.listen_once()
 
     async def say(self, text: str) -> TurnResult:

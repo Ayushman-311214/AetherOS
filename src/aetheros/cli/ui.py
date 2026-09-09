@@ -135,7 +135,7 @@ class CLIUI:
 
     def prompt(self) -> str:
         return self.console.input(
-            "\n[bold cyan]AetherOS[/bold cyan] [dim]>[/dim] "
+            "\n[bold cyan]User[/bold cyan] [dim]>[/dim] "
         )
 
     # ==========================================================
@@ -255,3 +255,9 @@ class CLIUI:
             time.sleep(delay)
 
         self.console.print()
+        
+        
+        
+# cl = CLIUI()
+# cl.note("Welcome to AetherOS CLI! Type 'help' to see available commands.")
+        

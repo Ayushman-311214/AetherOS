@@ -142,10 +142,10 @@ class VoiceConfig:
         "confirm briefly what you did."
     )
 
-    max_iterations: int = 6
+    max_iterations: int = 50 
 
     #: Abort a turn that exceeds this many seconds.
-    turn_timeout: float = 90.0
+    turn_timeout: float = 1000.0
 
     #: Amplitude publish rate, in Hz, for HUD animation.
     level_publish_hz: float = 20.0

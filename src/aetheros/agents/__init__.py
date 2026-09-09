@@ -11,6 +11,7 @@ outcome back into the state. The loop that drives the two of them in turn, and t
 orchestrator above it, are not part of this package yet.
 """
 
+from .agent import Agent
 from .context import (
     CHARS_CEILING,
     HISTORY_CEILING,
@@ -88,6 +89,7 @@ __all__ = [
     "STOP_MAX_ITERATIONS",
     "TOOL_CALL_CEILING",
     "ActionType",
+    "Agent",
     "AgentContext",
     "AgentExecutionResult",
     "AgentPlanner",

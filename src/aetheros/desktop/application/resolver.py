@@ -76,6 +76,7 @@ _ALIASES: dict[str, str] = {
     "vscode": "code.cmd",
     "vs code": "code.cmd",
     "visual studio code": "code.cmd",
+    
 }
 
 # Where the Run dialog looks. Both hives, because per-user installs (which is how

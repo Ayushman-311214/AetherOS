@@ -5,6 +5,7 @@ import time
 from dataclasses import replace
 from typing import Any
 
+
 from ..core.logging.logging import get_logger
 from ..runtime.events.event_bus import EventBus
 from ..runtime.events.events import Event
@@ -21,6 +22,7 @@ from .protocol import (
     message_type,
     snapshot_message,
 )
+# from ..cli.ui import CLIUI
 from .state import HUDSnapshot, HUDState
 
 #: How often the service talks to the overlay while a turn is in
@@ -65,17 +67,19 @@ class HUDService:
 
     def __init__(
         self,
+        ui:None = None,
         *,
         config: HUDConfig | None = None,
         event_bus: EventBus | None = None,
         process: HUDProcess | None = None,
+        
     ) -> None:
 
         self._config = config or HUDConfig.from_env()
         self._bus = event_bus
 
         self._logger = get_logger("hud.service")
-
+        # self._ui=CLIUI()
         # Injectable so tests can drive the whole service against a
         # fake process, with no Qt and no window. An injected one is
         # never replaced; an owned one is rebuilt on every start.
@@ -87,6 +91,7 @@ class HUDService:
 
         self._snapshot = HUDSnapshot(state=HUDState.OFFLINE)
 
+        self._ui = ui 
         #: Set when the snapshot has changed but has not been sent. Only
         #: amplitude defers this way; state and text go immediately.
         self._dirty = False
@@ -453,7 +458,8 @@ class HUDService:
             VoiceServiceStarted: self._on_voice_started,
             VoiceServiceStopped: self._on_voice_stopped,
         }
-
+    # from ..cli.ui import CLIUI
+    # _ui = CLIUI()
     async def _subscribe(self) -> None:
 
         bus = self._bus
@@ -516,7 +522,7 @@ class HUDService:
     def _on_state_changed(self, event: Event) -> None:
 
         current = getattr(event, "current", None)
-
+        # print(f"HUD: state changed---------->: {current}")
         self._apply_state(HUDState.parse(current))
 
     def _on_audio_level(self, event: Event) -> None:
@@ -533,22 +539,29 @@ class HUDService:
             amplitude=max(0.0, min(1.0, level)),
         )
 
-    def _on_transcribed(self, event: Event) -> None:
+    def _on_transcribed(self, event: Event) :
 
         # A new utterance retires the previous answer, so the overlay
         # never shows this turn's question beside the last one's reply.
+        # print(f"HUD: transcribed---------->: {getattr(event, 'text', '')}")
         self._mutate(
             transcript=_clip(getattr(event, "text", "")),
             response="",
         )
+        self._ui.console.print(f"[bold green]{getattr(event, 'text', '')}[/bold green]")
+        
+        
 
     def _on_response(self, event: Event) -> None:
 
+        self._ui.answer(f"{getattr(event, 'response', '')}")
         self._mutate(response=_clip(getattr(event, "response", "")))
+        self._ui.prompt()
 
     def _on_tool_started(self, event: Event) -> None:
 
         self._mutate(action=_clip(getattr(event, "tool", "")))
+        self._ui.note(f"tool:{getattr(event, 'tool', '')}")
 
     def _on_tool_finished(self, event: Event) -> None:
 
@@ -565,13 +578,16 @@ class HUDService:
         # so no response event was published.
         text = _clip(getattr(event, "text", ""))
 
+        # print(f"HUD: speech started---------->: {text}")
+        
         if text and not self._snapshot.response:
             self._mutate(response=text)
 
     def _on_error(self, event: Event) -> None:
 
         self._mutate(message=_clip(getattr(event, "message", "")))
-
+        self._ui.error(f"{getattr(event, 'message', '')}")
+        
     def _on_voice_started(self, _: Event) -> None:
 
         self._apply_state(HUDState.IDLE)
