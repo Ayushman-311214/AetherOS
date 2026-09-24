@@ -2,7 +2,7 @@ import asyncio
 
 from .bootstrap.application import Application
 
-from . import test_task
+
 
 
 async def _main() -> None:

@@ -61,8 +61,9 @@ class Application:
         # ----------------------------------------------
         from ..cli import CLIRuntime
 
-        # Both are handed over: the loop drives `ask`, while `llm` reports the
-        # provider's name and model, which the loop does not expose.
+        # The agent core drives `ask` (it owns orchestration); the loop is kept
+        # as a fallback, and `llm` reports the provider's name and model, which
+        # neither exposes.
         llm_provider = container.resolve(
             "llm_provider"
         )
@@ -71,10 +72,25 @@ class Application:
             "llm_tool_loop"
         )
 
+        agent_core = container.resolve(
+            "agent_core"
+        )
+
+        # The live trace recorder, so the CLI `trace` command can inspect and
+        # control it at runtime. Optional: resolve defensively so a runtime
+        # wired without the trace subsystem still starts.
+        trace_recorder = (
+            container.resolve("trace_recorder")
+            if container.has("trace_recorder")
+            else None
+        )
+
         self._cli = CLIRuntime(
             tool_registry=self._bootstrapper.tool_registry,
             llm_service=llm_provider,
             tool_loop=tool_loop,
+            agent=agent_core,
+            trace=trace_recorder,
         )
 
         self._running = True

@@ -36,6 +36,7 @@ disagree.
 from __future__ import annotations
 
 import asyncio
+import time
 from dataclasses import dataclass
 from typing import Any
 
@@ -43,6 +44,12 @@ from ...core.errors.agent_error import AgentError
 from ...core.errors.tool_error import ToolError
 from ...core.interfaces.llm_provider import LLMProvider
 from ...core.logging import get_logger
+from ...core.observability import (
+    TraceEventType,
+    TraceStatus,
+    emit_trace,
+    safe_preview,
+)
 from ...llm.tool_calls import ToolCall, parse_llm_response
 from ...tools.registry import ToolDefinition, ToolRegistry, tool_registry
 from ...tools.validator import ToolValidator, tool_validator
@@ -154,8 +161,12 @@ class AgentPlanner:
         config: PlannerConfig | None = None,
     ) -> None:
         self._provider = provider
-        self._registry = registry or tool_registry
-        self._validator = validator or tool_validator
+        # ``is not None`` rather than ``or``: ToolRegistry defines ``__len__``,
+        # so an explicitly-passed *empty* registry is falsy and ``or`` would
+        # silently fall back to the global singleton -- honouring an empty
+        # isolated registry is exactly what an integration/test caller needs.
+        self._registry = registry if registry is not None else tool_registry
+        self._validator = validator if validator is not None else tool_validator
         self._config = config or PlannerConfig()
 
         # Built here, not at import time: loguru is a process-wide singleton and
@@ -200,6 +211,27 @@ class AgentPlanner:
         messages = context.messages()
         tools = context.tool_schemas()
 
+        run_id = state.state_id
+        iteration = context.iteration
+
+        # LLM seam (PHASE 3). Only observable metadata is emitted: which provider
+        # and model, and how much was sent -- never the messages themselves, which
+        # carry the system prompt and the conversation.
+        await emit_trace(
+            TraceEventType.LLM_REQUEST_STARTED,
+            message=f"Requesting {self._provider.name}/{self._provider.model}",
+            status=TraceStatus.STARTED,
+            run_id=run_id,
+            iteration=iteration,
+            metadata={
+                "provider": self._provider.name,
+                "model": self._provider.model,
+                "tool_count": len(tools),
+                "message_count": len(messages),
+            },
+        )
+
+        started = time.perf_counter()
         try:
             if tools:
                 response: Any = await self._provider.tool_call(
@@ -216,9 +248,100 @@ class AgentPlanner:
             # and swallowing it would hide that from the task that asked.
             raise
         except Exception as exc:
+            await emit_trace(
+                TraceEventType.ERROR,
+                message=f"{self._provider.name} failed to answer",
+                stage="LLM request",
+                status=TraceStatus.FAILED,
+                run_id=run_id,
+                iteration=iteration,
+                duration_ms=(time.perf_counter() - started) * 1000.0,
+                error=f"{type(exc).__name__}: {exc}",
+            )
             return self._provider_failure(exc, context)
 
-        return self.decide(context, response)
+        await self._trace_llm_response(
+            response,
+            run_id=run_id,
+            iteration=iteration,
+            duration_ms=(time.perf_counter() - started) * 1000.0,
+        )
+
+        result = self.decide(context, response)
+        await self._trace_decision(result, run_id=run_id, iteration=iteration)
+        return result
+
+    async def _trace_llm_response(
+        self,
+        response: Any,
+        *,
+        run_id: str | None,
+        iteration: int,
+        duration_ms: float,
+    ) -> None:
+        """Emit LLM_RESPONSE_RECEIVED from observable response data only.
+
+        Reads ``finish_reason`` and ``usage`` opportunistically (PHASE 3): the
+        provider surfaces them when it can, and their absence is reported as such
+        rather than fabricated. The content is emitted as a bounded preview, never
+        the model's hidden reasoning -- only the visible answer text.
+        """
+
+        content = ""
+        tool_calls = 0
+        finish_reason: Any = None
+        usage: Any = None
+
+        if isinstance(response, dict):
+            content = str(response.get("content") or "")
+            calls = response.get("tool_calls")
+            tool_calls = len(calls) if isinstance(calls, (list, tuple)) else 0
+            finish_reason = response.get("finish_reason")
+            usage = response.get("usage")
+        elif isinstance(response, str):
+            content = response
+
+        metadata: dict[str, Any] = {
+            "provider": self._provider.name,
+            "model": self._provider.model,
+            "tool_calls": tool_calls,
+            "finish_reason": finish_reason,
+        }
+        if isinstance(usage, dict):
+            metadata["usage"] = usage
+
+        await emit_trace(
+            TraceEventType.LLM_RESPONSE_RECEIVED,
+            message=(
+                f"{self._provider.name} answered"
+                + (f" with {tool_calls} tool call(s)" if tool_calls else "")
+            ),
+            status=TraceStatus.SUCCESS,
+            run_id=run_id,
+            iteration=iteration,
+            duration_ms=duration_ms,
+            metadata=metadata,
+            payload={"content_preview": safe_preview(content)} if content else {},
+        )
+
+    async def _trace_decision(
+        self,
+        result: PlanResult,
+        *,
+        run_id: str | None,
+        iteration: int,
+    ) -> None:
+        """Emit PLANNER_DECISION from the log-safe ``describe`` projection."""
+
+        failed = result.is_failure
+        await emit_trace(
+            TraceEventType.PLANNER_DECISION,
+            message=f"Planner decided: {result.type.value}",
+            status=TraceStatus.FAILED if failed else TraceStatus.SUCCESS,
+            run_id=run_id,
+            iteration=iteration,
+            metadata=result.describe(),
+        )
 
     def decide(self, context: AgentContext, response: Any) -> PlanResult:
         """Turn a provider response into a plan. Pure and deterministic.

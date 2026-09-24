@@ -8,6 +8,12 @@ from ..core.errors.voice_error import VoiceError as VoiceErrorException
 from ..core.interfaces.speech_to_text import SpeechToText
 from ..core.interfaces.text_to_speech import TextToSpeech
 from ..core.logging.logging import get_logger
+from ..core.observability import (
+    TraceEventType,
+    TraceStatus,
+    emit_trace,
+    safe_preview,
+)
 from ..runtime.events.event_bus import EventBus
 from ..runtime.events.events import Event
 from .audio import AudioCapture
@@ -270,10 +276,30 @@ class VoicePipeline:
             )
         )
 
+        # PHASE 11 -- the voice subsystem emits trace events; it never drives the
+        # trace UI itself. STT_STARTED marks the transcript stage of the pipeline.
+        await emit_trace(
+            TraceEventType.STT_STARTED,
+            message="Transcribing speech",
+            stage="Speech-to-text",
+            status=TraceStatus.STARTED,
+            metadata={
+                "samples": int(recording.samples.size),
+                "duration_s": round(recording.duration, 3),
+            },
+        )
+
+        stt_started = time.monotonic()
+
         transcript = await self._stt.transcribe(
             recording.samples,
             sample_rate=recording.sample_rate,
         )
+
+        self._logger.bind(
+            stage="stt",
+            latency_ms=round((time.monotonic() - stt_started) * 1000, 3),
+        ).info("STT latency.")
 
         if transcript.is_empty:
             self._logger.info("No speech recognized; returning to idle.")
@@ -290,6 +316,18 @@ class VoicePipeline:
                 language=transcript.language,
                 duration=transcript.duration,
             )
+        )
+
+        # STT_COMPLETED -- the transcript is the user's own spoken words, safe to
+        # preview (the same rule the agent's INPUT_RECEIVED goal preview follows).
+        await emit_trace(
+            TraceEventType.STT_COMPLETED,
+            message=safe_preview(transcript.text, 120),
+            stage="Speech-to-text",
+            status=TraceStatus.SUCCESS,
+            duration_ms=(time.monotonic() - stt_started) * 1000.0,
+            metadata={"language": transcript.language},
+            payload={"transcript_preview": safe_preview(transcript.text)},
         )
 
         result = await self._reason_and_speak(transcript.text)
@@ -398,10 +436,18 @@ class VoicePipeline:
             on_tool_finished=on_tool_finished,
         )
 
+        agent_latency = time.monotonic() - thinking_started
+
+        self._logger.bind(
+            stage="agent",
+            tools=len(tools),
+            latency_ms=round(agent_latency * 1000, 3),
+        ).info("Agent latency.")
+
         await self._publish(
             LLMThinkingFinished(
                 response=response,
-                duration=time.monotonic() - thinking_started,
+                duration=agent_latency,
             )
         )
 
@@ -428,6 +474,16 @@ class VoicePipeline:
         self._transition(VoiceState.SPEAKING)
 
         await self._publish(SpeechStarted(text=spoken))
+
+        # TTS_STARTED -- the reply text is the assistant's own answer, observable
+        # output; a bounded preview is safe.
+        await emit_trace(
+            TraceEventType.TTS_STARTED,
+            message=safe_preview(spoken, 120),
+            stage="Text-to-speech",
+            status=TraceStatus.STARTED,
+            payload={"speech_preview": safe_preview(spoken)},
+        )
 
         started = time.monotonic()
         cancelled = False
@@ -458,11 +514,30 @@ class VoicePipeline:
             )
 
         finally:
+            tts_latency = time.monotonic() - started
+
+            self._logger.bind(
+                stage="tts",
+                cancelled=cancelled,
+                latency_ms=round(tts_latency * 1000, 3),
+            ).info("TTS latency.")
+
             await self._publish(
                 SpeechFinished(
-                    duration=time.monotonic() - started,
+                    duration=tts_latency,
                     cancelled=cancelled,
                 )
+            )
+
+            # TTS_COMPLETED -- closes the voice pipeline's final stage. A cancelled
+            # or failed synthesis is reported as such rather than as clean success.
+            await emit_trace(
+                TraceEventType.TTS_COMPLETED,
+                message="Speech cancelled" if cancelled else "Speech finished",
+                stage="Text-to-speech",
+                status=TraceStatus.WARNING if cancelled else TraceStatus.SUCCESS,
+                duration_ms=tts_latency * 1000.0,
+                metadata={"cancelled": cancelled},
             )
 
             self._transition(VoiceState.IDLE)

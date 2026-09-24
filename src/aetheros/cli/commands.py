@@ -27,6 +27,8 @@ class CommandRegistry:
         llm_service=None,
         *,
         tool_loop=None,
+        agent=None,
+        trace=None,
     ) -> None:
 
         self._commands = {}
@@ -36,9 +38,20 @@ class CommandRegistry:
         # The raw provider, kept for `llm` status reporting.
         self._llm_service = llm_service
 
-        # The LLMToolLoop. `ask` runs through this so the model can call tools;
-        # without it, `ask` degrades to plain generation rather than failing.
+        # The agent core. `ask` runs through this so the agent owns
+        # orchestration -- OBSERVE -> PLAN -> POLICY -> EXECUTE -- and the CLI
+        # only submits the goal and displays the result.
+        self._agent = agent
+
+        # The legacy LLMToolLoop, kept as a fallback for a runtime wired before
+        # the agent existed; without either, `ask` degrades to plain generation
+        # rather than failing.
         self._tool_loop = tool_loop
+
+        # The live execution-trace recorder. The `trace` command mutates it
+        # (level, clear) and reads its status; None when tracing was not wired,
+        # in which case `trace` reports that rather than failing.
+        self._trace = trace
 
         self._logger = get_logger("cli_commands")
 
@@ -54,6 +67,7 @@ class CommandRegistry:
 
         self.register("ask", self._ask)
 
+        self.register("trace", self._trace_command)
 
         self.register("clear", self._clear)
 
@@ -118,6 +132,7 @@ class CommandRegistry:
                 browser    Browser operations
                 vision     Vision operations
                 llm        LLM operations
+                trace      Live execution trace (trace / on / off / level / clear / status)
                 clear      Clear the terminal
                 exit       Stop AetherOS
                 quit       Stop AetherOS
@@ -222,7 +237,7 @@ class CommandRegistry:
 
         tools = (
             "ENABLED"
-            if self._tool_loop is not None
+            if self._agent is not None or self._tool_loop is not None
             else "DISABLED"
         )
 
@@ -234,6 +249,79 @@ class CommandRegistry:
             f"Model    : {provider.model}\n"
             f"Tools    : {tools}\n"
             "Status   : ONLINE\n"
+        )
+
+    def _trace_command(self, args: list[str]) -> str:
+        """
+        Inspect and control the live execution trace (PHASE 10).
+
+        Subcommands:
+            trace              Show trace status (same as `trace status`).
+            trace on           Restore tracing to the NORMAL level.
+            trace off          Silence the trace (level OFF).
+            trace level <x>    Set the level: off|error|minimal|normal|debug|verbose.
+            trace clear        Drop the in-memory dashboard window.
+            trace status       Trace / Level / Live UI / Persistence snapshot.
+
+        Mutates the live recorder in place -- it does not touch the cached
+        settings, so a runtime change here does not require a restart and does
+        not persist to the environment.
+        """
+
+        if self._trace is None:
+            return (
+                "\n"
+                "Live Execution Trace\n"
+                "--------------------\n"
+                "Status : NOT CONNECTED\n"
+            )
+
+        action = args[0].lower() if args else "status"
+
+        if action in ("status", "show"):
+            return self._format_trace_status()
+
+        if action == "on":
+            level = self._trace.set_level("normal")
+            return f"Trace on (level={level.name.lower()})."
+
+        if action == "off":
+            self._trace.set_level("off")
+            return "Trace off."
+
+        if action == "clear":
+            self._trace.clear()
+            return "Trace window cleared."
+
+        if action == "level":
+            if len(args) < 2:
+                return (
+                    f"Current trace level: {self._trace.level.name.lower()}.\n"
+                    "Usage: trace level <off|error|minimal|normal|debug|verbose>"
+                )
+            level = self._trace.set_level(args[1])
+            return f"Trace level set to {level.name.lower()}."
+
+        return (
+            f"Unknown trace subcommand: {action}\n"
+            "Usage: trace [on|off|level <x>|clear|status]"
+        )
+
+    def _format_trace_status(self) -> str:
+        status = self._trace.status()
+
+        return (
+            "\n"
+            "Live Execution Trace\n"
+            "--------------------\n"
+            f"Trace       : {'ON' if status['running'] else 'OFF'}\n"
+            f"Level       : {status['level']}\n"
+            f"Live UI     : {'ON' if status['live_ui'] else 'OFF'}\n"
+            f"Persistence : {'ON' if status['persist'] else 'OFF'}\n"
+            f"Events seen : {status['events_seen']}\n"
+            f"Events kept : {status['events_kept']}\n"
+            f"Buffered    : {status['buffered']}\n"
+            f"Last run    : {status['last_run_id'] or '-'}\n"
         )
 
     async def _tool(
@@ -460,7 +548,11 @@ class CommandRegistry:
         Send a message to the LLM, letting it call AetherOS tools.
         """
 
-        if self._tool_loop is None and self._llm_service is None:
+        if (
+            self._agent is None
+            and self._tool_loop is None
+            and self._llm_service is None
+        ):
             return (
                 "\n"
                 "LLM\n"
@@ -477,7 +569,48 @@ class CommandRegistry:
             return "Usage: ask <message>"
 
         # ------------------------------------------------------
-        # Tool-enabled path
+        # Agent path -- the agent owns orchestration; the CLI only submits
+        # the goal and renders the outcome.
+        # ------------------------------------------------------
+
+        if self._agent is not None:
+
+            log = self._logger.bind(goal_chars=len(prompt))
+            log.info("Agent run starting.")
+
+            try:
+                result = await self._agent.run(prompt)
+
+            except Exception as exc:
+                # Only a provider/transport failure reaches here; tool failures
+                # and policy refusals are handled inside the run and recorded on
+                # the state.
+                self._logger.bind(
+                    error_type=type(exc).__name__,
+                ).exception("Agent run failed.")
+
+                return (
+                    f"LLM request failed: "
+                    f"{type(exc).__name__}: {exc}"
+                )
+
+            if result.ok:
+                log.bind(
+                    iterations=result.iterations,
+                ).info("Agent run finished.")
+            else:
+                # A non-completed run (failure / emergency stop / spent budget)
+                # is still returned to the user; the reason is logged for audit.
+                self._logger.bind(
+                    status=result.status.value,
+                    stopped_reason=result.stopped_reason,
+                    iterations=result.iterations,
+                ).warning("Agent run did not complete.")
+
+            return self._format_run_result(result)
+
+        # ------------------------------------------------------
+        # Legacy tool-loop path
         # ------------------------------------------------------
 
         if self._tool_loop is not None:
@@ -526,6 +659,45 @@ class CommandRegistry:
     # ==========================================================
     # Formatting
     # ==========================================================
+
+    def _format_run_result(
+        self,
+        result,
+    ) -> str:
+        """
+        Render an ``AgentRunResult`` for the terminal.
+
+        Deliberately the same shape as :meth:`_format_answer` so the migration
+        to the agent core does not change what the user sees: the answer, then
+        the tools that ran, then an "stopped early" note when the run ended for
+        any reason other than a final answer.
+        """
+
+        answer = result.final_response or "(no answer)"
+
+        records = result.state.tool_results
+
+        if not records:
+            return answer
+
+        # Which tools ran is part of the answer's evidence, so it is shown
+        # rather than buried in the log file. Names only -- an argument value
+        # may be a secret and never belongs in the visible transcript either.
+        used = ", ".join(
+            f"{record.name}"
+            f"{'' if record.ok else ' (failed)'}"
+            for record in records
+        )
+
+        lines = [answer, "", f"Tools used: {used}"]
+
+        if result.stopped_reason != "final_answer":
+            lines.append(
+                f"Stopped early: {result.stopped_reason} "
+                f"after {result.iterations} iterations."
+            )
+
+        return "\n".join(lines)
 
     def _format_answer(
         self,

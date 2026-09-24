@@ -42,6 +42,20 @@ class Settings(BaseSettings):
     LOG_LEVEL: str = "INFO"
 
     # -----------------------
+    # Live execution trace
+    # -----------------------
+
+    # Verbosity of the live trace dashboard: off | error | minimal | normal |
+    # debug | verbose. Parsed tolerantly by observability.resolve_level, so an
+    # unknown value falls back to NORMAL rather than failing a run.
+    TRACE_LEVEL: str = "normal"
+
+    # Whether each run's trace is persisted as JSONL under LOG_DIR/traces. The
+    # live dashboard is independent of this: turning persistence off still shows
+    # the trace, it just leaves no file behind.
+    TRACE_PERSIST: bool = True
+
+    # -----------------------
     # Paths
     # -----------------------
 

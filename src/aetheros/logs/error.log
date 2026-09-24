@@ -1,0 +1,261 @@
+2026-09-24 14:29:50.991 | ERROR    | aetheros.runtime.events.event_bus:publish:112 - Handler '_on_response' failed while processing LLMThinkingFinished
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "D:\AetherOS\AetherOS\venv312\Scripts\aether.exe\__main__.py", line 5, in <module>
+    sys.exit(main())
+  File "D:\AetherOS\AetherOS\src\aetheros\__main__.py", line 30, in main
+    asyncio.run(_main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\voice\pipeline.py", line 302, in _listen_turn
+    ).info("STT latency.")
+  File "D:\AetherOS\AetherOS\src\aetheros\voice\pipeline.py", line 416, in _reason_and_speak
+  File "D:\AetherOS\AetherOS\src\aetheros\voice\pipeline.py", line 663, in _publish
+    The state machine is synchronous, so publishing is deferred to
+> File "D:\AetherOS\AetherOS\src\aetheros\runtime\events\event_bus.py", line 108, in publish
+    handler(event)
+  File "D:\AetherOS\AetherOS\src\aetheros\hud\service.py", line 559, in _on_response
+    self._ui.prompt()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\ui.py", line 137, in prompt
+    return self.console.input(
+  File "D:\AetherOS\AetherOS\venv312\Lib\site-packages\rich\console.py", line 2189, in input
+    result = input()
+EOFError
+2026-09-24 15:14:36.739 | ERROR    | aetheros.runtime.events.event_bus:publish:112 - Handler '_on_response' failed while processing LLMThinkingFinished
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "D:\AetherOS\AetherOS\venv312\Scripts\aether.exe\__main__.py", line 5, in <module>
+    sys.exit(main())
+  File "D:\AetherOS\AetherOS\src\aetheros\__main__.py", line 30, in main
+    asyncio.run(_main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\voice\pipeline.py", line 333, in _listen_turn
+    result = await self._reason_and_speak(transcript.text)
+  File "D:\AetherOS\AetherOS\src\aetheros\voice\pipeline.py", line 447, in _reason_and_speak
+    await self._publish(
+  File "D:\AetherOS\AetherOS\src\aetheros\voice\pipeline.py", line 715, in _publish
+    await self._bus.publish(event)
+> File "D:\AetherOS\AetherOS\src\aetheros\runtime\events\event_bus.py", line 108, in publish
+    handler(event)
+  File "D:\AetherOS\AetherOS\src\aetheros\hud\service.py", line 559, in _on_response
+    self._ui.prompt()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\ui.py", line 137, in prompt
+    return self.console.input(
+  File "D:\AetherOS\AetherOS\venv312\Lib\site-packages\rich\console.py", line 2189, in input
+    result = input()
+EOFError
+2026-09-24 19:59:09.098 | ERROR    | aetheros.tools.executor:_run:244 - Tool raised an exception.
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "D:\AetherOS\AetherOS\venv312\Scripts\aether.exe\__main__.py", line 5, in <module>
+    sys.exit(main())
+  File "D:\AetherOS\AetherOS\src\aetheros\__main__.py", line 30, in main
+    asyncio.run(_main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\src\aetheros\__main__.py", line 16, in _main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 110, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 90, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 124, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 115, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 582, in _ask
+    result = await self._agent.run(prompt)
+  File "D:\AetherOS\AetherOS\src\aetheros\agents\core.py", line 262, in run
+    await self._loop(state, observations, confirmed=confirmed)
+  File "D:\AetherOS\AetherOS\src\aetheros\agents\core.py", line 402, in _loop
+    results = await self._coordinator.execute_many(
+  File "D:\AetherOS\AetherOS\src\aetheros\agents\execution.py", line 613, in execute_many
+    await self.execute(state, call, iteration=at, confirmed=confirmed)
+  File "D:\AetherOS\AetherOS\src\aetheros\agents\execution.py", line 573, in execute
+    outcome = await self._executor.execute_safe(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 136, in execute_safe
+    return await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 221, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 317, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\window\tools.py", line 504, in wait_for_window
+    window = await windows.wait_for_window(
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\window\controller.py", line 346, in wait_for_window
+    return await self._wait(
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\window\controller.py", line 460, in _wait
+    raise DesktopError(
+aetheros.core.errors.desktop_error.DesktopError: [DESKTOP_WINDOW_WAIT_TIMEOUT] Timed out after 10s waiting for title='Brave' (65 check(s)).
+Hint: Check the title spelling with list_windows, or raise the timeout if the application is slow to start.
+2026-09-24 20:00:11.291 | ERROR    | aetheros.tools.executor:_run:244 - Tool raised an exception.
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "D:\AetherOS\AetherOS\venv312\Scripts\aether.exe\__main__.py", line 5, in <module>
+    sys.exit(main())
+  File "D:\AetherOS\AetherOS\src\aetheros\__main__.py", line 30, in main
+    asyncio.run(_main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\src\aetheros\__main__.py", line 16, in _main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 110, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 90, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 124, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 115, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 582, in _ask
+    result = await self._agent.run(prompt)
+  File "D:\AetherOS\AetherOS\src\aetheros\agents\core.py", line 262, in run
+    await self._loop(state, observations, confirmed=confirmed)
+  File "D:\AetherOS\AetherOS\src\aetheros\agents\core.py", line 402, in _loop
+    results = await self._coordinator.execute_many(
+  File "D:\AetherOS\AetherOS\src\aetheros\agents\execution.py", line 613, in execute_many
+    await self.execute(state, call, iteration=at, confirmed=confirmed)
+  File "D:\AetherOS\AetherOS\src\aetheros\agents\execution.py", line 573, in execute
+    outcome = await self._executor.execute_safe(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 136, in execute_safe
+    return await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 221, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 317, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\window\tools.py", line 293, in restore_window
+    return (await windows.bounds(window)).to_dict()
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\window\controller.py", line 304, in bounds
+    return self._describe(self._handle(window))
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\window\controller.py", line 541, in _describe
+    return describe(hwnd)
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\window\win32_backend.py", line 579, in describe
+    return self._describe(self._validated(window))
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\window\win32_backend.py", line 216, in _describe
+    state=self._state(hwnd),
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\window\win32_backend.py", line 184, in _state
+    if win32gui.IsZoomed(hwnd):
+AttributeError: module 'win32gui' has no attribute 'IsZoomed'
+2026-09-24 20:00:36.603 | ERROR    | aetheros.tools.executor:_run:244 - Tool raised an exception.
+Traceback (most recent call last):
+  File "<frozen runpy>", line 198, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "D:\AetherOS\AetherOS\venv312\Scripts\aether.exe\__main__.py", line 5, in <module>
+    sys.exit(main())
+  File "D:\AetherOS\AetherOS\src\aetheros\__main__.py", line 30, in main
+    asyncio.run(_main())
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 195, in run
+    return runner.run(main)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 678, in run_until_complete
+    self.run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\windows_events.py", line 322, in run_forever
+    super().run_forever()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 645, in run_forever
+    self._run_once()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\base_events.py", line 1999, in _run_once
+    handle._run()
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\events.py", line 88, in _run
+    self._context.run(self._callback, *self._args)
+  File "D:\AetherOS\AetherOS\src\aetheros\__main__.py", line 16, in _main
+    await app.run()
+  File "D:\AetherOS\AetherOS\src\aetheros\bootstrap\application.py", line 110, in run
+    await self._cli.start()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 90, in start
+    await self._loop()
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\main.py", line 124, in _loop
+    result = await self._commands.execute(command)
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 115, in execute
+    result = await result
+  File "D:\AetherOS\AetherOS\src\aetheros\cli\commands.py", line 582, in _ask
+    result = await self._agent.run(prompt)
+  File "D:\AetherOS\AetherOS\src\aetheros\agents\core.py", line 262, in run
+    await self._loop(state, observations, confirmed=confirmed)
+  File "D:\AetherOS\AetherOS\src\aetheros\agents\core.py", line 402, in _loop
+    results = await self._coordinator.execute_many(
+  File "D:\AetherOS\AetherOS\src\aetheros\agents\execution.py", line 613, in execute_many
+    await self.execute(state, call, iteration=at, confirmed=confirmed)
+  File "D:\AetherOS\AetherOS\src\aetheros\agents\execution.py", line 573, in execute
+    outcome = await self._executor.execute_safe(
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 136, in execute_safe
+    return await self._run(
+> File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 221, in _run
+    value = await self._invoke(tool, arguments)
+  File "D:\AetherOS\AetherOS\src\aetheros\tools\executor.py", line 317, in _invoke
+    result = await asyncio.wait_for(
+  File "C:\Program Files\WindowsApps\PythonSoftwareFoundation.Python.3.12_3.12.2800.0_x64__qbz5n2kfra8p0\Lib\asyncio\tasks.py", line 520, in wait_for
+    return await fut
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\window\tools.py", line 251, in maximize_window
+    windows, window = await _target(
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\window\tools.py", line 55, in _target
+    window = await windows.resolve(
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\window\controller.py", line 96, in resolve
+    window = self._controller.active()
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\window\win32_backend.py", line 316, in active
+    return self._describe(hwnd)
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\window\win32_backend.py", line 216, in _describe
+    state=self._state(hwnd),
+  File "D:\AetherOS\AetherOS\src\aetheros\desktop\window\win32_backend.py", line 184, in _state
+    if win32gui.IsZoomed(hwnd):
+AttributeError: module 'win32gui' has no attribute 'IsZoomed'

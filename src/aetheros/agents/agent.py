@@ -5,10 +5,10 @@ from typing import Any
 
 from ..core.logging import get_logger
 from ..llm.agent_loop import LLMToolLoop
-from .context import ContextBuilder
+from .context import AgentContext, ContextBuilder
 from .execution import ToolExecutionCoordinator
 from .planner import AgentPlanner
-from .state import AgentState
+from .state import AgentState, AgentStatus
 from .tasks.manager import TaskManager
 from .tasks.models import Task
 from .tasks.state import TaskStatus
@@ -93,14 +93,16 @@ class Agent:
                 stopped_reason="final_answer",
             )
 
-        if state.status.value == "completed":
+        if state.status is AgentStatus.COMPLETED:
             self._task_manager.complete_task(task.id)
-        elif state.status.value == "failed":
+        elif state.status is AgentStatus.FAILED:
             self._fail_task(task, state.last_error.message if state.last_error else "Agent run failed.")
+        elif state.status is AgentStatus.CANCELLED:
+            self._cancel_task(task)
 
         return state
 
-    def build_context(self, state: AgentState):
+    def build_context(self, state: AgentState) -> AgentContext:
         """Build the bounded model projection for ``state``."""
 
         return self._context_builder.build(state)

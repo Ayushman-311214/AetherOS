@@ -23,6 +23,8 @@ class CLIRuntime:
         tool_registry=None,
         llm_service=None,
         tool_loop=None,
+        agent=None,
+        trace=None,
         event : Event | None = None,
         event_bus : EventBus | None = None,
         ) -> None:
@@ -36,11 +38,11 @@ class CLIRuntime:
 
         self._tool_service = None
 
-        
-        
-        
-    
-        
+
+
+
+
+
         if tool_registry is not None:
             from .tool_commands import ToolCommandService
 
@@ -52,6 +54,8 @@ class CLIRuntime:
             self._tool_service,
             llm_service,
             tool_loop=tool_loop,
+            agent=agent,
+            trace=trace,
         )
 
         self._running = False
@@ -64,6 +68,7 @@ class CLIRuntime:
             ),
             has_llm=llm_service is not None,
             has_tool_loop=tool_loop is not None,
+            has_agent=agent is not None,
         ).info("CLI runtime initialized.")
 
     # ==========================================================

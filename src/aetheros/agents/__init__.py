@@ -23,6 +23,7 @@ from .context import (
     context_builder,
     truncate,
 )
+from .core import STOP_EMERGENCY_STOP, AgentCore, AgentRunResult
 from .execution import (
     AgentExecutionResult,
     ExecutionBatch,
@@ -83,6 +84,7 @@ __all__ = [
     "MESSAGE_ROLES",
     "RECORD_CEILING",
     "STOP_CANCELLED",
+    "STOP_EMERGENCY_STOP",
     "STOP_ERROR",
     "STOP_FINAL_ANSWER",
     "STOP_LOOP_GUARD",
@@ -91,8 +93,10 @@ __all__ = [
     "ActionType",
     "Agent",
     "AgentContext",
+    "AgentCore",
     "AgentExecutionResult",
     "AgentPlanner",
+    "AgentRunResult",
     "AgentState",
     "AgentStatus",
     "ContextBuilder",

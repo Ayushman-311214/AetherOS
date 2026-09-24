@@ -148,7 +148,8 @@ class OpenAICompatibleProvider(LLMProvider):
                 "tool_calls": [],
             }
 
-        message = response.choices[0].message
+        choice = response.choices[0]
+        message = choice.message
 
         tool_calls: list[dict[str, Any]] = []
 
@@ -168,10 +169,32 @@ class OpenAICompatibleProvider(LLMProvider):
                 }
             )
 
-        return {
+        # ``finish_reason`` and ``usage`` are additive observability metadata for
+        # the live trace (PHASE 3). parse_llm_response reads only ``content`` and
+        # ``tool_calls`` and ignores any other key, so surfacing these here is
+        # non-breaking. They are omitted when the endpoint did not report them --
+        # honest absence rather than a fabricated token count.
+        result: dict[str, Any] = {
             "content": message.content or "",
             "tool_calls": tool_calls,
         }
+
+        finish_reason = getattr(choice, "finish_reason", None)
+        if finish_reason is not None:
+            result["finish_reason"] = finish_reason
+
+        usage = getattr(response, "usage", None)
+        if usage is not None:
+            try:
+                result["usage"] = {
+                    "prompt_tokens": usage.prompt_tokens,
+                    "completion_tokens": usage.completion_tokens,
+                    "total_tokens": usage.total_tokens,
+                }
+            except AttributeError:
+                pass
+
+        return result
 
     # ==========================================================
     # Model Management

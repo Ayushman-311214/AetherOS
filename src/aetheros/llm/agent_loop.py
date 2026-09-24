@@ -13,19 +13,26 @@ propagates.
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from ..core.logging import get_logger
-from ..tools.executor import ToolExecutionResult, ToolExecutor
+from ..tools.executor import ToolExecutor
 from .engine import LLMEngine
 from .tool_calls import (
     MalformedToolCall,
     ToolCall,
     parse_llm_response,
 )
+
+if TYPE_CHECKING:
+    from ..agents.context import ContextBuilder
+    from ..agents.execution import ToolExecutionCoordinator
+    from ..agents.planner import AgentPlanner
+    from ..agents.state import AgentState
 
 # Optional progress callbacks for a caller that has to show what the loop is
 # doing while it runs — the voice pipeline and the HUD are the reason these
@@ -106,7 +113,7 @@ class AgentLoopResult:
 
 class LLMToolLoop:
     """
-    Main LLM ↔ ToolExecutor loop.
+    Main LLM ↔ tool-coordination loop.
     """
 
     def __init__(
@@ -114,11 +121,19 @@ class LLMToolLoop:
         engine: LLMEngine,
         executor: ToolExecutor,
         *,
+        coordinator: ToolExecutionCoordinator | None = None,
         config: AgentLoopConfig | None = None,
     ) -> None:
 
         self._engine = engine
-        self._executor = executor
+        if coordinator is None:
+            from ..agents.execution import ToolExecutionCoordinator
+
+            coordinator = ToolExecutionCoordinator(
+                executor,
+                registry=executor.registry,
+            )
+        self._coordinator = coordinator
         self._config = config or AgentLoopConfig()
 
         self._logger = get_logger("llm_tool_loop")
@@ -127,16 +142,22 @@ class LLMToolLoop:
     def config(self) -> AgentLoopConfig:
         return self._config
 
+    @property
+    def coordinator(self) -> ToolExecutionCoordinator:
+        """The agent-layer coordinator used by legacy loop calls."""
+
+        return self._coordinator
+
     # ==========================================================
     # Public
     # ==========================================================
 
     async def run_state(
         self,
-        state: Any,
-        context_builder: Any,
-        planner: Any,
-        coordinator: Any,
+        state: AgentState,
+        context_builder: ContextBuilder,
+        planner: AgentPlanner,
+        coordinator: ToolExecutionCoordinator | None = None,
     ) -> None:
         """Run the loop against AgentState and the agent-layer coordinator.
 
@@ -147,6 +168,9 @@ class LLMToolLoop:
         """
 
         from ..agents.state import Message
+
+        if coordinator is None:
+            coordinator = self._coordinator
 
         while state.has_iterations_left and not state.is_terminal:
             iteration = await state.next_iteration()
@@ -248,6 +272,16 @@ class LLMToolLoop:
         # return an empty answer with no explanation.
         limit = max(1, limit)
 
+        from ..agents.state import AgentState, Message
+
+        legacy_state = AgentState(
+            user_message,
+            agent="llm_tool_loop",
+            max_iterations=limit,
+        )
+        await legacy_state.start()
+        await legacy_state.seed_conversation(system_prompt or config.system_prompt)
+
         messages: list[dict[str, Any]] = [
             {
                 "role": "system",
@@ -282,10 +316,17 @@ class LLMToolLoop:
 
             iterations += 1
 
-            response = await self._engine.tool_call(
-                messages=messages,
-                tools=tools,
-            )
+            try:
+                response = await self._engine.tool_call(
+                    messages=messages,
+                    tools=tools,
+                )
+            except asyncio.CancelledError:
+                await legacy_state.cancel()
+                raise
+            except Exception as exc:
+                await legacy_state.fail(exc)
+                raise
 
             parsed = parse_llm_response(response)
 
@@ -303,6 +344,12 @@ class LLMToolLoop:
                     tool_calls=len(invocations),
                 ).info("Agent loop finished with a final answer.")
 
+                final_message = Message.assistant(content)
+                await legacy_state.add_message(final_message)
+                await legacy_state.complete(
+                    content,
+                    stopped_reason="final_answer",
+                )
                 return AgentLoopResult(
                     content=content,
                     iterations=iterations,
@@ -335,11 +382,13 @@ class LLMToolLoop:
             ]
 
             if replayable:
-                messages.append(
-                    self._assistant_message(
-                        parsed.content,
-                        replayable,
-                    )
+                assistant_message = self._assistant_message(
+                    parsed.content,
+                    replayable,
+                )
+                messages.append(assistant_message)
+                await legacy_state.add_message(
+                    Message.from_dict(assistant_message)
                 )
 
             # --------------------------------------------------
@@ -351,15 +400,15 @@ class LLMToolLoop:
                 if not call.is_addressable:
                     continue
 
-                messages.append(
-                    self._tool_message(
-                        call.id or "",
-                        self._payload(
-                            ok=False,
-                            error=call.reason,
-                        ),
-                    )
+                tool_message = self._tool_message(
+                    call.id or "",
+                    self._payload(
+                        ok=False,
+                        error=call.reason,
+                    ),
                 )
+                messages.append(tool_message)
+                await legacy_state.add_message(Message.from_dict(tool_message))
 
                 invocations.append(
                     ToolInvocation(
@@ -402,11 +451,13 @@ class LLMToolLoop:
                         f"user with what you already have."
                     )
 
-                    messages.append(
-                        self._tool_message(
-                            call.id,
-                            self._payload(ok=False, error=note),
-                        )
+                    tool_message = self._tool_message(
+                        call.id,
+                        self._payload(ok=False, error=note),
+                    )
+                    messages.append(tool_message)
+                    await legacy_state.add_message(
+                        Message.from_dict(tool_message)
                     )
 
                     invocations.append(
@@ -436,9 +487,10 @@ class LLMToolLoop:
                     call.arguments,
                 )
 
-                result = await self._executor.execute_safe(
-                    call.name,
-                    call.arguments,
+                result = await self._coordinator.execute(
+                    legacy_state,
+                    call,
+                    iteration=iterations,
                 )
 
                 await self._notify(
@@ -452,9 +504,9 @@ class LLMToolLoop:
 
                 serialized = self._serialize_result(result)
 
-                messages.append(
-                    self._tool_message(call.id, serialized)
-                )
+                tool_message = self._tool_message(call.id, serialized)
+                messages.append(tool_message)
+                await legacy_state.add_message(Message.from_dict(tool_message))
 
                 invocations.append(
                     ToolInvocation(
@@ -475,16 +527,16 @@ class LLMToolLoop:
 
             for call in unaddressable:
 
-                messages.append(
-                    {
-                        "role": "user",
-                        "content": (
-                            "One of your tool calls was rejected because it "
-                            f"had no function name ({call.reason}). Re-issue "
-                            "it with a valid tool name, or answer directly."
-                        ),
-                    }
-                )
+                user_message = {
+                    "role": "user",
+                    "content": (
+                        "One of your tool calls was rejected because it "
+                        f"had no function name ({call.reason}). Re-issue "
+                        "it with a valid tool name, or answer directly."
+                    ),
+                }
+                messages.append(user_message)
+                await legacy_state.add_message(Message.from_dict(user_message))
 
                 invocations.append(
                     ToolInvocation(
@@ -513,6 +565,10 @@ class LLMToolLoop:
                     iterations=iterations,
                 ).warning("Agent loop stopped by the repeat guard.")
 
+                await legacy_state.complete(
+                    content or self._guard_message(),
+                    stopped_reason="loop_guard",
+                )
                 return AgentLoopResult(
                     content=content or self._guard_message(),
                     iterations=iterations,
@@ -535,6 +591,10 @@ class LLMToolLoop:
             tool_calls=len(invocations),
         ).warning("Agent loop hit the maximum iteration limit.")
 
+        await legacy_state.complete(
+            content or self._limit_message(limit),
+            stopped_reason="max_iterations",
+        )
         return AgentLoopResult(
             content=content or self._limit_message(limit),
             iterations=iterations,
@@ -629,7 +689,7 @@ class LLMToolLoop:
 
     def _serialize_result(
         self,
-        result: ToolExecutionResult,
+        result: Any,
     ) -> str:
         """
         Turn an execution outcome into text the model can read.
@@ -753,7 +813,7 @@ class LLMToolLoop:
         self,
         iteration: int,
         call: ToolCall,
-        result: ToolExecutionResult,
+        result: Any,
     ) -> None:
         """
         Record that a tool ran, without recording what it was given.

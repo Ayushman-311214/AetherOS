@@ -88,6 +88,12 @@ class ToolExecutor:
     # Public
     # ==========================================================
 
+    @property
+    def registry(self) -> ToolRegistry:
+        """The registry this executor validates and runs tools from."""
+
+        return self._registry
+
     async def execute(
         self,
         name: str,

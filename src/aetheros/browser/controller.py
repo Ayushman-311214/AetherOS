@@ -161,6 +161,20 @@ class BrowserService:
 
         return await self._provider.text(selector)
 
+    async def page_text(self) -> str:
+        """
+        The visible text of the whole page.
+
+        Reuses the provider's existing element-text seam against ``body`` rather
+        than widening the ``BrowserProvider`` interface: every backend already
+        has to answer ``text(selector)``, and ``body`` is the one selector that
+        is always present once a page has loaded. This is what a spoken or typed
+        "read me the page" resolves to, and it is far cheaper on the model's
+        context than ``html()``.
+        """
+
+        return await self._provider.text("body")
+
     # ==========================================================
     # Waiting
     # ==========================================================

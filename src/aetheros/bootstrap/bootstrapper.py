@@ -36,6 +36,11 @@ class Bootstrapper:
         self._hud = None
         self._voice = None
 
+        # The live execution-trace recorder. Observer-only: it subscribes to the
+        # event bus, so it must be brought up after _bootstrap_events and torn
+        # down before the bus is cleared. None until started.
+        self._trace = None
+
     # ==========================================================
     # Properties
     # ==========================================================
@@ -65,6 +70,13 @@ class Bootstrapper:
         The running voice service, or None when voice is not up.
         """
         return self._voice
+
+    @property
+    def trace(self):
+        """
+        The live execution-trace recorder, or None when tracing is off.
+        """
+        return self._trace
 
     # ==========================================================
     # Startup
@@ -109,6 +121,15 @@ class Bootstrapper:
             # --------------------------------------------------
 
             await self._bootstrap_events()
+
+            # --------------------------------------------------
+            # Live execution trace
+            # --------------------------------------------------
+
+            # Right after the bus, before any producer: the recorder subscribes
+            # to TraceEvent here so it is already listening when the first
+            # component (the LLM provider, the agent core) emits.
+            await self._bootstrap_trace()
 
             # --------------------------------------------------
             # Future subsystems
@@ -193,6 +214,10 @@ class Bootstrapper:
         await self._shutdown_browser()
         await self._shutdown_vision()
         await self._shutdown_desktop()
+        # Trace before events: the recorder holds a subscription on the bus, so
+        # it must unsubscribe (and flush its JSONL file) before the bus is
+        # cleared out from under it.
+        await self._shutdown_trace()
         await self._shutdown_events()
         await self._shutdown_container()
         await self._shutdown_logging()
@@ -277,6 +302,59 @@ class Bootstrapper:
         self._logger.info(
             "Event system initialized."
         )
+
+    async def _bootstrap_trace(self) -> None:
+        self._logger.debug(
+            "Initializing live execution trace..."
+        )
+
+        from ..config.config_loader import get_settings
+        from ..core.observability import (
+            LiveTraceUI,
+            TraceFileWriter,
+            TraceRecorder,
+            resolve_level,
+        )
+
+        settings = get_settings()
+        level = resolve_level(settings.TRACE_LEVEL)
+
+        # The dashboard degrades to a no-op off a TTY (tests, piped output), so
+        # constructing it unconditionally is safe; it simply never draws there.
+        ui = LiveTraceUI()
+
+        # Persistence is opt-out via TRACE_PERSIST. The writer opens its per-run
+        # JSONL lazily on the first kept event, so an idle run leaves no file.
+        writer = None
+        if settings.TRACE_PERSIST:
+            writer = TraceFileWriter(settings.LOG_DIR / "traces")
+
+        recorder = TraceRecorder(
+            event_bus=self._event_bus,
+            level=level,
+            ui=ui,
+            writer=writer,
+        )
+
+        # Registered so the CLI `trace ...` commands can resolve the live
+        # recorder and mutate it (set_level, clear, status).
+        self._container.register_singleton(
+            TraceRecorder,
+            lambda: recorder,
+        )
+        self._container.register_singleton(
+            "trace_recorder",
+            lambda: recorder,
+        )
+
+        self._trace = recorder
+
+        await recorder.start()
+
+        self._logger.bind(
+            level=recorder.level.name.lower(),
+            persist=settings.TRACE_PERSIST,
+        ).info("Live execution trace initialized.")
 
     async def _bootstrap_desktop(self) -> None:
         self._logger.debug("Initializing desktop services...")
@@ -666,7 +744,6 @@ class Bootstrapper:
         from ..agents.context import ContextBuilder
         from ..agents.execution import ToolExecutionCoordinator
         from ..agents.planner import AgentPlanner
-        from ..tools.executor import ToolExecutor
 
         task_manager = TaskManager(
             event_bus=self._event_bus,
@@ -678,16 +755,14 @@ class Bootstrapper:
 
         def build_agent() -> Agent:
             provider = self._container.resolve("llm_provider")
-            coordinator = ToolExecutionCoordinator(
-                ToolExecutor(tool_registry),
-                registry=tool_registry,
-            )
             return Agent(
                 task_manager=task_manager,
                 planner=AgentPlanner(provider, registry=tool_registry),
                 context_builder=ContextBuilder(registry=tool_registry),
                 llm_loop=self._container.resolve("llm_tool_loop"),
-                execution_coordinator=coordinator,
+                execution_coordinator=self._container.resolve(
+                    ToolExecutionCoordinator
+                ),
             )
 
         self._container.register_singleton(Agent, build_agent)
@@ -730,6 +805,9 @@ class Bootstrapper:
             OpenAICompatibleProvider,
         )
         from ..llm.tool_schema import get_llm_tools
+        from ..agents.core import AgentCore
+        from ..agents.execution import ToolExecutionCoordinator
+        from ..agents.policy import PolicyConfig, PolicyEngine
         from ..tools.executor import ToolExecutor
 
         # ----------------------------------------------------------
@@ -783,9 +861,29 @@ class Bootstrapper:
             tool_provider=lambda: get_llm_tools(tool_registry),
         )
 
+        executor = ToolExecutor(tool_registry)
+        coordinator = ToolExecutionCoordinator(
+            executor,
+            registry=tool_registry,
+        )
         tool_loop = LLMToolLoop(
             engine,
-            ToolExecutor(tool_registry),
+            executor,
+            coordinator=coordinator,
+        )
+
+        # The agent core drives `ask`: it owns orchestration and gates every
+        # call through a PolicyEngine before the shared ToolExecutor runs it.
+        # from_provider builds its own planner and a policy-gated coordinator
+        # over the *same* registry and executor, so no LLM or tool-execution
+        # logic is duplicated. A default (permissive) policy preserves today's
+        # behaviour -- every enabled tool is allowed -- while establishing the
+        # gate the safety layer needs.
+        agent_core = AgentCore.from_provider(
+            provider,
+            registry=tool_registry,
+            executor=executor,
+            policy=PolicyEngine(PolicyConfig()),
         )
 
         # ----------------------------------------------------------
@@ -810,6 +908,21 @@ class Bootstrapper:
         self._container.register_singleton(
             "llm_tool_loop",
             lambda: tool_loop,
+        )
+
+        self._container.register_singleton(
+            "agent_core",
+            lambda: agent_core,
+        )
+
+        self._container.register_singleton(
+            ToolExecutor,
+            lambda: executor,
+        )
+
+        self._container.register_singleton(
+            ToolExecutionCoordinator,
+            lambda: coordinator,
         )
 
         # ----------------------------------------------------------
@@ -1153,11 +1266,34 @@ class Bootstrapper:
                 "Screen capture did not shut down cleanly."
             )
 
+    async def _shutdown_trace(self) -> None:
+        self._logger.debug(
+            "Stopping live execution trace..."
+        )
+
+        recorder = self._trace
+
+        if recorder is None:
+            return
+
+        self._trace = None
+
+        try:
+            # stop() unsubscribes from the bus, stops the dashboard and flushes
+            # and closes the JSONL file. Idempotent and best-effort.
+            await recorder.stop()
+
+        except Exception:
+            # Shutdown continues regardless: the trace is an observer, and a
+            # recorder that will not stop cleanly must not block teardown.
+            self._logger.exception(
+                "Live execution trace did not shut down cleanly."
+            )
+
     async def _shutdown_events(self) -> None:
         self._logger.debug(
             "Stopping event bus..."
         )
-
         bus = self._event_bus
 
         if bus is not None:

@@ -501,12 +501,19 @@ class VoiceService:
     def _resolve_reasoner(self) -> VoiceReasoner:
         """
         Find something that can answer an utterance.
+
+        The Agent Core is preferred whenever bootstrap has registered one: it
+        is the single orchestration layer, so voice routes the transcript
+        through it (via :class:`AgentReasoner`) rather than driving a tool loop
+        of its own. The legacy :class:`LLMLoopReasoner` remains the fallback for
+        a container that has only an LLM layer wired — voice can still talk,
+        just through the older path.
         """
 
         if self._reasoner is not None:
             return self._reasoner
 
-        from .reasoner import LLMLoopReasoner
+        from .reasoner import AgentReasoner, LLMLoopReasoner
 
         container = self._container
 
@@ -516,19 +523,26 @@ class VoiceService:
             container = global_container
 
         try:
-            self._reasoner = LLMLoopReasoner.from_container(
-                self._config,
-                container,
-            )
+            if container.has("agent_core"):
+                self._reasoner = AgentReasoner.from_container(
+                    self._config,
+                    container,
+                )
+
+            else:
+                self._reasoner = LLMLoopReasoner.from_container(
+                    self._config,
+                    container,
+                )
 
         except Exception as exc:
             raise VoiceErrorException(
                 code="030",
-                message="No LLM provider is available for voice.",
+                message="No reasoning backend is available for voice.",
                 hint=(
-                    "Voice reuses the configured LLM provider. Check "
-                    "the LLM configuration and that bootstrap "
-                    "completed."
+                    "Voice reuses the Agent Core (or, as a fallback, the "
+                    "configured LLM provider). Check that bootstrap "
+                    "completed and the agent/LLM configuration is valid."
                 ),
                 cause=exc,
             ) from exc

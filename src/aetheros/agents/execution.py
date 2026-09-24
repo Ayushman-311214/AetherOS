@@ -65,6 +65,12 @@ from typing import Any
 
 from ..core.errors.agent_error import AgentError
 from ..core.logging import get_logger
+from ..core.observability import (
+    TraceEventType,
+    TraceStatus,
+    emit_trace,
+    safe_preview,
+)
 from ..llm.tool_calls import ToolCall
 from ..tools.executor import ToolExecutionResult, ToolExecutor, tool_executor
 from ..tools.registry import ToolDefinition, ToolRegistry, tool_registry
@@ -78,6 +84,7 @@ from .planner.actions import (
     ERROR_UNKNOWN_TOOL,
     PlannedAction,
 )
+from .policy import PolicyEngine, PolicyEvaluation
 from .state import AgentState, ToolResultRecord
 
 
@@ -380,9 +387,15 @@ class ToolExecutionCoordinator:
     singletons. They must be built over the *same* registry: the existence and
     enabled checks answer for the registry this object was given, and an executor
     reading a different one would then contradict its own coordinator.
+
+    An optional :class:`~aetheros.agents.policy.PolicyEngine` is consulted after a
+    tool is resolved and enabled but before it is delegated, so a DENY or a
+    REQUIRE_CONFIRMATION is turned away as a not-delegated refusal and never
+    reaches the executor. No policy (the default) preserves the prior behaviour:
+    every resolved, enabled call is delegated.
     """
 
-    __slots__ = ("_config", "_executor", "_logger", "_registry")
+    __slots__ = ("_config", "_executor", "_logger", "_policy", "_registry")
 
     def __init__(
         self,
@@ -390,10 +403,17 @@ class ToolExecutionCoordinator:
         *,
         registry: ToolRegistry | None = None,
         config: ExecutionConfig | None = None,
+        policy: PolicyEngine | None = None,
     ) -> None:
-        self._executor = executor or tool_executor
-        self._registry = registry or tool_registry
+        # ``is not None`` rather than ``or``: ToolRegistry defines ``__len__``,
+        # so an explicitly-passed *empty* registry is falsy and ``or`` would
+        # silently fall back to the global singleton, defeating an isolated run.
+        self._executor = executor if executor is not None else tool_executor
+        self._registry = registry if registry is not None else tool_registry
         self._config = config or ExecutionConfig()
+        # None means "no policy gate" -- the coordinator delegates every
+        # resolved, enabled call, exactly as it did before the layer existed.
+        self._policy = policy
 
         # Built here, not at import time: loguru is a process-wide singleton and
         # get_logger installs the file sinks on first use.
@@ -403,6 +423,19 @@ class ToolExecutionCoordinator:
     def config(self) -> ExecutionConfig:
         return self._config
 
+    @property
+    def executor(self) -> ToolExecutor:
+        """The injected execution engine used for delegated tool calls."""
+
+        return self._executor
+
+    @property
+    def policy(self) -> PolicyEngine | None:
+        """The policy gate consulted before delegation, or ``None`` when the
+        coordinator runs ungated."""
+
+        return self._policy
+
     # -- execution --------------------------------------------------------
 
     async def execute(
@@ -411,6 +444,7 @@ class ToolExecutionCoordinator:
         call: ToolCall | PlannedAction,
         *,
         iteration: int | None = None,
+        confirmed: bool = False,
     ) -> AgentExecutionResult:
         """Run one validated call and record the round it produced.
 
@@ -419,6 +453,11 @@ class ToolExecutionCoordinator:
         :class:`~aetheros.agents.planner.PlannedAction` the planner emits for one
         -- which is the same call wearing the planner's vocabulary, and converting
         it at every call site would be busywork.
+
+        ``confirmed`` is the caller's answer to a prior REQUIRE_CONFIRMATION: it
+        is passed to the policy engine so a confirmation-required tool runs once
+        the human (or an operator path) has said yes, and is ignored entirely
+        when no policy is attached.
 
         Never raises for a tool-level problem; every one of them comes back as a
         result, because a model that asked for the wrong thing is the only thing
@@ -485,12 +524,58 @@ class ToolExecutionCoordinator:
                 error_type=ERROR_TOOL_DISABLED,
             )
 
+        # The safety gate, if one is attached. It decides; it never runs the
+        # tool. A DENY or a REQUIRE_CONFIRMATION is turned away here, before
+        # anything is delegated, and only an ALLOW falls through to execute_safe.
+        if self._policy is not None:
+            evaluation = self._policy.evaluate(
+                resolved.name,
+                resolved.arguments,
+                iteration=at,
+                confirmed=confirmed,
+            )
+
+            if not evaluation.allowed:
+                return await self._refuse(
+                    state,
+                    resolved,
+                    at,
+                    started,
+                    reason=evaluation.reason,
+                    error_type=evaluation.code,
+                )
+
+        # PHASE 5 -- the call cleared existence, enabled and (if attached) policy
+        # gates. The engine will validate the arguments and run the tool next.
+        # Names only, never values: a keystroke payload may be a secret.
+        await emit_trace(
+            TraceEventType.TOOL_ARGUMENTS_VALIDATED,
+            message=resolved.name,
+            stage="Tool arguments",
+            status=TraceStatus.INFO,
+            run_id=state.state_id,
+            iteration=at,
+            metadata={
+                "tool_name": resolved.name,
+                "argument_names": sorted(resolved.arguments),
+            },
+        )
+        await emit_trace(
+            TraceEventType.TOOL_EXECUTION_STARTED,
+            message=resolved.name,
+            stage="Tool execution",
+            status=TraceStatus.STARTED,
+            run_id=state.state_id,
+            iteration=at,
+            metadata={"tool_name": resolved.name},
+        )
+
         outcome = await self._executor.execute_safe(
             resolved.name,
             resolved.arguments,
         )
 
-        return await self._capture(
+        result = await self._capture(
             state,
             resolved,
             outcome,
@@ -498,6 +583,8 @@ class ToolExecutionCoordinator:
             started,
             delegated=True,
         )
+        await self._trace_execution(state, result)
+        return result
 
     async def execute_many(
         self,
@@ -505,11 +592,16 @@ class ToolExecutionCoordinator:
         calls: Sequence[ToolCall | PlannedAction],
         *,
         iteration: int | None = None,
+        confirmed: bool = False,
     ) -> ExecutionBatch:
         """Run several calls in order, one at a time, answering all of them.
 
         The iteration is resolved once so every result in a round carries the same
         number, even if another task advances the state while the round runs.
+
+        ``confirmed`` applies to every call in the batch, since a batch is one
+        round the caller either confirmed or did not; a call needing a distinct
+        answer should go through :meth:`execute` on its own.
 
         See the module docstring for why this is sequential and why it does not
         stop at the first failure.
@@ -518,7 +610,8 @@ class ToolExecutionCoordinator:
         at = state.iteration if iteration is None else iteration
 
         results = [
-            await self.execute(state, call, iteration=at) for call in calls
+            await self.execute(state, call, iteration=at, confirmed=confirmed)
+            for call in calls
         ]
 
         batch = ExecutionBatch(results=tuple(results), iteration=at)
@@ -573,13 +666,57 @@ class ToolExecutionCoordinator:
         tool that ran and failed.
         """
 
-        return await self._capture(
+        result = await self._capture(
             state,
             call,
             _failure(call.name, reason, error_type),
             at,
             started,
             delegated=False,
+        )
+        # A refusal is a run event worth surfacing (PHASE 12), but nothing ran --
+        # so it is a WARNING, not a TOOL_EXECUTION_FAILED. The reason text is
+        # engine/validator/policy wording, which names parameters and types, not
+        # argument values.
+        await emit_trace(
+            TraceEventType.WARNING,
+            message=safe_preview(reason, 120),
+            stage="Tool refused",
+            status=TraceStatus.WARNING,
+            run_id=state.state_id,
+            iteration=at,
+            metadata={"tool_name": call.name, "error_type": error_type},
+            error=error_type,
+        )
+        return result
+
+    async def _trace_execution(
+        self,
+        state: AgentState,
+        result: AgentExecutionResult,
+    ) -> None:
+        """Emit the terminal tool event for a delegated call (PHASE 5).
+
+        ``describe()`` is the log-safe projection -- names, outcomes and timings,
+        never argument values. The result ``content`` is the tool's own output
+        (a mouse position, a file listing); it is observable execution data, so a
+        bounded preview is safe to show.
+        """
+
+        completed = result.ok
+        await emit_trace(
+            TraceEventType.TOOL_EXECUTION_COMPLETED
+            if completed
+            else TraceEventType.TOOL_EXECUTION_FAILED,
+            message=result.tool_name,
+            stage="Tool execution",
+            status=TraceStatus.SUCCESS if completed else TraceStatus.FAILED,
+            run_id=state.state_id,
+            iteration=result.iteration,
+            duration_ms=result.duration_ms,
+            metadata=result.describe(),
+            payload={"result_preview": safe_preview(result.content)},
+            error=None if completed else result.error_type,
         )
 
     def _unrecorded(

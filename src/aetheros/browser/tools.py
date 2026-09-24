@@ -144,6 +144,25 @@ async def fill_input(
 
 @tool(
     category="browser",
+    description=(
+        "Press a single key on an element addressed by CSS selector, e.g. "
+        "'Enter' to submit a form or 'Escape' to dismiss a dialog. Use fill_input "
+        "to type ordinary text."
+    ),
+)
+async def browser_press_key(
+    selector: str,
+    key: str,
+) -> None:
+
+    await _browser().press(
+        selector,
+        key,
+    )
+
+
+@tool(
+    category="browser",
     description="Hover the pointer over an element, addressed by CSS selector.",
 )
 async def hover_element(
@@ -199,6 +218,20 @@ async def element_text(
 ) -> str:
 
     return await _browser().text(selector)
+
+
+@tool(
+    category="browser",
+    description=(
+        "Get the visible text of the whole current page. Prefer this over "
+        "page_html for reading a page: it returns the rendered text without the "
+        "markup, so it is far smaller. Use element_text when only one element is "
+        "needed."
+    ),
+)
+async def page_text() -> str:
+
+    return await _browser().page_text()
 
 
 # ==========================================================
