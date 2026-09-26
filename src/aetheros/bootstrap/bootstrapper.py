@@ -666,6 +666,7 @@ class Bootstrapper:
         from ..desktop.process import tools as process_tools  # noqa: F401
         from ..desktop.application import tools as application_tools  # noqa: F401
         from ..vision import tools as vision_tools  # noqa: F401
+        from ..vision.grounding import tools as grounding_tools  # noqa: F401
 
         # verify_action and the workflow tools. Registered after the action tools
         # on purpose: the automation tools build their descriptions from the live

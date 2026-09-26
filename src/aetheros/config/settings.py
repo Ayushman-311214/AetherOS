@@ -87,6 +87,19 @@ class Settings(BaseSettings):
     VISION_TOOL_TIMEOUT_SECONDS: float = 300.0
 
     # -----------------------
+    # Vision grounding
+    # -----------------------
+
+    # Confidence bands for resolving a natural-language target to a screen
+    # element. A match at or above HIGH is treated as unambiguous enough to act
+    # on automatically; between MEDIUM and HIGH it is returned as a candidate to
+    # confirm; below MEDIUM it is reported but never auto-clicked. These are
+    # policy, not hardware, so they are configurable rather than pinned -- a
+    # noisier screen or a stricter safety posture wants a higher HIGH.
+    GROUNDING_CONFIDENCE_HIGH: float = 0.75
+    GROUNDING_CONFIDENCE_MEDIUM: float = 0.45
+
+    # -----------------------
     # Runtime
     # -----------------------
 

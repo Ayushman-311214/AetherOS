@@ -135,6 +135,7 @@ class TestRegisteredToolSurface:
             "desktop.screen",
             "desktop.verification",
             "vision",
+            "vision.grounding",
         } <= categories, sorted(categories)
 
     def test_registry_is_not_empty(self) -> None:
@@ -186,11 +187,16 @@ class TestRegisteredToolSurface:
           itself — being killed by the executor instead would discard every step
           result already collected, which is exactly what a caller needs after a
           workflow overruns.
+
+        ``vision.grounding`` is allowed as a whole category for the same reason
+        as ``vision``: every grounding tool runs the same full-screen OCR /
+        detection pass and inherits the vision budget, so being held to the 30s
+        default would time out exactly as the raw vision tools did.
         """
 
         default = get_settings().TOOL_TIMEOUT_SECONDS
 
-        allowed_categories = {"vision"}
+        allowed_categories = {"vision", "vision.grounding"}
         allowed_names = {"run_workflow"}
 
         raised = {
