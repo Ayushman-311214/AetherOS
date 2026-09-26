@@ -199,6 +199,23 @@ class TestBrowserServiceLifecycle:
 
         assert ("close", ()) in provider.calls
 
+    @pytest.mark.asyncio
+    async def test_is_open_tracks_the_lifecycle(self) -> None:
+        # A pure bookkeeping read: false before launch, true while open, false
+        # again after close -- and it never touches the provider.
+        service, provider = _service()
+
+        assert service.is_open() is False
+
+        await service.launch()
+        assert service.is_open() is True
+
+        await service.close()
+        assert service.is_open() is False
+
+        # Reading the state is not itself a browser operation.
+        assert all(name != "is_open" for name, _ in provider.calls)
+
 
 # ==============================================================
 # Delegation
@@ -257,6 +274,24 @@ class TestBrowserServiceDelegation:
 
         assert await service.page_text() == "text:body"
         assert ("text", ("body",)) in provider.calls
+
+    @pytest.mark.asyncio
+    async def test_find_text_matches_over_the_page_text(self) -> None:
+        # find_text reuses the whole-page ``body`` seam and matches in Python,
+        # case-insensitively; it never adds a provider method of its own.
+        service, provider = _service()
+
+        # The recording provider answers ``text("body")`` with "text:body".
+        assert await service.find_text("text:body") is True
+        assert await service.find_text("TEXT:BODY") is True  # case-insensitive
+        assert await service.find_text("absent") is False
+        assert await service.find_text("") is False  # empty is not a match
+
+        # Every lookup resolved to a body read -- no bespoke provider call.
+        assert all(
+            call == ("text", ("body",))
+            for call in provider.calls
+        )
 
     @pytest.mark.asyncio
     async def test_screenshot_and_evaluate_delegate(self) -> None:

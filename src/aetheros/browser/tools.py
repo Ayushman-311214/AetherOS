@@ -67,6 +67,20 @@ async def close_browser() -> None:
     await _browser().close()
 
 
+@tool(
+    category="browser",
+    description=(
+        "Report whether a browser is currently open. Returns true after "
+        "open_browser and before close_browser, false otherwise. Safe to call "
+        "before any browser has been launched -- use it to check the browser "
+        "state instead of assuming a browser is open."
+    ),
+)
+async def browser_is_open() -> bool:
+
+    return _browser().is_open()
+
+
 # ==========================================================
 # Navigation
 # ==========================================================
@@ -232,6 +246,22 @@ async def element_text(
 async def page_text() -> str:
 
     return await _browser().page_text()
+
+
+@tool(
+    category="browser",
+    description=(
+        "Report whether the given text appears in the visible text of the "
+        "current page. Case-insensitive substring match. Requires open_browser "
+        "and a loaded page first. Use this to verify a page contains an expected "
+        "word or phrase without reading the whole page back."
+    ),
+)
+async def browser_find_text(
+    text: str,
+) -> bool:
+
+    return await _browser().find_text(text)
 
 
 # ==========================================================

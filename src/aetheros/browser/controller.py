@@ -74,6 +74,20 @@ class BrowserService:
                 "Browser did not close cleanly during shutdown."
             )
 
+    def is_open(self) -> bool:
+        """
+        Whether a browser is currently launched.
+
+        Reads the service's own ``_launched`` bookkeeping rather than asking the
+        provider -- the same source ``shutdown`` trusts, and the only one that
+        answers before any browser exists (the provider raises once its page is
+        gone). A pure in-memory read, so it is synchronous and never fails: an
+        agent can ask "is a browser open?" at any point, including before the
+        first ``launch``.
+        """
+
+        return self._launched
+
     # ==========================================================
     # Navigation
     # ==========================================================
@@ -174,6 +188,29 @@ class BrowserService:
         """
 
         return await self._provider.text("body")
+
+    async def find_text(
+        self,
+        query: str,
+    ) -> bool:
+        """
+        Whether ``query`` appears in the visible text of the current page.
+
+        A deterministic, case-insensitive substring search over ``page_text()``.
+        It reuses the same whole-page ``body`` seam rather than widening the
+        provider interface, and it does the matching in Python -- no locator
+        heuristics or backend-specific text queries -- so the answer is
+        reproducible for a given page. This is what "is X on the page?" resolves
+        to for the agent; the empty query is treated as not found rather than as
+        a match on every page.
+        """
+
+        if not query:
+            return False
+
+        haystack = await self.page_text()
+
+        return query.casefold() in (haystack or "").casefold()
 
     # ==========================================================
     # Waiting

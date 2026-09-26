@@ -226,11 +226,13 @@ class TestBrowserToolRegistration:
             "goto_url",
             "current_url",
             "close_browser",
+            "browser_is_open",
             "browser_back",
             "browser_forward",
             "browser_reload",
             "page_title",
             "page_text",
+            "browser_find_text",
             "click_element",
             "fill_input",
             "browser_press_key",
@@ -254,6 +256,12 @@ class TestBrowserToolRegistration:
 
         text = gen.generate(tool_registry.get("page_text"))
         assert text["function"]["parameters"]["required"] == []
+
+        is_open = gen.generate(tool_registry.get("browser_is_open"))
+        assert is_open["function"]["parameters"]["required"] == []
+
+        find = gen.generate(tool_registry.get("browser_find_text"))
+        assert find["function"]["parameters"]["required"] == ["text"]
 
         press = gen.generate(tool_registry.get("browser_press_key"))
         assert set(press["function"]["parameters"]["required"]) == {
@@ -340,3 +348,81 @@ class TestBrowserTitleE2E:
         assert executor.asked == ["open_browser", "goto_url", "page_text"]
         assert ("text", ("body",)) in browser.calls
         assert result.final_response == "The page is about example domains."
+
+
+# ==============================================================
+# 2. The added verbs -- is_open and find_text -- through the agent
+# ==============================================================
+
+
+class TestBrowserStateAndFindE2E:
+    @pytest.mark.asyncio
+    async def test_open_navigate_and_find_text_through_the_agent(
+        self,
+        make_provider: Any,
+        registry: ToolRegistry,
+        tool_calls: Any,
+        answer: Any,
+    ) -> None:
+        # A multi-step turn: open, navigate, then confirm a phrase is present --
+        # find_text resolves to a body read on the provider and matches in
+        # Python, so the whole chain is exercised without a real browser.
+        policy = PolicyEngine(PolicyConfig())
+        _with_real_tools(
+            registry, "open_browser", "goto_url", "browser_find_text"
+        )
+
+        provider = make_provider(
+            [
+                tool_calls(("open_browser", {"headless": True})),
+                tool_calls(("goto_url", {"url": "https://example.com"})),
+                tool_calls(("browser_find_text", {"text": "Example Domain"})),
+                answer("Yes, the page mentions Example Domain."),
+            ]
+        )
+        core, executor = _build(provider, registry, policy)
+
+        with _fake_browser() as browser:
+            result = await core.run(
+                "Open example.com and check it mentions Example Domain.",
+            )
+
+        assert executor.asked == [
+            "open_browser",
+            "goto_url",
+            "browser_find_text",
+        ]
+        # find_text reads the body, never bespoke provider text machinery.
+        assert ("text", ("body",)) in browser.calls
+        assert result.final_response == "Yes, the page mentions Example Domain."
+
+    @pytest.mark.asyncio
+    async def test_is_open_reports_state_without_touching_the_backend(
+        self,
+        make_provider: Any,
+        registry: ToolRegistry,
+        tool_calls: Any,
+        answer: Any,
+    ) -> None:
+        # browser_is_open is a pure state read: it must run through the agent
+        # and executor like any tool, yet never drive a provider operation.
+        policy = PolicyEngine(PolicyConfig())
+        _with_real_tools(registry, "open_browser", "browser_is_open")
+
+        provider = make_provider(
+            [
+                tool_calls(("open_browser", {})),
+                tool_calls(("browser_is_open", {})),
+                answer("The browser is open."),
+            ]
+        )
+        core, executor = _build(provider, registry, policy)
+
+        with _fake_browser() as browser:
+            result = await core.run("Open a browser and confirm it is open.")
+
+        assert executor.asked == ["open_browser", "browser_is_open"]
+        # Only the launch reached the backend; the state read did not.
+        assert ("launch", (False,)) in browser.calls
+        assert all(name != "is_open" for name, _ in browser.calls)
+        assert result.final_response == "The browser is open."

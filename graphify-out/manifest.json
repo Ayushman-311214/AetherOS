@@ -180,9 +180,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/browser/controller.py": {
-    "mtime": 1790235468.1699972,
-    "seen": 1790236071.7117426,
-    "ast_hash": "4c221107bc90636e55c7c089bafddec5",
+    "mtime": 1790406941.5979881,
+    "seen": 1790407389.6377616,
+    "ast_hash": "554c64672672735c3d93b29fc1046056",
     "semantic_hash": ""
   },
   "src/aetheros/browser/providers/base.py": {
@@ -198,9 +198,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/browser/tools.py": {
-    "mtime": 1790235864.816089,
-    "seen": 1790236071.7117515,
-    "ast_hash": "f59a06b77e6ec054d288680a3bcd1f13",
+    "mtime": 1790406962.5221477,
+    "seen": 1790407389.6377726,
+    "ast_hash": "707d6c36348a2878ce3598b8db08a7ed",
     "semantic_hash": ""
   },
   "src/aetheros/cli/__init__.py": {
@@ -1458,15 +1458,15 @@
     "semantic_hash": ""
   },
   "tests/browser/test_browser_service.py": {
-    "mtime": 1790235606.4301374,
-    "seen": 1790236071.7121253,
-    "ast_hash": "7255489f5cc73b5f4ca98390feb9017a",
+    "mtime": 1790406989.7968495,
+    "seen": 1790407389.6383553,
+    "ast_hash": "bb2164cf374218f1544749996f21c74e",
     "semantic_hash": ""
   },
   "tests/browser/test_browser_tools_e2e.py": {
-    "mtime": 1790235995.676273,
-    "seen": 1790236071.7121284,
-    "ast_hash": "05b3596a22823c0d41a5ae73c93761a6",
+    "mtime": 1790407029.4328945,
+    "seen": 1790407389.6383586,
+    "ast_hash": "b33cb8c09423554d52fa64cd68a1f252",
     "semantic_hash": ""
   },
   "src/aetheros/core/observability/__init__.py": {
@@ -1512,9 +1512,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/core/observability/ui.py": {
-    "mtime": 1790401520.2058249,
-    "seen": 1790401619.3096397,
-    "ast_hash": "5795c2022cfde965defd8aaaffdb4877",
+    "mtime": 1790403395.7656965,
+    "seen": 1790407389.6379352,
+    "ast_hash": "0a09890f002d021a92067b6dd8b1ab0b",
     "semantic_hash": ""
   },
   "tests/observability/conftest.py": {
