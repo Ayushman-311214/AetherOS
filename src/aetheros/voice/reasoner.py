@@ -144,10 +144,18 @@ class AgentReasoner:
         *,
         config: VoiceConfig,
         agent: AgentCore,
+        gateway: Any = None,
     ) -> None:
 
         self._config = config
         self._agent = agent
+
+        # The unified interaction gateway. When present, a spoken turn submits
+        # through it so the run is tagged source="voice" and emits the same
+        # lifecycle the terminal renders -- a voice turn then also appears in
+        # the terminal. Without it, the run still happens (untagged).
+        self._gateway = gateway
+
         self._logger = get_logger("voice.reasoner")
 
     # ==========================================================
@@ -170,6 +178,11 @@ class AgentReasoner:
         return cls(
             config=config,
             agent=container.resolve("agent_core"),
+            gateway=(
+                container.resolve("interaction_gateway")
+                if container.has("interaction_gateway")
+                else None
+            ),
         )
 
     # ==========================================================
@@ -191,11 +204,24 @@ class AgentReasoner:
         turn, and the Agent Core has already recorded *why* it stopped.
         """
 
-        result = await self._agent.run(
-            text,
-            system_prompt=self._config.system_prompt,
-            max_iterations=self._config.max_iterations,
-        )
+        # Route through the gateway when present so the run enters the Agent
+        # system tagged source="voice" and emits the shared lifecycle both UIs
+        # observe -- a spoken turn then also surfaces in the terminal. Without a
+        # gateway the run still happens; it is simply untagged. Either path lands
+        # in the same AgentCore.run, so the returned result is identical in shape.
+        if self._gateway is not None:
+            result = await self._gateway.submit(
+                text,
+                source="voice",
+                system_prompt=self._config.system_prompt,
+                max_iterations=self._config.max_iterations,
+            )
+        else:
+            result = await self._agent.run(
+                text,
+                system_prompt=self._config.system_prompt,
+                max_iterations=self._config.max_iterations,
+            )
 
         # Replay the run's tool history so the HUD's EXECUTING state has a
         # producer, just as the loop reasoner drove it live. The per-tool

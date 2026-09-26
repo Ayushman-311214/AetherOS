@@ -85,12 +85,32 @@ class Application:
             else None
         )
 
+        # The unified entry every terminal `ask` runs through, and the shared
+        # EventBus the CLI subscribes to. With both, the terminal is a renderer
+        # of the one agent's lifecycle -- it submits a source-tagged turn and
+        # observes the same trace events the HUD does, rather than printing a
+        # returned string in isolation. Resolved defensively so a runtime wired
+        # without them still starts (the CLI falls back to the direct path).
+        interaction_gateway = (
+            container.resolve("interaction_gateway")
+            if container.has("interaction_gateway")
+            else None
+        )
+
+        event_bus = (
+            container.resolve("event_bus")
+            if container.has("event_bus")
+            else None
+        )
+
         self._cli = CLIRuntime(
             tool_registry=self._bootstrapper.tool_registry,
             llm_service=llm_provider,
             tool_loop=tool_loop,
             agent=agent_core,
             trace=trace_recorder,
+            gateway=interaction_gateway,
+            event_bus=event_bus,
         )
 
         self._running = True

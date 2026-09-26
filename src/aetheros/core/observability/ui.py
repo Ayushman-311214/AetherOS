@@ -161,9 +161,19 @@ class LiveTraceUI:
         run_id = pipeline.run_id or header.get("run_id") or "-"
         level = header.get("level") or "-"
 
+        # The turn's origin (terminal / voice), read straight off the events the
+        # dashboard was handed. It is a *label* the dev trace shows so both front
+        # ends' turns are distinguishable while debugging the unified stream
+        # (PHASE 16) -- it never decides what is drawn.
+        source = header.get("source") or next(
+            (e.source for e in events if e.source), None
+        )
+
         if not stages:
             body: Any = Text("waiting for events…", style="dim")
             subtitle = f"run={run_id}   level={level}"
+            if source:
+                subtitle = f"{subtitle}   source={source}"
             return Panel(
                 body, title=self._title, subtitle=subtitle, border_style="blue"
             )
@@ -190,6 +200,8 @@ class LiveTraceUI:
 
         status_word = _STATUS_WORD.get(pipeline.status, "-").lower()
         subtitle = f"run={run_id}   {status_word}   level={level}"
+        if source:
+            subtitle = f"{subtitle}   source={source}"
         return Panel(
             Group(*renderables),
             title=self._title,

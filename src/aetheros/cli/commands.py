@@ -29,6 +29,7 @@ class CommandRegistry:
         tool_loop=None,
         agent=None,
         trace=None,
+        gateway=None,
     ) -> None:
 
         self._commands = {}
@@ -42,6 +43,12 @@ class CommandRegistry:
         # orchestration -- OBSERVE -> PLAN -> POLICY -> EXECUTE -- and the CLI
         # only submits the goal and displays the result.
         self._agent = agent
+
+        # The unified interaction gateway. When present, `ask` submits through
+        # it so the run is tagged source="terminal" and emits the shared
+        # lifecycle both UIs observe -- the terminal then renders the answer
+        # from that stream, not from this method's return value.
+        self._gateway = gateway
 
         # The legacy LLMToolLoop, kept as a fallback for a runtime wired before
         # the agent existed; without either, `ask` degrades to plain generation
@@ -579,12 +586,20 @@ class CommandRegistry:
             log.info("Agent run starting.")
 
             try:
-                result = await self._agent.run(prompt)
+                # Through the gateway when wired, so the run is tagged
+                # source="terminal" and its lifecycle reaches both UIs. Without
+                # a gateway (a minimal embedding), fall back to the agent
+                # directly -- untagged, but still functional.
+                if self._gateway is not None:
+                    result = await self._gateway.submit(prompt, source="terminal")
+                else:
+                    result = await self._agent.run(prompt)
 
             except Exception as exc:
                 # Only a provider/transport failure reaches here; tool failures
                 # and policy refusals are handled inside the run and recorded on
-                # the state.
+                # the state. No lifecycle event will follow, so this is the one
+                # agent-path outcome the terminal renders from a returned string.
                 self._logger.bind(
                     error_type=type(exc).__name__,
                 ).exception("Agent run failed.")
@@ -606,6 +621,19 @@ class CommandRegistry:
                     stopped_reason=result.stopped_reason,
                     iterations=result.iterations,
                 ).warning("Agent run did not complete.")
+
+            # With a gateway wired, the run enters the unified interaction
+            # pipeline and the CLI's TraceEvent subscriber renders the answer
+            # (and every tool/error along the way) as the run emits it -- the
+            # single source of truth both UIs share. Returning "" then keeps
+            # that the one render path and avoids double-printing the answer.
+            #
+            # Without a gateway (a unit test, a minimal embedding) there is no
+            # subscriber listening, so the answer would be lost. Fall back to
+            # rendering it directly from the returned result -- the same
+            # defensive direct path the CLI runtime documents.
+            if self._gateway is not None:
+                return ""
 
             return self._format_run_result(result)
 

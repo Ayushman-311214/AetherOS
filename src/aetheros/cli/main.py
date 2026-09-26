@@ -2,16 +2,20 @@ from __future__ import annotations
 
 import asyncio
 import threading
-from typing import Any
 
 from ..core.logging import get_logger
+from ..core.observability.events import TraceEvent, TraceEventType, TraceStatus
 
 from .commands import CommandRegistry
 from .parser import CommandParser
 from .ui import CLIUI
 from ..runtime.events.event_bus import EventBus
 from ..runtime.events.events import Event
-from ..hud.service import HUDService
+
+#: Longest answer/response text the terminal renders inline from a trace
+#: event. The final answer is shown in full; this only guards a stray
+#: oversized preview from other events.
+_MAX_STATUS = 240
 
 class CLIRuntime:
     """
@@ -25,6 +29,7 @@ class CLIRuntime:
         tool_loop=None,
         agent=None,
         trace=None,
+        gateway=None,
         event : Event | None = None,
         event_bus : EventBus | None = None,
         ) -> None:
@@ -36,12 +41,11 @@ class CLIRuntime:
         self._parser = CommandParser()
         self._ui = CLIUI()
 
+        # The unified entry every `ask` submits through, so the run is tagged
+        # with source="terminal" and emits the same lifecycle the HUD observes.
+        self._gateway = gateway
+
         self._tool_service = None
-
-
-
-
-
 
         if tool_registry is not None:
             from .tool_commands import ToolCommandService
@@ -56,9 +60,13 @@ class CLIRuntime:
             tool_loop=tool_loop,
             agent=agent,
             trace=trace,
+            gateway=gateway,
         )
 
         self._running = False
+
+        #: True while a subscription to the shared TraceEvent stream is live.
+        self._subscribed = False
 
         self._logger.bind(
             tool_count=(
@@ -69,6 +77,8 @@ class CLIRuntime:
             has_llm=llm_service is not None,
             has_tool_loop=tool_loop is not None,
             has_agent=agent is not None,
+            has_gateway=gateway is not None,
+            has_bus=event_bus is not None,
         ).info("CLI runtime initialized.")
 
     # ==========================================================
@@ -85,6 +95,12 @@ class CLIRuntime:
 
         self._running = True
 
+        # Become a renderer of the one agent's lifecycle: subscribe to the
+        # shared TraceEvent stream so a turn from *either* front end (this
+        # terminal or voice) surfaces here. This is what makes the terminal and
+        # the HUD synchronized views of the same run rather than two systems.
+        await self._subscribe()
+
         self._ui.show_startup()
 
         await self._loop()
@@ -95,6 +111,120 @@ class CLIRuntime:
         """
 
         self._running = False
+
+        await self._unsubscribe()
+
+    # ==========================================================
+    # Live lifecycle rendering
+    # ==========================================================
+
+    async def _subscribe(self) -> None:
+        """
+        Subscribe the terminal to the shared execution trace.
+
+        Defensive: a runtime wired without a bus (a unit test, a minimal
+        embedding) simply renders nothing live and falls back to the direct
+        answer path. The bus dispatches on the exact ``TraceEvent`` type, which
+        is the single class every stage of the pipeline is emitted as.
+        """
+
+        bus = self._event_bus
+
+        if bus is None or self._subscribed:
+            return
+
+        try:
+            await bus.subscribe(TraceEvent, self._on_trace)
+            self._subscribed = True
+
+        except Exception:
+            self._logger.opt(exception=True).warning(
+                "The CLI could not subscribe to the execution trace."
+            )
+
+    async def _unsubscribe(self) -> None:
+
+        bus = self._event_bus
+
+        if bus is None or not self._subscribed:
+            return
+
+        self._subscribed = False
+
+        try:
+            await bus.unsubscribe(TraceEvent, self._on_trace)
+
+        except Exception:
+            self._logger.opt(exception=True).debug(
+                "Ignoring error while unsubscribing the CLI."
+            )
+
+    def _on_trace(self, event: Event) -> None:
+        """
+        Render one lifecycle event as safe, user-facing terminal output.
+
+        Synchronous on purpose: it runs on the publishing path and must never
+        block (no ``input()`` here -- that was the old HUD bug). Only ever reads
+        the event's already-safe projections -- ``stage``/``message``, tool
+        *names*, and the final answer text -- and NEVER internal reasoning or a
+        token stream. This is the PHASE 8 chain-of-thought guard in the renderer
+        itself: there is no field here through which private reasoning could
+        reach the screen.
+        """
+
+        if not isinstance(event, TraceEvent):
+            return
+
+        try:
+            self._render_trace(event)
+
+        except Exception:
+            # A renderer fault must not break the run it is only observing.
+            self._logger.opt(exception=True).debug(
+                "Ignoring error while rendering a trace event."
+            )
+
+    def _render_trace(self, event: TraceEvent) -> None:
+
+        kind = event.event_type
+
+        if kind is TraceEventType.INPUT_RECEIVED:
+            # Echo the request only when it did not originate here: a voice turn
+            # should appear in the terminal, but re-printing what the user just
+            # typed would be noise. Both UIs still receive the event -- this is
+            # a render choice, not routing.
+            if event.source and event.source != "terminal":
+                who = event.source.upper()
+                self._ui.console.print(
+                    f"\n[bold green]{who} »[/bold green] {event.message}"
+                )
+            return
+
+        if kind is TraceEventType.AGENT_STARTED:
+            self._ui.info("Understanding request…")
+            return
+
+        if kind is TraceEventType.TOOL_SELECTED:
+            name = event.metadata.get("tool_name") or event.message
+            if name:
+                self._ui.note(f"→ running tool: {name}")
+            return
+
+        if kind is TraceEventType.TOOL_EXECUTION_FAILED:
+            name = event.metadata.get("tool_name") or event.message or "tool"
+            self._ui.error(f"tool failed: {name}")
+            return
+
+        if kind is TraceEventType.FINAL_RESPONSE_CREATED:
+            # The full, untruncated answer travels in payload["response"]; the
+            # message is only a preview. Fall back to the preview if absent.
+            answer = event.payload.get("response") or event.message or "(no answer)"
+            self._ui.answer(str(answer))
+            return
+
+        if kind is TraceEventType.ERROR and event.status is TraceStatus.FAILED:
+            self._ui.error(event.message or event.error or "The run failed.")
+            return
 
     # ==========================================================
     # Input Loop
@@ -183,92 +313,3 @@ class CLIRuntime:
         ).start()
 
         return await future
-    
-    
-    # def hud_text(self):
-    #     text = HUDService._on_transcribed()
-    #     self._ui.success(text)
-        
-    # def _handlers(self) -> dict[type[Event], Any]:
-    #         """
-    #         The events the overlay actually reacts to.
-    
-    #         VoiceStateChanged drives the animation; the rest only fill in
-    #         text. Deliberately not every voice event: subscribing to
-    #         something the HUD does not display would just add work on the
-    #         publishing path.
-    
-    #         The voice event types are imported here rather than at module
-    #         level so the HUD package has no structural dependency on the
-    #         voice package. The overlay is then startable, and testable, with
-    #         voice absent entirely — which is the same isolation that lets
-    #         voice run with the overlay absent.
-    #         """
-    
-    #         from ..voice.events import (
-    #             LLMThinkingFinished,
-    #             SpeechStarted,
-    #             SpeechTranscribed,
-    #             ToolExecutionFinished,
-    #             ToolExecutionStarted,
-    #             VoiceAudioLevel,
-    #             VoiceError,
-    #             VoiceServiceStarted,
-    #             VoiceServiceStopped,
-    #             VoiceStateChanged,
-    #         )
-    
-    #         return {
-    #             # VoiceStateChanged: self._on_state_changed,
-    #             # VoiceAudioLevel: self._on_audio_level,
-    #             SpeechTranscribed: self._on_transcribed,
-    #             # LLMThinkingFinished: self._on_response,
-    #             # ToolExecutionStarted: self._on_tool_started,
-    #             # ToolExecutionFinished: self._on_tool_finished,
-    #             # SpeechStarted: self._on_speech_started,
-    #             # VoiceError: self._on_error,
-    #             # VoiceServiceStarted: self._on_voice_started,
-    #             # VoiceServiceStopped: self._on_voice_stopped,
-    #         }
-    
-    # async def _subscribe(self) -> None:
-    
-    #         bus = self._bus
-    
-    #         if bus is None or self._subscribed:
-    #             return
-    
-    #         try:
-    #             handlers = self._handlers()
-    
-    #         except Exception:
-    #             # Voice is not installed or failed to import. The overlay
-    #             # still works; it just has nothing driving it, which is
-    #             # exactly the standalone case.
-    #             self._logger.opt(exception=True).warning(
-    #                 "The CLI could not subscribe to voice events."
-    #             )
-    
-    #             return
-    
-    #         for event_type, handler in handlers.items():
-    #             await bus.subscribe(event_type, handler)
-    
-    #         self._subscribed = True
-    
-    # def _on_transcribed(self, event: Event) -> None:
-    #     """
-    #     Update the overlay with the latest transcript.
-
-    #     The HUD is not a transcript display; it only shows the current
-    #     utterance while it is being spoken. A new utterance retires the
-    #     previous answer, so the overlay never shows this turn's question
-    #     beside the last one's reply.
-    #     """
-
-    #     # A new utterance retires the previous answer, so the overlay
-    #     transcript=getattr(event, "text", "")
-    #     self._ui.success(transcript)
-    
-    
-    

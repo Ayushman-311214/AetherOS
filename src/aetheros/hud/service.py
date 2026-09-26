@@ -7,6 +7,11 @@ from typing import Any
 
 
 from ..core.logging.logging import get_logger
+from ..core.observability.events import (
+    TraceEvent,
+    TraceEventType,
+    TraceStatus,
+)
 from ..runtime.events.event_bus import EventBus
 from ..runtime.events.events import Event
 from .config import HUDConfig
@@ -22,7 +27,6 @@ from .protocol import (
     message_type,
     snapshot_message,
 )
-# from ..cli.ui import CLIUI
 from .state import HUDSnapshot, HUDState
 
 #: How often the service talks to the overlay while a turn is in
@@ -53,11 +57,17 @@ class HUDService:
     """
     Keeps the overlay showing what AetherOS is doing.
 
-    Subscribes to the voice events on the existing EventBus, folds them
-    into a snapshot, and pushes that to the render process. The
-    dependency runs one way only — the HUD never calls into voice, and
-    voice has no idea the HUD exists — which is what lets either one be
-    absent without the other noticing.
+    Subscribes to two streams on the existing EventBus and folds both into
+    one snapshot it pushes to the render process: the voice events, which
+    drive the animation and audio-reactive visuals for a spoken turn, and
+    the shared ``TraceEvent`` lifecycle, which lights the overlay for every
+    other turn -- so a request typed in the terminal appears here too. A
+    spoken turn is driven by the voice vocabulary alone; the trace is
+    skipped for it to keep a single producer per turn (see ``_on_trace``).
+
+    The dependency runs one way only — the HUD never calls into voice or
+    the agent, and neither has any idea the HUD exists — which is what lets
+    either one be absent without the other noticing.
 
     Every failure here is contained. A HUD that will not start, dies, or
     stops accepting messages is logged and then ignored: the overlay is
@@ -67,19 +77,16 @@ class HUDService:
 
     def __init__(
         self,
-        ui:None = None,
         *,
         config: HUDConfig | None = None,
         event_bus: EventBus | None = None,
         process: HUDProcess | None = None,
-        
     ) -> None:
 
         self._config = config or HUDConfig.from_env()
         self._bus = event_bus
 
         self._logger = get_logger("hud.service")
-        # self._ui=CLIUI()
         # Injectable so tests can drive the whole service against a
         # fake process, with no Qt and no window. An injected one is
         # never replaced; an owned one is rebuilt on every start.
@@ -91,7 +98,6 @@ class HUDService:
 
         self._snapshot = HUDSnapshot(state=HUDState.OFFLINE)
 
-        self._ui = ui 
         #: Set when the snapshot has changed but has not been sent. Only
         #: amplitude defers this way; state and text go immediately.
         self._dirty = False
@@ -458,8 +464,7 @@ class HUDService:
             VoiceServiceStarted: self._on_voice_started,
             VoiceServiceStopped: self._on_voice_stopped,
         }
-    # from ..cli.ui import CLIUI
-    # _ui = CLIUI()
+
     async def _subscribe(self) -> None:
 
         bus = self._bus
@@ -467,13 +472,23 @@ class HUDService:
         if bus is None or self._subscribed:
             return
 
+        # The shared execution trace drives the overlay for turns that carry
+        # no voice vocabulary -- a request typed in the terminal now lights the
+        # HUD too. Subscribed independently of the voice handlers below, so the
+        # overlay reacts to the one agent's lifecycle even when the voice
+        # package is absent or fails to import.
+        await bus.subscribe(TraceEvent, self._on_trace)
+
+        self._subscribed = True
+
         try:
             handlers = self._handlers()
 
         except Exception:
-            # Voice is not installed or failed to import. The overlay
-            # still works; it just has nothing driving it, which is
-            # exactly the standalone case.
+            # Voice is not installed or failed to import. The overlay still
+            # works; it just has nothing voice-specific driving it, which is
+            # exactly the standalone case -- and the trace subscription above
+            # still lights it up for every non-voice turn.
             self._logger.opt(exception=True).warning(
                 "The HUD could not subscribe to voice events."
             )
@@ -483,8 +498,6 @@ class HUDService:
         for event_type, handler in handlers.items():
             await bus.subscribe(event_type, handler)
 
-        self._subscribed = True
-
     async def _unsubscribe(self) -> None:
 
         bus = self._bus
@@ -493,6 +506,14 @@ class HUDService:
             return
 
         self._subscribed = False
+
+        try:
+            await bus.unsubscribe(TraceEvent, self._on_trace)
+
+        except Exception:
+            self._logger.opt(exception=True).debug(
+                "Ignoring error while unsubscribing the HUD trace handler."
+            )
 
         try:
             handlers = self._handlers()
@@ -519,6 +540,99 @@ class HUDService:
     # scheduling round-trip for work that is a dict write and a pipe
     # write.
 
+    def _on_trace(self, event: Event) -> None:
+        """
+        Fold one shared lifecycle event into the overlay.
+
+        This is the HUD's window onto turns that do not speak: a request
+        typed in the terminal enters the one agent, emits this trace, and
+        the overlay lights up exactly as it does for a spoken turn.
+
+        A voice turn is deliberately skipped here. Its richer voice
+        vocabulary (``VoiceStateChanged``, audio levels, transcript and
+        response events) already drives the animation, and letting the
+        trace drive it too would put two producers on the same fields.
+        This is de-duplication, not routing: ``source`` decides which
+        producer owns the overlay for a turn, never which UI is allowed to
+        observe it -- both UIs receive every event regardless.
+
+        Synchronous and total: it runs on the publishing path and must
+        never block or raise. Only the event's already-safe projections
+        are read -- stage/message, tool *names*, and the final answer text
+        -- never private reasoning or a token stream. This is the same
+        chain-of-thought guard the terminal renderer applies.
+        """
+
+        if not isinstance(event, TraceEvent):
+            return
+
+        # A spoken turn is owned by the voice vocabulary; the trace would
+        # only duplicate it. Every other origin (the terminal, an untagged
+        # run) has no other producer, so the trace is what lights the
+        # overlay.
+        if event.source == "voice":
+            return
+
+        try:
+            self._render_trace(event)
+
+        except Exception:
+            # A renderer fault must not break the run it is only observing.
+            self._logger.opt(exception=True).debug(
+                "Ignoring error while folding a trace event into the HUD."
+            )
+
+    def _render_trace(self, event: TraceEvent) -> None:
+
+        kind = event.event_type
+
+        if kind is TraceEventType.INPUT_RECEIVED:
+            # A new request retires the previous answer, so the overlay
+            # never shows this turn's question beside the last one's reply.
+            self._mutate(
+                transcript=_clip(event.message or ""),
+                response="",
+            )
+            return
+
+        if kind is TraceEventType.AGENT_STARTED:
+            self._apply_state(HUDState.THINKING)
+            return
+
+        if kind is TraceEventType.TOOL_SELECTED:
+            name = event.metadata.get("tool_name") or event.message or ""
+            self._apply_state(HUDState.EXECUTING, action=_clip(name))
+            return
+
+        if kind is TraceEventType.TOOL_EXECUTION_FAILED:
+            # A failed call is not necessarily a failed turn -- the agent
+            # may recover -- so only clear the tool that is showing, as the
+            # voice path does, rather than forcing the overlay into ERROR.
+            name = event.metadata.get("tool_name") or event.message or ""
+            action = _clip(name)
+
+            if action and action == self._snapshot.action:
+                self._mutate(action="")
+            return
+
+        if kind is TraceEventType.FINAL_RESPONSE_CREATED:
+            # The full answer travels in payload["response"]; the message
+            # is only a preview. A terminal turn does not speak, so the
+            # overlay shows the reply and settles to rest rather than
+            # SPEAKING.
+            answer = event.payload.get("response") or event.message or ""
+            self._apply_state(HUDState.IDLE, response=_clip(answer))
+            return
+
+        if kind is TraceEventType.ERROR and event.status is TraceStatus.FAILED:
+            self._apply_state(
+                HUDState.ERROR,
+                message=_clip(
+                    event.message or event.error or "The run failed."
+                ),
+            )
+            return
+
     def _on_state_changed(self, event: Event) -> None:
 
         current = getattr(event, "current", None)
@@ -543,25 +657,18 @@ class HUDService:
 
         # A new utterance retires the previous answer, so the overlay
         # never shows this turn's question beside the last one's reply.
-        # print(f"HUD: transcribed---------->: {getattr(event, 'text', '')}")
         self._mutate(
             transcript=_clip(getattr(event, "text", "")),
             response="",
         )
-        self._ui.console.print(f"[bold green]{getattr(event, 'text', '')}[/bold green]")
-        
-        
 
     def _on_response(self, event: Event) -> None:
 
-        self._ui.answer(f"{getattr(event, 'response', '')}")
         self._mutate(response=_clip(getattr(event, "response", "")))
-        self._ui.prompt()
 
     def _on_tool_started(self, event: Event) -> None:
 
         self._mutate(action=_clip(getattr(event, "tool", "")))
-        self._ui.note(f"tool:{getattr(event, 'tool', '')}")
 
     def _on_tool_finished(self, event: Event) -> None:
 
@@ -586,8 +693,6 @@ class HUDService:
     def _on_error(self, event: Event) -> None:
 
         self._mutate(message=_clip(getattr(event, "message", "")))
-        self._ui.error(f"{getattr(event, 'message', '')}")
-        
     def _on_voice_started(self, _: Event) -> None:
 
         self._apply_state(HUDState.IDLE)

@@ -26,6 +26,7 @@ from typing import Any
 
 from ...runtime.events.publisher import publish
 from .events import TraceEvent, TraceEventType, TraceStatus
+from .interaction import current_interaction
 from .redaction import redact_keys, safe_metadata
 
 
@@ -42,13 +43,31 @@ async def emit_trace(
     metadata: Mapping[str, Any] | None = None,
     payload: Mapping[str, Any] | None = None,
     error: str | None = None,
+    source: str | None = None,
 ) -> None:
     """Publish one trace event, swallowing every failure.
 
     Never raises: a missing bus, a redaction hiccup, or a misbehaving subscriber
     must not surface into the caller's control flow. The trace layer is an
     observer, so its faults stay its own.
+
+    The turn's origin is stamped automatically: when the caller does not pass
+    ``source``/``run_id`` explicitly they are filled from the active
+    :func:`~aetheros.core.observability.interaction.interaction_scope`, so the
+    dozen emit sites inside the agent loop need no extra argument to become
+    source-tagged. An explicit value always wins over the scope.
     """
+
+    # Pull the turn's label from the scope the gateway opened around this run.
+    # Absent one (early bootstrap, a unit test), the event is simply unsourced.
+    interaction = current_interaction()
+    if interaction is not None:
+        if source is None:
+            source = interaction.source
+        if run_id is None:
+            run_id = interaction.request_id
+
+    session_id = interaction.session_id if interaction is not None else None
 
     try:
         event = TraceEvent.create(
@@ -63,6 +82,8 @@ async def emit_trace(
             metadata=safe_metadata(dict(metadata) if metadata else None),
             payload=redact_keys(dict(payload) if payload else None),
             error=error,
+            source=source,
+            session_id=session_id,
         )
     except Exception:
         # Building the event should never fail, but if it does the caller must

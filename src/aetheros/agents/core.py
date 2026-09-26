@@ -365,7 +365,15 @@ class AgentCore:
                     status=TraceStatus.SUCCESS,
                     run_id=state.state_id,
                     iteration=iteration,
-                    payload={"response_preview": safe_preview(plan.action.content)},
+                    payload={
+                        "response_preview": safe_preview(plan.action.content),
+                        # Full, untruncated answer for a UI renderer. It is
+                        # user-facing safe output (the reply itself, never
+                        # reasoning), and the one event where the whole text is
+                        # the point -- so both UIs render the same complete
+                        # answer from the single lifecycle rather than a preview.
+                        "response": plan.action.content,
+                    },
                 )
                 return
 
@@ -446,6 +454,7 @@ class AgentCore:
                 run_id=state.state_id,
                 iteration=state.iteration,
                 metadata={"stopped_reason": STOP_MAX_ITERATIONS},
+                payload={"response": self._limit_message(state.max_iterations)},
             )
 
     # -- OBSERVE ----------------------------------------------------------

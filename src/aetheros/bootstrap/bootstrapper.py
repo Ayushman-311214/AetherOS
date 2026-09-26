@@ -915,6 +915,19 @@ class Bootstrapper:
             lambda: agent_core,
         )
 
+        # The single entry both front ends submit a turn through. It tags the
+        # run with its origin (terminal / voice) and calls the *same* agent, so
+        # a request enters the agent exactly once and every trace event of the
+        # run is source-labelled for both UIs to observe.
+        from ..agents.gateway import InteractionGateway
+
+        interaction_gateway = InteractionGateway(agent_core)
+
+        self._container.register_singleton(
+            "interaction_gateway",
+            lambda: interaction_gateway,
+        )
+
         self._container.register_singleton(
             ToolExecutor,
             lambda: executor,
@@ -950,7 +963,6 @@ class Bootstrapper:
 
         from ..hud.config import HUDConfig
         from ..hud.service import HUDService
-        from ..cli.ui import CLIUI
         config = HUDConfig.from_env()
 
         # HUDService.start() does not consult config.enabled — the gate is
@@ -977,7 +989,6 @@ class Bootstrapper:
             return
 
         hud = HUDService(
-            ui=CLIUI(),
             config=config,
             event_bus=self._event_bus,
         )

@@ -1512,9 +1512,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/core/observability/ui.py": {
-    "mtime": 1790401520.2058249,
-    "seen": 1790401619.3096397,
-    "ast_hash": "5795c2022cfde965defd8aaaffdb4877",
+    "mtime": 1790244127.5021076,
+    "seen": 1790244665.157041,
+    "ast_hash": "f49be94e56a7c29ee5002dd27e14f067",
     "semantic_hash": ""
   },
   "tests/observability/conftest.py": {
@@ -1599,12 +1599,6 @@
     "mtime": 1790398447.404511,
     "seen": 1790400434.2253158,
     "ast_hash": "dbd4379ef3faeba8da26ccbc43380837",
-    "semantic_hash": ""
-  },
-  "tests/test_unified_interaction.py": {
-    "mtime": 1790401271.7808409,
-    "seen": 1790401619.3101234,
-    "ast_hash": "7f6cec980f4ec0ee0f01362815742067",
     "semantic_hash": ""
   }
 }

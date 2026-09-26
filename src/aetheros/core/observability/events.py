@@ -130,6 +130,13 @@ class TraceEvent(Event):
     task_id: str | None = None
     iteration: int | None = None
 
+    # Which front end submitted the turn (``"terminal"`` / ``"voice"``) and the
+    # session it belongs to. A *label* every UI can read -- it never decides
+    # which UI renders the event. Filled from the interaction scope by
+    # ``emit_trace`` when the emitting caller did not set it explicitly.
+    source: str | None = None
+    session_id: str | None = None
+
     # How long the stage took, when the emitter measured it.
     duration_ms: float | None = None
 
@@ -157,6 +164,8 @@ class TraceEvent(Event):
         metadata: dict[str, Any] | None = None,
         payload: dict[str, Any] | None = None,
         error: str | None = None,
+        source: str | None = None,
+        session_id: str | None = None,
     ) -> TraceEvent:
         """Build an event, defaulting the stage label from the type."""
 
@@ -172,6 +181,8 @@ class TraceEvent(Event):
             metadata=dict(metadata or {}),
             payload=dict(payload or {}),
             error=error,
+            source=source,
+            session_id=session_id,
         )
 
     def to_dict(self) -> dict[str, Any]:
@@ -187,6 +198,8 @@ class TraceEvent(Event):
             "run_id": self.run_id,
             "task_id": self.task_id,
             "iteration": self.iteration,
+            "source": self.source,
+            "session_id": self.session_id,
             "duration_ms": self.duration_ms,
             "metadata": self.metadata,
             "payload": self.payload,
