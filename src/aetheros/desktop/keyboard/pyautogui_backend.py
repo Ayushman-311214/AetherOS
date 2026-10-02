@@ -149,3 +149,27 @@ class PyAutoGuiKeyboard(KeyboardController):
             "winright",
         ):
             pyautogui.keyUp(key)
+
+    @staticmethod
+    def is_available() -> bool:
+        try:
+            import pyautogui
+
+            pyautogui.position()
+            return True
+        except Exception:
+            return False
+
+    def status(self) -> dict[str, Any]:
+        available = self.is_available()
+
+        if not available:
+            return {
+                "status": "unavailable",
+                "available": False,
+            }
+
+        return {
+            "status": "ready",
+            "available": True,
+        }

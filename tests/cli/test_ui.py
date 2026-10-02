@@ -121,3 +121,97 @@ class TestNonUnicodeTerminal:
         ui = CLIUI()
 
         ui.console.print("█╗ 中文 \U0001f600")
+
+
+class TestPromptCursor:
+    """
+    The live trace dashboard's persistent ``rich.live.Live`` hides the terminal
+    cursor once at bootstrap and never re-shows it until shutdown, so the caret
+    was invisible while the user typed. ``prompt()`` must re-assert a visible
+    cursor for every line it reads.
+    """
+
+    class _FakeConsole:
+        def __init__(self, line: str = "help") -> None:
+            self.line = line
+            self.show_cursor_calls: list[bool] = []
+            self.order: list[str] = []
+
+        def show_cursor(self, show: bool = True) -> bool:
+            self.show_cursor_calls.append(show)
+            self.order.append("show_cursor")
+            return True
+
+        def input(self, prompt: str) -> str:
+            self.order.append("input")
+            return self.line
+
+    def test_prompt_shows_the_cursor_before_reading(self) -> None:
+        ui = CLIUI()
+        fake = self._FakeConsole("status")
+        ui.console = fake
+
+        result = ui.prompt()
+
+        assert result == "status"
+        # Cursor made visible, and specifically *before* the blocking read so the
+        # caret is present the whole time the user is typing.
+        assert fake.show_cursor_calls == [True]
+        assert fake.order == ["show_cursor", "input"]
+
+    def test_prompt_survives_a_console_that_refuses_show_cursor(self) -> None:
+        """A console that cannot honour the control code must not break input."""
+
+        class Hostile(self._FakeConsole):
+            def show_cursor(self, show: bool = True) -> bool:
+                raise RuntimeError("no cursor control here")
+
+        ui = CLIUI()
+        ui.console = Hostile("ask hi")
+
+        assert ui.prompt() == "ask hi"
+
+
+class TestTerminalRestoredOnExit:
+    """
+    Exiting AetherOS -- cleanly, by exception, or by Ctrl+C during startup --
+    must leave the shell's cursor visible.
+    """
+
+    def test_restore_terminal_emits_show_cursor_on_a_tty(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from aetheros.__main__ import _restore_terminal
+
+        written: list[str] = []
+
+        class FakeTTY:
+            def isatty(self) -> bool:
+                return True
+
+            def write(self, text: str) -> int:
+                written.append(text)
+                return len(text)
+
+            def flush(self) -> None:
+                pass
+
+        monkeypatch.setattr(sys, "stdout", FakeTTY())
+
+        _restore_terminal()
+
+        assert written == ["\x1b[?25h"]
+
+    def test_restore_terminal_is_a_no_op_off_a_tty(
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        from aetheros.__main__ import _restore_terminal
+
+        buffer = io.StringIO()  # isatty() is False
+        monkeypatch.setattr(sys, "stdout", buffer)
+
+        _restore_terminal()
+
+        assert buffer.getvalue() == ""

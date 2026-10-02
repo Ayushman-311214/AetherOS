@@ -37,11 +37,26 @@ class YOLOProvider(DetectionProvider):
         self,
         model: str | Path = "yolo11n.pt",
         allow_download: bool = False,
+        *,
+        device: str = "",
+        imgsz: int = 640,
+        confidence: float = 0.25,
     ) -> None:
 
         self._weights = Path(model)
         self._allow_download = allow_download
         self._logger = get_logger("vision.detection")
+
+        # Perf/hardware knobs, all from config (§5/§13):
+        #   device     -- "" means auto (CUDA when available, else CPU)
+        #   imgsz      -- YOLO inference size (longest side)
+        #   confidence -- default detection threshold
+        self._device_pref = device
+        self._imgsz = imgsz
+        self._confidence = confidence
+
+        # Resolved to a real torch device string on first build, then reused.
+        self._device: str | None = None
 
         self._model: Any | None = None
 
@@ -96,7 +111,7 @@ class YOLOProvider(DetectionProvider):
     async def detect(
         self,
         image: Image,
-        confidence: float = 0.25,
+        confidence: float | None = None,
     ) -> list[Detection]:
 
         if image is None:
@@ -106,10 +121,14 @@ class YOLOProvider(DetectionProvider):
                 context=self._context("detect"),
             )
 
+        # None means "use the configured default" -- the threshold is a config
+        # value, not something every caller should have to pass.
+        conf = self._confidence if confidence is None else confidence
+
         return await asyncio.to_thread(
             self._detect_sync,
             image,
-            confidence,
+            conf,
         )
 
     # ==========================================================
@@ -161,12 +180,71 @@ class YOLOProvider(DetectionProvider):
                 cause=exc,
             ) from exc
 
+        # Resolve and pin the device once, at init, and move the weights onto
+        # it. Doing this here (not per predict) means the model lives on the GPU
+        # for its whole lifetime instead of being copied across the PCIe bus on
+        # every call.
+        self._device = self._resolve_device()
+
+        try:
+            model.to(self._device)
+
+        except Exception as exc:
+            # A device move can fail (e.g. a stale "cuda:1" pin); fall back to
+            # CPU rather than losing detection entirely.
+            self._logger.bind(
+                device=self._device,
+                error=str(exc),
+            ).warning("Could not move YOLO model to device; falling back to CPU.")
+            self._device = "cpu"
+            model.to("cpu")
+
+        # Logged once, at init -- §5 wants the device, model and input size
+        # visible exactly once so an operator can confirm the GPU is actually in
+        # use without every detection spamming the log.
         self._logger.bind(
             weights=str(self._weights),
             version=self.version,
-        ).info("YOLO detector initialized.")
+            imgsz=self._imgsz,
+        ).info("Vision device: {} | YOLO detector initialized.", self._device.upper())
 
         return model
+
+    def _resolve_device(self) -> str:
+        """
+        Decide which torch device detection runs on.
+
+        Empty preference means auto: CUDA when torch reports it, else CPU. An
+        explicit "cuda"/"cuda:N" is honoured only when CUDA is actually
+        available -- forcing CUDA on a CPU-only build (this environment ships
+        ``torch==2.8.0+cpu``) would crash inference, so it degrades to CPU with a
+        warning instead.
+        """
+
+        try:
+            import torch
+
+            cuda_ok = bool(torch.cuda.is_available())
+
+        except Exception:
+            cuda_ok = False
+
+        pref = (self._device_pref or "").strip().lower()
+
+        if not pref:
+            return "cuda:0" if cuda_ok else "cpu"
+
+        if pref.startswith("cuda"):
+            if cuda_ok:
+                return self._device_pref.strip()
+
+            self._logger.warning(
+                "VISION_DETECTION_DEVICE requested CUDA but no CUDA device is "
+                "available; using CPU."
+            )
+            return "cpu"
+
+        return pref
 
     def _model_or_build(self) -> Any:
 
@@ -195,6 +273,8 @@ class YOLOProvider(DetectionProvider):
             results = model.predict(
                 source=frame,
                 conf=confidence,
+                imgsz=self._imgsz,
+                device=self._device,
                 verbose=False,
             )
 

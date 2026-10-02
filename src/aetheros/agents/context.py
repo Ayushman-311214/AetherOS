@@ -150,6 +150,16 @@ class ContextConfig:
     include_observations: bool = True
     include_tool_digest: bool = True
 
+    # When set, only tools in these registry categories are offered to the model
+    # this run. ``None`` means "every enabled tool", the backward-compatible
+    # default that keeps existing callers unchanged. Scoping exists so a run that
+    # is only ever going to browse does not have the whole 100-plus-tool surface
+    # in front of it -- a smaller, relevant menu is both cheaper to send and
+    # less prone to the model reaching for an off-task tool. Filtering is by
+    # category, not by disabling tools, so the registry itself is untouched and
+    # two concurrent runs can be scoped differently.
+    tool_categories: tuple[str, ...] | None = None
+
     def __post_init__(self) -> None:
         for name, low, high in (
             ("max_history_messages", 0, HISTORY_CEILING),
@@ -180,6 +190,11 @@ class ContextConfig:
             "include_tool_schemas": self.include_tool_schemas,
             "include_observations": self.include_observations,
             "include_tool_digest": self.include_tool_digest,
+            "tool_categories": (
+                list(self.tool_categories)
+                if self.tool_categories is not None
+                else None
+            ),
         }
 
 
@@ -588,7 +603,19 @@ class ContextBuilder:
         if not self._config.include_tool_schemas:
             return ()
 
-        schemas = get_llm_tools(self._registry, self._generator)
+        if self._config.tool_categories is not None:
+            # Scoped run: build the menu from the selected categories only, still
+            # honouring each tool's enabled flag. Dedupe by name so a tool that
+            # is filed under two categories is offered once, not twice.
+            seen: set[str] = set()
+            schemas: list[dict[str, Any]] = []
+            for category in self._config.tool_categories:
+                for definition in self._registry.by_category(category):
+                    if definition.enabled and definition.name not in seen:
+                        seen.add(definition.name)
+                        schemas.append(self._generator.generate(definition))
+        else:
+            schemas = get_llm_tools(self._registry, self._generator)
 
         return tuple(sorted(schemas, key=_schema_name))
 

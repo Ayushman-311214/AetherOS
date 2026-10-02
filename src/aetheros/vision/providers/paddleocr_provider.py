@@ -5,6 +5,7 @@ import importlib.util
 import os
 from typing import Any
 
+import cv2
 import numpy as np
 
 from ...core.errors.base_error import ErrorContext
@@ -58,6 +59,30 @@ def _quiet_model_source_check() -> None:
     os.environ.setdefault(_MODEL_SOURCE_CHECK_ENV, "True")
 
 
+def _rescale_blocks(
+    blocks: list[TextBlock],
+    scale: float,
+) -> list[TextBlock]:
+    """
+    Map box coordinates from a downscaled frame back to the original image.
+
+    Pure and model-free so the coordinate maths is unit-testable without paddle
+    installed: every edge is multiplied by ``scale`` (original_width /
+    processed_width) and rounded to a pixel. Text and confidence are untouched.
+    """
+
+    if scale == 1.0:
+        return blocks
+
+    for block in blocks:
+        block.left = int(round(block.left * scale))
+        block.top = int(round(block.top * scale))
+        block.right = int(round(block.right * scale))
+        block.bottom = int(round(block.bottom * scale))
+
+    return blocks
+
+
 class PaddleOCRProvider(OCRProvider):
     """
     PaddleOCR implementation of the OCR provider interface.
@@ -80,10 +105,20 @@ class PaddleOCRProvider(OCRProvider):
         self,
         language: str = "en",
         use_angle_cls: bool = False,
+        *,
+        processing_width: int = 0,
     ) -> None:
 
         self._language = language
         self._use_angle_cls = use_angle_cls
+
+        # Optional downscale before recognition. 0 means "full resolution"
+        # (accuracy-first, the historical behaviour). When set, the frame is
+        # scaled to this width before OCR and every returned box is mapped back
+        # to original-image coordinates, so a downscale trades some small-text
+        # accuracy for speed without ever handing back a wrong coordinate.
+        self._processing_width = max(0, processing_width)
+
         self._logger = get_logger("vision.ocr")
 
         # Built lazily; None means "not built yet", not "unavailable".
@@ -302,6 +337,10 @@ class PaddleOCRProvider(OCRProvider):
 
         frame = self._prepare(image)
 
+        # Optional downscale for speed; scale is the factor to multiply box
+        # coordinates by afterwards to return to original-image space.
+        frame, scale = self._maybe_downscale(frame)
+
         ocr = self._model()
 
         try:
@@ -339,7 +378,40 @@ class PaddleOCRProvider(OCRProvider):
 
             blocks.extend(self._parse(result))
 
+        if scale != 1.0:
+            blocks = _rescale_blocks(blocks, scale)
+
         return blocks
+
+    def _maybe_downscale(
+        self,
+        frame: np.ndarray,
+    ) -> tuple[np.ndarray, float]:
+        """
+        Downscale to ``processing_width`` if configured and the frame is wider.
+
+        Returns ``(frame, scale)`` where ``scale`` is the factor that maps a
+        coordinate in the (possibly downscaled) frame back to the original
+        image: 1.0 when no downscale happened. INTER_AREA is the right
+        interpolation for shrinking -- it averages the source pixels rather than
+        sampling one, which keeps text edges legible for the recogniser.
+        """
+
+        width = frame.shape[1]
+
+        if self._processing_width <= 0 or width <= self._processing_width:
+            return frame, 1.0
+
+        new_width = self._processing_width
+        new_height = max(1, round(frame.shape[0] * new_width / width))
+
+        resized = cv2.resize(
+            frame,
+            (new_width, new_height),
+            interpolation=cv2.INTER_AREA,
+        )
+
+        return np.ascontiguousarray(resized), width / new_width
 
     def _prepare(
         self,

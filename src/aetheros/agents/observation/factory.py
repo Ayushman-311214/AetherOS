@@ -17,10 +17,40 @@ from __future__ import annotations
 
 from typing import Any, Sequence
 
+from ...core.observability import safe_preview
 from ...tools.executor import ToolExecutionResult
 from ...vision.models import Detection, TemplateMatch, TextBlock
 from ..state import ToolResultRecord
 from .models import Observation, ObservationSource
+
+
+def _outcome_description(name: str, ok: bool, body: Any, error: Any) -> str:
+    """A one-line gloss that carries *what the tool returned*, not just that it ran.
+
+    The old wording -- "tool X succeeded" -- was the whole bug behind the
+    32-iteration trace: the model saw a wall of identical success lines with no
+    content, could not tell whether the goal was met, and kept acting. The fix
+    is to fold a bounded preview of the result into the description, so the
+    observation the next turn reads actually says what happened.
+
+    ``safe_preview`` only bounds length; it is not a secret filter. That is
+    acceptable here because the same content is already in the transcript
+    verbatim as the tool message this observation mirrors -- the preview adds no
+    exposure a log sink did not already have, and every log-bound projection of
+    this text (state ``describe`` counts only; the OBSERVATION_CREATED trace)
+    re-previews it regardless.
+    """
+
+    if ok:
+        preview = safe_preview(body)
+        if preview.strip():
+            return f"tool {name} succeeded: {preview}"
+        return f"tool {name} succeeded (no content returned)"
+
+    reason = safe_preview(error) if error else ""
+    if reason.strip():
+        return f"tool {name} failed: {reason}"
+    return f"tool {name} failed"
 
 
 def _mean_confidence(values: Sequence[float]) -> float | None:
@@ -65,8 +95,8 @@ def tool_observation(
             "error_type": result.error_type,
             "duration_ms": result.duration_ms,
         }
-        default_description = (
-            f"tool {result.name} {'succeeded' if result.ok else 'failed'}"
+        default_description = _outcome_description(
+            result.name, result.ok, result.content, result.error
         )
 
     elif isinstance(result, ToolExecutionResult):
@@ -78,8 +108,8 @@ def tool_observation(
             "error_type": result.error_type,
             "duration_ms": result.duration_ms,
         }
-        default_description = (
-            f"tool {result.name} {'succeeded' if result.ok else 'failed'}"
+        default_description = _outcome_description(
+            result.name, result.ok, result.value, result.error
         )
 
     else:  # Reject an unrelated object rather than silently observing junk.

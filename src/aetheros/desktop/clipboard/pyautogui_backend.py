@@ -106,10 +106,7 @@ class PyAutoGuiClipboard(ClipboardController):
 
         api = _win32_clipboard()
 
-        return any(
-            bool(api.IsClipboardFormatAvailable(fmt))
-            for fmt in formats
-        )
+        return any(bool(api.IsClipboardFormatAvailable(fmt)) for fmt in formats)
 
     # ==========================================================
     # Text
@@ -243,3 +240,47 @@ class PyAutoGuiClipboard(ClipboardController):
             return "empty"
 
         return "unknown"
+
+    def status(self) -> dict[str, Any]:
+        """
+        Return the current clipboard state.
+
+        The state is inspected once and reused so all fields in the returned
+        snapshot describe the same clipboard state.
+        """
+        has_text = self.has_text()
+        has_image = self.has_image()
+        has_files = self.has_files()
+        is_empty = self.is_empty()
+
+        if has_files:
+            content_type = "files"
+        elif has_image:
+            content_type = "image"
+        elif has_text:
+            content_type = "text"
+        elif is_empty:
+            content_type = "empty"
+        else:
+            content_type = "unknown"
+
+        return {
+            "has_text": has_text,
+            "has_image": has_image,
+            "has_files": has_files,
+            "is_empty": is_empty,
+            "content_type": content_type,
+        }
+
+    @staticmethod
+    def is_available() -> bool:
+        try:
+            import win32clipboard
+
+            win32clipboard.OpenClipboard()
+            try:
+                return True
+            finally:
+                win32clipboard.CloseClipboard()
+        except Exception:
+            return False

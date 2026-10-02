@@ -1,0 +1,48 @@
+{
+  "name": "notepad_clipboard_demo",
+  "description": "Open Notepad, type text, select+copy it, and verify via the clipboard.",
+  "stop_on_failure": true,
+  "steps": [
+    {
+      "name": "open_run_dialog",
+      "tool": "hotkey",
+      "arguments": { "keys": ["win", "r"] },
+      "wait_after": 1.0
+    },
+    {
+      "name": "type_notepad_command",
+      "tool": "type_text",
+      "arguments": { "text": "notepad" },
+      "wait_after": 0.4
+    },
+    {
+      "name": "launch_notepad",
+      "tool": "press_key",
+      "arguments": { "key": "enter" },
+      "wait_after": 3.0
+    },
+    {
+      "name": "type_message",
+      "tool": "type_text",
+      "arguments": { "text": "AetherOS automation framework works!" },
+      "wait_after": 0.3
+    },
+    {
+      "name": "select_all",
+      "tool": "hotkey",
+      "arguments": { "keys": ["ctrl", "a"] },
+      "wait_after": 0.2
+    },
+    {
+      "name": "copy_and_verify",
+      "tool": "hotkey",
+      "arguments": { "keys": ["ctrl", "c"] },
+      "wait_after": 0.3,
+      "verify": {
+        "method": "clipboard",
+        "mode": "contains",
+        "expected": "AetherOS automation framework works!"
+      }
+    }
+  ]
+}

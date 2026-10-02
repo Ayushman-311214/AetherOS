@@ -184,3 +184,62 @@ class PyAutoGuiMouse(MouseController):
             )
 
         return bool(win32api.GetAsyncKeyState(code) & _BUTTON_DOWN_BIT)
+
+    @staticmethod
+    def is_available() -> bool:
+        try:
+            import pyautogui
+
+            pyautogui.position()
+            return True
+        except Exception:
+            return False
+
+        def status(self) -> dict[str, Any]:
+            available = self.is_available()
+
+            if not available:
+                return {
+                    "status": "unavailable",
+                    "available": False,
+                }
+
+            try:
+                x, y = self.position()
+
+                return {
+                    "status": "ready",
+                    "available": True,
+                    "position": {
+                        "x": x,
+                        "y": y,
+                    },
+                }
+            except Exception as exc:
+                return {
+                    "status": "degraded",
+                    "available": True,
+                    "error": str(exc),
+                }
+
+        def status(self) -> dict[str, Any]:
+            available = self.is_available()
+
+            if not available:
+                return {
+                    "status": "unavailable",
+                    "available": False,
+                }
+
+            import pyautogui
+
+            x, y = pyautogui.position()
+
+            return {
+                "status": "ready",
+                "available": True,
+                "position": {
+                    "x": x,
+                    "y": y,
+                },
+            }

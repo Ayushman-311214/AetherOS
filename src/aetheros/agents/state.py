@@ -63,7 +63,11 @@ from ..tools.executor import ToolExecutionResult
 
 DEFAULT_MAX_ITERATIONS = 8
 """Same budget ``AgentLoopConfig.max_iterations`` uses, so a state handed to the
-loop layer later does not silently change how long a run is allowed to think."""
+loop layer later does not silently change how long a run is allowed to think.
+This is the fallback for a state created without an explicit budget; at runtime
+``AgentCore`` seeds every run from ``Settings.MAX_TOOL_CALLS`` (env
+``AETHEROS_MAX_TOOL_CALLS``), so this default mirrors that setting's default and
+must stay in sync with it."""
 
 ITERATION_CEILING = 50
 """Hard upper bound on the requested budget, mirroring ``workflow.MAX_STEPS``.
@@ -534,6 +538,7 @@ class AgentState:
         "_max_iterations",
         "_messages",
         "_metadata",
+        "_metrics",
         "_observations",
         "_session_id",
         "_started_at",
@@ -581,6 +586,19 @@ class AgentState:
         self._observations: list[Observation] = []
         self._errors: list[ErrorRecord] = []
         self._metadata: dict[str, Any] = dict(metadata or {})
+
+        # Distinct effort counters, split out from ``_iteration`` so a run's
+        # cost is measurable rather than conflated. ``_iteration`` counts loop
+        # turns; these count the things a turn may or may not do. They are all
+        # monotonic non-negative integers, log-safe (pure counts), and part of
+        # the serialized record.
+        self._metrics: dict[str, int] = {
+            "llm_calls": 0,        # provider round-trips actually made
+            "tool_calls": 0,       # tool executions that reached the executor
+            "step_count": 0,       # iterations that ran at least one tool
+            "retries": 0,          # repeats of an already-seen (tool, args, result)
+            "recovery_attempts": 0,  # actions taken after a failed round
+        }
 
         self._created_at = utc_now()
         self._updated_at = self._created_at
@@ -654,6 +672,17 @@ class AgentState:
     @property
     def has_iterations_left(self) -> bool:
         return self._iteration < self._max_iterations
+
+    @property
+    def metrics(self) -> dict[str, int]:
+        """A copy of the effort counters (``llm_calls``, ``tool_calls``,
+        ``step_count``, ``retries``, ``recovery_attempts``).
+
+        A copy, not the live dict, for the same reason the transcript hands back
+        tuples: a caller must not be able to mutate the run's record in place and
+        bypass :meth:`record_metrics`' lock.
+        """
+        return dict(self._metrics)
 
     @property
     def is_running(self) -> bool:
@@ -798,6 +827,42 @@ class AgentState:
             self._iteration += 1
             self._touch()
             return self._iteration
+
+    async def record_metrics(
+        self,
+        *,
+        llm_calls: int = 0,
+        tool_calls: int = 0,
+        step_count: int = 0,
+        retries: int = 0,
+        recovery_attempts: int = 0,
+    ) -> None:
+        """Add to the effort counters. Deltas only, never a negative.
+
+        Guarded like every other mutation: the loop increments these from the
+        same coroutine that advances iterations, and a compound read-add-write
+        under concurrent sub-agents would otherwise lose counts. Unlike the
+        outcome recorders this does not reject a terminal state -- a final tally
+        (for instance the loop attributing the turn that stopped the run) is
+        legitimately written as the run ends.
+        """
+        deltas = {
+            "llm_calls": int(llm_calls),
+            "tool_calls": int(tool_calls),
+            "step_count": int(step_count),
+            "retries": int(retries),
+            "recovery_attempts": int(recovery_attempts),
+        }
+        async with self._lock:
+            for key, delta in deltas.items():
+                if delta < 0:
+                    raise AgentError(
+                        code="STATE_NEGATIVE_METRIC",
+                        message=f"Metric {key!r} can only be incremented.",
+                        hint="Counters are monotonic; pass a non-negative delta.",
+                    )
+                self._metrics[key] += delta
+            self._touch()
 
     # -- recording --------------------------------------------------------
 
@@ -1059,6 +1124,7 @@ class AgentState:
             "final_response": self._final_response,
             "iteration": self._iteration,
             "max_iterations": self._max_iterations,
+            "metrics": dict(self._metrics),
             "created_at": self._created_at,
             "updated_at": self._updated_at,
             "started_at": self._started_at,
@@ -1125,6 +1191,16 @@ class AgentState:
             ) from exc
 
         state._iteration = int(payload.get("iteration") or 0)
+        # Restore metrics onto the zeroed defaults, keeping only known keys so an
+        # older snapshot (no ``metrics`` block) restores as all-zero rather than
+        # failing, and a future extra key does not smuggle itself in.
+        restored_metrics = payload.get("metrics") or {}
+        if isinstance(restored_metrics, dict):
+            for key in state._metrics:
+                try:
+                    state._metrics[key] = int(restored_metrics.get(key, 0) or 0)
+                except (TypeError, ValueError):
+                    state._metrics[key] = 0
         state._stopped_reason = payload.get("stopped_reason")
         state._final_response = payload.get("final_response")
         state._created_at = str(payload.get("created_at") or state._created_at)
@@ -1166,6 +1242,7 @@ class AgentState:
             "stopped_reason": self._stopped_reason,
             "iteration": self._iteration,
             "max_iterations": self._max_iterations,
+            "metrics": dict(self._metrics),
             "messages": len(self._messages),
             "tool_calls": len(self._tool_calls),
             "tools_used": sorted({c.name for c in self._tool_calls}),
@@ -1199,6 +1276,7 @@ _STATE_FIELDS = frozenset(
         "final_response",
         "iteration",
         "max_iterations",
+        "metrics",
         "created_at",
         "updated_at",
         "started_at",

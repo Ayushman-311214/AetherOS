@@ -106,16 +106,51 @@ class CLIUI:
         table.add_column(
             "description",
         )
-        
 
         commands = [
-            ("help", "Show available commands",),
+            (
+                "help",
+                "Show available commands",
+            ),
             ("status", "Show system status"),
+            (
+                "analyze",
+                "Deterministic trading report (analyze <symbol> [timeframe] [backtest])",
+            ),
+            (
+                "brief",
+                "CEO brief from a free-text request (brief should I look at AAPL this week)",
+            ),
+            (
+                "investigate",
+                "Agentic CEO tool-loop (investigate [research|quant|critic] <request>)",
+        ),
+            ("scan", "Rank a watchlist by signal (scan <SYM1> <SYM2> ... [timeframe])"),
+            (
+                "portfolio",
+                "Risk-budget a basket (portfolio <SYM1> <SYM2> ... <equity>)",
+            ),
+            (
+                "explain",
+                "Why a recommendation came out that way (explain <symbol> [timeframe])",
+            ),
+            (
+                "monitor",
+                "Resolve + score recorded predictions (monitor [SYMBOL:EXCHANGE] [limit])",
+            ),
+            (
+                "track-record",
+                "Recorded predictions + how they scored (track-record [SYMBOL:EXCHANGE] [limit])",
+            ),
             ("tools", "List registered tools"),
             ("ask", "Send a message to the LLM"),
             ("desktop", "Desktop operations"),
             ("browser", "Browser operations"),
             ("vision", "Vision operations"),
+            (
+                "trace",
+                "Live execution trace (trace / on / off / level / clear / status)",
+            ),
             ("llm", "LLM operations"),
             ("clear", "Clear terminal"),
             ("exit", "Shutdown AetherOS"),
@@ -134,28 +169,48 @@ class CLIUI:
     # ==========================================================
 
     def prompt(self) -> str:
-        return self.console.input(
-            "\n[bold cyan]User[/bold cyan] [dim]>[/dim] "
-        )
+        # The live trace dashboard runs a persistent ``rich.live.Live`` for the
+        # whole session, and ``Live.start()`` hides the terminal cursor
+        # (``\x1b[?25l``) exactly once, at bootstrap. Nothing re-shows it until
+        # shutdown, so without this the caret is invisible the entire time the
+        # user is typing a command. Re-assert a visible cursor for every prompt:
+        # it is idempotent, Rich writes it straight to the real terminal (its
+        # ``Console.file`` unwraps the dashboard's FileProxy via
+        # ``rich_proxied_file``) so the dashboard's redirect cannot swallow it,
+        # and a dashboard redraw never re-hides -- so once shown it stays shown,
+        # which also leaves the terminal healthy on exit.
+        self._show_cursor()
+
+        return self.console.input("\n[bold cyan]User[/bold cyan] [dim]>[/dim] ")
+
+    def _show_cursor(self) -> None:
+        """
+        Make the terminal caret visible. Best-effort and never raises.
+
+        A no-op off a TTY (Rich's ``show_cursor`` returns without writing when
+        the console is not a terminal), so tests and piped runs are untouched.
+        """
+
+        try:
+            self.console.show_cursor(True)
+
+        except Exception:
+            # Cosmetic: a console that refuses the control code must not break
+            # the prompt the user is waiting on.
+            pass
 
     # ==========================================================
     # Messages
     # ==========================================================
 
     def success(self, message: str) -> None:
-        self.console.print(
-            f"[bold green]✓[/bold green] {message}"
-        )
+        self.console.print(f"[bold green]✓[/bold green] {message}")
 
     def error(self, message: str) -> None:
-        self.console.print(
-            f"[bold red]✗[/bold red] {message}"
-        )
+        self.console.print(f"[bold red]✗[/bold red] {message}")
 
     def info(self, message: str) -> None:
-        self.console.print(
-            f"[bold cyan]●[/bold cyan] {message}"
-        )
+        self.console.print(f"[bold cyan]●[/bold cyan] {message}")
 
     def goodbye(self) -> None:
         self.console.print()
@@ -192,9 +247,7 @@ class CLIUI:
         Render a secondary line beneath a response.
         """
 
-        self.console.print(
-            f"[dim]{message}[/dim]"
-        )
+        self.console.print(f"[dim]{message}[/dim]")
 
     # ==========================================================
     # Startup Screen
@@ -215,7 +268,7 @@ class CLIUI:
             self.VERSION,
             style="dim",
         )
-        time.sleep(.25)
+        time.sleep(0.25)
 
         self.console.print()
 
@@ -229,8 +282,7 @@ class CLIUI:
         self.console.print()
 
         self.console.print(
-            "Use 'aether <command> --help' "
-            "to get detailed help for any command.",
+            "Use 'aether <command> --help' " "to get detailed help for any command.",
             style="dim",
         )
         time.sleep(0.35)
@@ -240,12 +292,11 @@ class CLIUI:
         time.sleep(0.25)
         self.console.print()
 
-        
     def _slow_print(
-    self,
-    text: str,
-    delay: float = 0.02,
-) -> None:
+        self,
+        text: str,
+        delay: float = 0.02,
+    ) -> None:
         for char in text:
             self.console.print(
                 char,
@@ -255,9 +306,7 @@ class CLIUI:
             time.sleep(delay)
 
         self.console.print()
-        
-        
-        
+
+
 # cl = CLIUI()
 # cl.note("Welcome to AetherOS CLI! Type 'help' to see available commands.")
-        

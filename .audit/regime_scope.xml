@@ -1,0 +1,588 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="13" skipped="0" tests="562" time="5.325" timestamp="2026-09-29T19:50:53.543313+05:30" hostname="AYUSHMAN"><testcase classname="tests.trading.test_analysis_service" name="test_mock_analysis_is_labelled_and_not_actionable" time="0.018" /><testcase classname="tests.trading.test_analysis_service" name="test_mock_analysis_is_deterministic" time="0.014" /><testcase classname="tests.trading.test_analysis_service" name="test_score_within_bounds_and_direction_consistent" time="0.032" /><testcase classname="tests.trading.test_analysis_service" name="test_unusable_data_yields_unknown_direction" time="0.004" /><testcase classname="tests.trading.test_analysis_service" name="test_publishes_analysis_completed" time="0.010" /><testcase classname="tests.trading.test_backtest" name="test_always_up_scorecard" time="0.003" /><testcase classname="tests.trading.test_backtest" name="test_short_signal_mirrors" time="0.003" /><testcase classname="tests.trading.test_backtest" name="test_no_lookahead" time="0.003" /><testcase classname="tests.trading.test_backtest" name="test_mock_data_is_never_reliable" time="0.003" /><testcase classname="tests.trading.test_backtest" name="test_thin_sample_not_reliable" time="0.003" /><testcase classname="tests.trading.test_backtest" name="test_insufficient_bars_yields_empty" time="0.003" /><testcase classname="tests.trading.test_backtest" name="test_sideways_calls_reduce_coverage" time="0.003" /><testcase classname="tests.trading.test_backtest" name="test_deterministic" time="0.022" /><testcase classname="tests.trading.test_backtest" name="test_publishes_backtest_completed" time="0.005" /><testcase classname="tests.trading.test_calendar" name="test_mock_provider_is_deterministic" time="0.002" /><testcase classname="tests.trading.test_calendar" name="test_mock_provider_is_labelled_mock" time="0.002" /><testcase classname="tests.trading.test_calendar" name="test_mock_provider_rejects_non_positive_horizon" time="0.002" /><testcase classname="tests.trading.test_calendar" name="test_mock_provider_filters_by_horizon" time="0.002" /><testcase classname="tests.trading.test_calendar" name="test_mock_provider_returns_events_soonest_first" time="0.002" /><testcase classname="tests.trading.test_calendar" name="test_mock_provider_short_horizon_has_high_impact" time="0.002" /><testcase classname="tests.trading.test_calendar" name="test_service_returns_calendar_with_events" time="0.003" /><testcase classname="tests.trading.test_calendar" name="test_service_sorts_events_soonest_first" time="0.003" /><testcase classname="tests.trading.test_calendar" name="test_service_flags_high_impact" time="0.005" /><testcase classname="tests.trading.test_calendar" name="test_service_no_high_impact_when_none_present" time="0.005" /><testcase classname="tests.trading.test_calendar" name="test_service_non_mock_feed_is_reliable" time="0.003" /><testcase classname="tests.trading.test_calendar" name="test_service_empty_calendar_is_honest_not_a_failure" time="0.002" /><testcase classname="tests.trading.test_calendar" name="test_service_mock_feed_is_never_reliable" time="0.002" /><testcase classname="tests.trading.test_calendar" name="test_service_uses_default_horizon" time="0.015" /><testcase classname="tests.trading.test_calendar" name="test_service_rejects_empty_symbol" time="0.003" /><testcase classname="tests.trading.test_calendar" name="test_service_rejects_non_positive_horizon" time="0.003" /><testcase classname="tests.trading.test_calendar" name="test_service_wraps_provider_failure_as_calendar_error" time="0.002" /><testcase classname="tests.trading.test_calendar" name="test_service_publishes_event" time="0.021" /><testcase classname="tests.trading.test_calendar" name="test_service_to_dict_shape_is_mock" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_approves_sound_directional_case" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_approves_with_historical_edge" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_unreliable_backtest_warns_not_rejects" time="0.004" /><testcase classname="tests.trading.test_critic" name="test_rejects_conflicting_evidence" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_rejects_thin_risk_reward" time="0.026" /><testcase classname="tests.trading.test_critic" name="test_rejects_no_historical_edge" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_insufficient_on_mock_data" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_insufficient_on_unknown_direction" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_insufficient_on_sideways_direction" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_insufficient_on_no_reliable_evidence" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_reliable_probability_agreeing_passes" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_reliable_probability_contradicting_rejects" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_unreliable_probability_warns_not_rejects" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_reliable_noncommittal_probability_warns" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_absent_probability_is_skipped" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_reliable_news_agreeing_passes" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_reliable_news_opposing_warns_never_rejects" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_unreliable_news_warns_not_rejects" time="0.005" /><testcase classname="tests.trading.test_critic" name="test_reliable_noncommittal_news_warns" time="0.005" /><testcase classname="tests.trading.test_critic" name="test_absent_news_is_skipped" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_reliable_high_impact_calendar_rejects" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_reliable_calendar_no_high_impact_passes" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_unreliable_calendar_warns_not_rejects" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_calendar_skipped_when_not_directional" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_absent_calendar_is_skipped" time="0.004" /><testcase classname="tests.trading.test_critic" name="test_reliable_fundamentals_agreeing_passes" time="0.006" /><testcase classname="tests.trading.test_critic" name="test_reliable_fundamentals_opposing_warns_never_rejects" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_unreliable_fundamentals_warns_not_rejects" time="0.004" /><testcase classname="tests.trading.test_critic" name="test_reliable_noncommittal_fundamentals_warns" time="0.004" /><testcase classname="tests.trading.test_critic" name="test_absent_fundamentals_is_skipped" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_undoable_checks_are_skipped_not_passed" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_deterministic" time="0.003" /><testcase classname="tests.trading.test_critic" name="test_publishes_signal_critiqued" time="0.003" /><testcase classname="tests.trading.test_evidence" name="test_uptrend_yields_bullish_leaning_evidence" time="0.009" /><testcase classname="tests.trading.test_evidence" name="test_every_item_is_weighted_and_typed" time="0.007" /><testcase classname="tests.trading.test_evidence" name="test_evidence_inherits_provenance_and_quality" time="0.008" /><testcase classname="tests.trading.test_evidence" name="test_mock_evidence_is_not_reliable" time="0.008" /><testcase classname="tests.trading.test_evidence" name="test_primary_calculated_evidence_is_reliable" time="0.007" /><testcase classname="tests.trading.test_evidence" name="test_evidence_is_deterministic" time="0.010" /><testcase classname="tests.trading.test_evidence" name="test_stable_id_is_content_addressed" time="0.001" /><testcase classname="tests.trading.test_evidence" name="test_weight_is_clamped_into_unit_interval" time="0.001" /><testcase classname="tests.trading.test_evidence" name="test_volume_analysis_reports_relative_volume" time="0.001" /><testcase classname="tests.trading.test_fundamentals" name="test_mock_provider_is_deterministic" time="0.003" /><testcase classname="tests.trading.test_fundamentals" name="test_mock_provider_is_labelled_mock" time="0.003" /><testcase classname="tests.trading.test_fundamentals" name="test_mock_provider_varies_by_symbol" time="0.003" /><testcase classname="tests.trading.test_fundamentals" name="test_service_scores_healthy_snapshot_as_up" time="0.003" /><testcase classname="tests.trading.test_fundamentals" name="test_service_scores_weak_snapshot_as_down" time="0.002" /><testcase classname="tests.trading.test_fundamentals" name="test_service_neutral_snapshot_is_sideways" time="0.002" /><testcase classname="tests.trading.test_fundamentals" name="test_service_builds_fundamental_evidence" time="0.002" /><testcase classname="tests.trading.test_fundamentals" name="test_service_missing_metric_is_not_scored_as_zero" time="0.002" /><testcase classname="tests.trading.test_fundamentals" name="test_service_mock_feed_is_never_reliable" time="0.003" /><testcase classname="tests.trading.test_fundamentals" name="test_service_empty_snapshot_is_missing_and_honest" time="0.002" /><testcase classname="tests.trading.test_fundamentals" name="test_service_thin_coverage_is_partial_and_not_reliable" time="0.014" /><testcase classname="tests.trading.test_fundamentals" name="test_service_confidence_never_exceeds_low_on_thin_coverage" time="0.004" /><testcase classname="tests.trading.test_fundamentals" name="test_service_publishes_event" time="0.003" /><testcase classname="tests.trading.test_fundamentals" name="test_service_rejects_empty_symbol" time="0.003" /><testcase classname="tests.trading.test_fundamentals" name="test_service_is_deterministic" time="0.004" /><testcase classname="tests.trading.test_indicators" name="test_sma_constant_series_equals_constant" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_sma_known_window" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_sma_insufficient_data_all_nan" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_ema_matches_manual_recursion" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_rsi_all_gains_saturates_high" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_rsi_all_losses_saturates_low" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_rsi_within_bounds" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_macd_alignment_and_histogram" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_macd_requires_fast_lt_slow" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_atr_positive_and_aligned" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_bollinger_ordering" time="0.002" /><testcase classname="tests.trading.test_indicators" name="test_vwap_between_low_and_high_extremes" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_adx_within_bounds_when_computable" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_returns_first_is_nan" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_last_finite_none_when_all_nan" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_zscore_zero_for_constant" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_indicators_are_deterministic" time="0.001" /><testcase classname="tests.trading.test_indicators" name="test_negative_period_raises" time="0.001" /><testcase classname="tests.trading.test_market_data_service" name="test_fresh_series_is_ok" time="0.003" /><testcase classname="tests.trading.test_market_data_service" name="test_results_are_cached" time="0.003" /><testcase classname="tests.trading.test_market_data_service" name="test_partial_series_is_flagged" time="0.003" /><testcase classname="tests.trading.test_market_data_service" name="test_stale_series_is_flagged" time="0.003" /><testcase classname="tests.trading.test_market_data_service" name="test_structurally_broken_series_is_invalid" time="0.003" /><testcase classname="tests.trading.test_market_data_service" name="test_invalid_symbol_raises" time="0.003" /><testcase classname="tests.trading.test_market_data_service" name="test_unknown_timeframe_raises" time="0.002" /><testcase classname="tests.trading.test_market_data_service" name="test_non_positive_limit_raises" time="0.002" /><testcase classname="tests.trading.test_market_data_service" name="test_provider_failure_becomes_market_data_error" time="0.002" /><testcase classname="tests.trading.test_market_data_service" name="test_publishes_market_data_updated" time="0.002" /><testcase classname="tests.trading.test_mock_provider" name="test_candles_are_deterministic_per_symbol" time="0.003" /><testcase classname="tests.trading.test_mock_provider" name="test_different_symbols_differ" time="0.002" /><testcase classname="tests.trading.test_mock_provider" name="test_result_is_labelled_mock" time="0.002" /><testcase classname="tests.trading.test_mock_provider" name="test_candle_count_matches_limit" time="0.003" /><testcase classname="tests.trading.test_mock_provider" name="test_ohlc_are_internally_consistent" time="0.003" /><testcase classname="tests.trading.test_mock_provider" name="test_timestamps_strictly_increasing" time="0.008" /><testcase classname="tests.trading.test_mock_provider" name="test_quote_is_mock" time="0.005" /><testcase classname="tests.trading.test_mock_provider" name="test_zero_limit_rejected" time="0.006" /><testcase classname="tests.trading.test_news" name="test_classify_bullish_text_is_up" time="0.002" /><testcase classname="tests.trading.test_news" name="test_classify_bearish_text_is_down" time="0.002" /><testcase classname="tests.trading.test_news" name="test_classify_negation_flips_polarity" time="0.003" /><testcase classname="tests.trading.test_news" name="test_classify_empty_text_is_unknown" time="0.002" /><testcase classname="tests.trading.test_news" name="test_classify_no_vocabulary_is_unknown" time="0.002" /><testcase classname="tests.trading.test_news" name="test_classify_balanced_text_is_sideways" time="0.002" /><testcase classname="tests.trading.test_news" name="test_classify_is_deterministic" time="0.002" /><testcase classname="tests.trading.test_news" name="test_mock_provider_is_deterministic" time="0.006" /><testcase classname="tests.trading.test_news" name="test_mock_provider_is_labelled_mock" time="0.003" /><testcase classname="tests.trading.test_news" name="test_mock_provider_rejects_non_positive_limit" time="0.003" /><testcase classname="tests.trading.test_news" name="test_mock_provider_caps_limit_at_catalog_size" time="0.003" /><testcase classname="tests.trading.test_news" name="test_service_aggregates_bullish_feed_as_up" time="0.003" /><testcase classname="tests.trading.test_news" name="test_service_counts_mixed_feed" time="0.003" /><testcase classname="tests.trading.test_news" name="test_service_builds_news_and_sentiment_evidence" time="0.014" /><testcase classname="tests.trading.test_news" name="test_service_mock_feed_is_never_reliable" time="0.017" /><testcase classname="tests.trading.test_news" name="test_service_empty_feed_is_missing_and_honest" time="0.003" /><testcase classname="tests.trading.test_news" name="test_service_thin_feed_is_low_and_not_reliable" time="0.011" /><testcase classname="tests.trading.test_news" name="test_service_publishes_event" time="0.003" /><testcase classname="tests.trading.test_news" name="test_service_rejects_empty_symbol" time="0.002" /><testcase classname="tests.trading.test_news" name="test_service_rejects_non_positive_limit" time="0.002" /><testcase classname="tests.trading.test_orchestration" name="test_report_is_no_trade_on_mock_data" time="0.007" /><testcase classname="tests.trading.test_orchestration" name="test_report_never_fabricates_probability" time="0.007" /><testcase classname="tests.trading.test_orchestration" name="test_report_surfaces_mock_limitation" time="0.007" /><testcase classname="tests.trading.test_orchestration" name="test_report_has_full_section_27_shape" time="0.007" /><testcase classname="tests.trading.test_orchestration" name="test_report_without_backtest_omits_it" time="0.007" /><testcase classname="tests.trading.test_orchestration" name="test_report_with_backtest_includes_it" time="0.186" /><testcase classname="tests.trading.test_orchestration" name="test_report_is_deterministic" time="0.013" /><testcase classname="tests.trading.test_orchestration" name="test_report_omits_news_when_layer_absent" time="0.026" /><testcase classname="tests.trading.test_orchestration" name="test_report_fuses_news_as_advisory_but_stays_no_trade" time="0.013" /><testcase classname="tests.trading.test_orchestration" name="test_report_with_news_adds_critic_check_never_failing" time="0.016" /><testcase classname="tests.trading.test_orchestration" name="test_report_omits_calendar_when_layer_absent" time="0.010" /><testcase classname="tests.trading.test_orchestration" name="test_report_fuses_calendar_as_advisory_but_stays_no_trade" time="0.008" /><testcase classname="tests.trading.test_orchestration" name="test_report_omits_fundamentals_when_layer_absent" time="0.007" /><testcase classname="tests.trading.test_orchestration" name="test_report_fuses_fundamentals_as_advisory_but_stays_no_trade" time="0.010" /><testcase classname="tests.trading.test_prediction" name="test_record_captures_section_8_contract" time="0.039" /><testcase classname="tests.trading.test_prediction" name="test_record_id_is_deterministic_for_the_same_report" time="0.011" /><testcase classname="tests.trading.test_prediction" name="test_record_preserves_mock_no_trade_verbatim" time="0.007" /><testcase classname="tests.trading.test_prediction" name="test_record_never_fabricates_probability_on_mock" time="0.007" /><testcase classname="tests.trading.test_prediction" name="test_record_surfaces_report_limitations" time="0.008" /><testcase classname="tests.trading.test_prediction" name="test_record_round_trips_through_dict" time="0.011" /><testcase classname="tests.trading.test_prediction_store" name="test_store_records_and_reads_back" time="0.009" /><testcase classname="tests.trading.test_prediction_store" name="test_store_recording_same_prediction_is_idempotent" time="0.007" /><testcase classname="tests.trading.test_prediction_store" name="test_store_lists_newest_first_and_filters_by_instrument" time="0.022" /><testcase classname="tests.trading.test_prediction_store" name="test_store_rejects_negative_limit" time="0.003" /><testcase classname="tests.trading.test_prediction_store" name="test_orchestrator_records_prediction_when_store_wired" time="0.012" /><testcase classname="tests.trading.test_prediction_store" name="test_orchestrator_without_store_is_a_no_op" time="0.011" /><testcase classname="tests.trading.test_prediction_store" name="test_store_failure_never_sinks_the_report" time="0.010" /><testcase classname="tests.trading.test_probability" name="test_learnable_series_has_out_of_sample_edge" time="0.047" /><testcase classname="tests.trading.test_probability" name="test_mock_data_is_never_reliable" time="0.044" /><testcase classname="tests.trading.test_probability" name="test_thin_sample_is_not_reliable_and_neutral" time="0.005" /><testcase classname="tests.trading.test_probability" name="test_random_walk_has_no_edge" time="0.038" /><testcase classname="tests.trading.test_probability" name="test_features_are_look_ahead_safe" time="0.025" /><testcase classname="tests.trading.test_probability" name="test_estimate_is_deterministic" time="0.074" /><testcase classname="tests.trading.test_probability" name="test_metrics_are_in_range" time="0.044" /><testcase classname="tests.trading.test_probability" name="test_publishes_probability_estimated_event" time="0.034" /><testcase classname="tests.trading.test_regime" name="test_clean_uptrend_is_trending_up" time="0.004" /><testcase classname="tests.trading.test_regime" name="test_clean_downtrend_is_trending_down" time="0.006" /><testcase classname="tests.trading.test_regime" name="test_noisy_stationary_tape_is_ranging" time="0.004" /><testcase classname="tests.trading.test_regime" name="test_wide_swinging_tape_is_volatile" time="0.003" /><testcase classname="tests.trading.test_regime" name="test_mock_data_is_classified_but_never_reliable" time="0.004" /><testcase classname="tests.trading.test_regime" name="test_too_thin_series_is_unknown" time="0.002" /><testcase classname="tests.trading.test_regime" name="test_unknown_regime_carries_no_fabricated_numbers" time="0.002" /><testcase classname="tests.trading.test_regime" name="test_regime_read_is_deterministic" time="0.005" /><testcase classname="tests.trading.test_regime" name="test_to_dict_exposes_the_full_contract" time="0.004" /><testcase classname="tests.trading.test_regime" name="test_detect_emits_event_when_bus_wired" time="0.004" /><testcase classname="tests.trading.test_regime" name="test_detect_without_bus_is_a_no_op" time="0.004" /><testcase classname="tests.trading.test_risk" name="test_long_atr_stop_and_risk_reward" time="0.002" /><testcase classname="tests.trading.test_risk" name="test_short_atr_stop_mirrors_long" time="0.002" /><testcase classname="tests.trading.test_risk" name="test_position_sizing_is_exact" time="0.003" /><testcase classname="tests.trading.test_risk" name="test_no_equity_omits_sizing_and_says_so" time="0.004" /><testcase classname="tests.trading.test_risk" name="test_structural_stop_when_no_atr" time="0.002" /><testcase classname="tests.trading.test_risk" name="test_projected_target_when_no_level_ahead" time="0.002" /><testcase classname="tests.trading.test_risk" name="test_no_direction_yields_no_geometry" time="0.002" /><testcase classname="tests.trading.test_risk" name="test_unknown_direction_is_not_actionable" time="0.002" /><testcase classname="tests.trading.test_risk" name="test_mock_analysis_is_never_actionable" time="0.002" /><testcase classname="tests.trading.test_risk" name="test_invalid_data_is_not_actionable" time="0.002" /><testcase classname="tests.trading.test_risk" name="test_volatility_bands[0.5-low]" time="0.002" /><testcase classname="tests.trading.test_risk" name="test_volatility_bands[2.0-medium]" time="0.002" /><testcase classname="tests.trading.test_risk" name="test_volatility_bands[5.0-high]" time="0.002" /><testcase classname="tests.trading.test_risk" name="test_volatility_bands[None-unknown]" time="0.002" /><testcase classname="tests.trading.test_risk" name="test_deterministic" time="0.002" /><testcase classname="tests.trading.test_risk" name="test_publishes_risk_assessed" time="0.002" /><testcase classname="tests.trading.test_structure" name="test_uptrend_detected" time="0.001" /><testcase classname="tests.trading.test_structure" name="test_downtrend_detected" time="0.001" /><testcase classname="tests.trading.test_structure" name="test_swings_have_evidence" time="0.001" /><testcase classname="tests.trading.test_structure" name="test_levels_ranked_by_proximity" time="0.001" /><testcase classname="tests.trading.test_structure" name="test_insufficient_bars_raises" time="0.001" /><testcase classname="tests.trading.test_structure" name="test_signals_carry_reference_price" time="0.001" /><testcase classname="tests.trading.test_structure" name="test_structure_is_deterministic" time="0.002" /><testcase classname="tests.trading.test_structure" name="test_pattern_flags_consistent" time="0.001" /><testcase classname="tests.trading.test_technical" name="test_snapshot_has_expected_fields" time="0.006" /><testcase classname="tests.trading.test_technical" name="test_uptrend_fast_sma_above_slow" time="0.004" /><testcase classname="tests.trading.test_technical" name="test_downtrend_fast_sma_below_slow" time="0.004" /><testcase classname="tests.trading.test_technical" name="test_insufficient_bars_raises" time="0.001" /><testcase classname="tests.trading.test_technical" name="test_missing_indicators_are_none_not_guessed" time="0.001" /><testcase classname="tests.trading.test_technical" name="test_snapshot_params_recorded" time="0.005" /><testcase classname="tests.trading.test_technical" name="test_mock_tier_propagates" time="0.004" /><testcase classname="tests.trading.test_technical" name="test_determinism" time="0.008" /><testcase classname="tests.trading.test_trading_tools" name="test_trading_tools_are_registered" time="0.001" /><testcase classname="tests.trading.test_trading_tools" name="test_get_market_quote_tool" time="0.003" /><testcase classname="tests.trading.test_trading_tools" name="test_get_market_candles_tool" time="0.005" /><testcase classname="tests.trading.test_trading_tools" name="test_calculate_indicator_rsi" time="0.005" /><testcase classname="tests.trading.test_trading_tools" name="test_calculate_indicator_unknown_is_honest" time="0.007" /><testcase classname="tests.trading.test_trading_tools" name="test_analyze_instrument_tool_is_labelled_mock" time="0.013" /><testcase classname="tests.trading.test_trading_tools" name="test_analyze_market_structure_tool" time="0.008" /><testcase classname="tests.trading.test_trading_tools" name="test_support_resistance_tool" time="0.005" /><testcase classname="tests.trading.test_trading_tools" name="test_volume_analysis_tool" time="0.023" /><testcase classname="tests.trading.test_trading_tools" name="test_assess_risk_tool_is_labelled_mock" time="0.012" /><testcase classname="tests.trading.test_trading_tools" name="test_assess_risk_tool_position_sizing" time="0.012" /><testcase classname="tests.trading.test_trading_tools" name="test_assess_risk_tool_rejects_bad_direction" time="0.003" /><testcase classname="tests.trading.test_trading_tools" name="test_backtest_signal_tool_is_never_reliable_on_mock" time="0.222" /><testcase classname="tests.trading.test_trading_tools" name="test_critique_signal_tool_is_insufficient_on_mock" time="0.015" /><testcase classname="tests.trading.test_trading_tools" name="test_estimate_probability_tool_is_never_reliable_on_mock" time="0.034" /><testcase classname="tests.trading.test_trading_tools" name="test_generate_trading_report_tool_is_no_trade_on_mock" time="0.033" /><testcase classname="tests.trading.test_trading_tools" name="test_generate_trading_report_tool_rejects_bad_direction" time="0.027" /><testcase classname="tests.trading.test_trading_tools" name="test_analyze_news_sentiment_tool_is_labelled_mock" time="0.005" /><testcase classname="tests.trading.test_trading_tools" name="test_get_market_events_tool_is_labelled_mock" time="0.004" /><testcase classname="tests.trading.test_trading_tools" name="test_analyze_fundamentals_tool_is_labelled_mock" time="0.004" /><testcase classname="tests.trading.test_yahoo_provider" name="test_parses_real_payload_into_secondary_candles" time="0.005" /><testcase classname="tests.trading.test_yahoo_provider" name="test_drops_null_trailing_bar" time="0.004" /><testcase classname="tests.trading.test_yahoo_provider" name="test_trims_to_requested_limit" time="0.003" /><testcase classname="tests.trading.test_yahoo_provider" name="test_get_quote_returns_change_pct" time="0.004" /><testcase classname="tests.trading.test_yahoo_provider" name="test_maps_exchange_to_yahoo_suffix" time="0.004" /><testcase classname="tests.trading.test_yahoo_provider" name="test_unsupported_timeframe_is_rejected_not_fabricated" time="0.003" /><testcase classname="tests.trading.test_yahoo_provider" name="test_http_error_becomes_provider_error" time="0.004" /><testcase classname="tests.trading.test_yahoo_provider" name="test_error_payload_becomes_provider_error" time="0.006" /><testcase classname="tests.trading.test_yahoo_provider" name="test_empty_result_becomes_insufficient_data" time="0.004" /><testcase classname="tests.trading.test_yahoo_provider" name="test_all_null_bars_become_insufficient_data" time="0.002" /><testcase classname="tests.trading.test_yahoo_provider" name="test_network_error_becomes_provider_error" time="0.004" /><testcase classname="tests.config.test_max_tool_calls.TestValidValues" name="test_thirty_two_is_accepted" time="0.005" /><testcase classname="tests.config.test_max_tool_calls.TestValidValues" name="test_fifty_is_accepted" time="0.003" /><testcase classname="tests.config.test_max_tool_calls.TestValidValues" name="test_value_above_safety_ceilings_is_still_valid_config" time="0.002" /><testcase classname="tests.config.test_max_tool_calls.TestValidValues" name="test_unprefixed_alias_also_works" time="0.002" /><testcase classname="tests.config.test_max_tool_calls.TestDefault" name="test_missing_value_falls_back_to_eight" time="0.002" /><testcase classname="tests.config.test_max_tool_calls.TestInvalidValuesFailAtConfigLoad" name="test_non_positive_is_rejected[0]" time="0.002" /><testcase classname="tests.config.test_max_tool_calls.TestInvalidValuesFailAtConfigLoad" name="test_non_positive_is_rejected[-1]" time="0.003" /><testcase classname="tests.config.test_max_tool_calls.TestInvalidValuesFailAtConfigLoad" name="test_non_positive_is_rejected[-5]" time="0.004" /><testcase classname="tests.config.test_max_tool_calls.TestInvalidValuesFailAtConfigLoad" name="test_non_integer_is_rejected[abc]" time="0.003" /><testcase classname="tests.config.test_max_tool_calls.TestInvalidValuesFailAtConfigLoad" name="test_non_integer_is_rejected[3.5.1]" time="0.003" /><testcase classname="tests.config.test_max_tool_calls.TestInvalidValuesFailAtConfigLoad" name="test_non_integer_is_rejected[]" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestDefaultsPreserveHistoricalBehaviour" name="test_profiling_off" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestDefaultsPreserveHistoricalBehaviour" name="test_width_zero_means_full_resolution" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestDefaultsPreserveHistoricalBehaviour" name="test_frame_ttl_default" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestDefaultsPreserveHistoricalBehaviour" name="test_model_default_is_nano" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestDefaultsPreserveHistoricalBehaviour" name="test_detection_confidence_default" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestDefaultsPreserveHistoricalBehaviour" name="test_detection_imgsz_default" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestDefaultsPreserveHistoricalBehaviour" name="test_detection_device_default_is_auto" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestValidValues" name="test_profile_true" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestValidValues" name="test_width_set" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestValidValues" name="test_frame_ttl_set" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestValidValues" name="test_frame_ttl_zero_disables_cache" time="0.003" /><testcase classname="tests.config.test_vision_settings.TestValidValues" name="test_confidence_bounds_are_inclusive" time="0.003" /><testcase classname="tests.config.test_vision_settings.TestValidValues" name="test_device_pin" time="0.003" /><testcase classname="tests.config.test_vision_settings.TestUnprefixedAliases" name="test_bare_width" time="0.003" /><testcase classname="tests.config.test_vision_settings.TestUnprefixedAliases" name="test_bare_model" time="0.003" /><testcase classname="tests.config.test_vision_settings.TestInvalidValuesFailAtConfigLoad" name="test_negative_width_rejected[-1]" time="0.004" /><testcase classname="tests.config.test_vision_settings.TestInvalidValuesFailAtConfigLoad" name="test_negative_width_rejected[-100]" time="0.004" /><testcase classname="tests.config.test_vision_settings.TestInvalidValuesFailAtConfigLoad" name="test_negative_ttl_rejected" time="0.003" /><testcase classname="tests.config.test_vision_settings.TestInvalidValuesFailAtConfigLoad" name="test_confidence_out_of_range_rejected[-0.1]" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestInvalidValuesFailAtConfigLoad" name="test_confidence_out_of_range_rejected[1.5]" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestInvalidValuesFailAtConfigLoad" name="test_confidence_out_of_range_rejected[2]" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestInvalidValuesFailAtConfigLoad" name="test_imgsz_below_floor_rejected[32]" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestInvalidValuesFailAtConfigLoad" name="test_imgsz_below_floor_rejected[0]" time="0.002" /><testcase classname="tests.config.test_vision_settings.TestInvalidValuesFailAtConfigLoad" name="test_imgsz_below_floor_rejected[-64]" time="0.002" /><testcase classname="tests.test_interface_contracts.TestInterfaceContracts" name="test_no_implementation_leaves_abstract_methods_unimplemented" time="1.796"><failure message="AssertionError: incomplete implementations:&#10;    aetheros.desktop.verification.strategy.VerificationStrategy is missing ['_check']&#10;    aetheros.trading.providers.fundamentals_base.FundamentalsProvider is missing ['get_fundamentals']&#10;    aetheros.trading.providers.news_base.NewsProvider is missing ['get_news']&#10;    aetheros.trading.providers.calendar_base.CalendarProvider is missing ['get_events']&#10;    aetheros.trading.services.prediction_store.PredictionStore is missing ['get', 'list_records', 'record']&#10;assert not [&quot;aetheros.desktop.verification.strategy.VerificationStrategy is missing ['_check']&quot;, &quot;aetheros.trading.providers.fund...t_events']&quot;, &quot;aetheros.trading.services.prediction_store.PredictionStore is missing ['get', 'list_records', 'record']&quot;]">self = &lt;test_interface_contracts.TestInterfaceContracts object at 0x00000288FF161590&gt;
+
+    def test_no_implementation_leaves_abstract_methods_unimplemented(
+        self,
+    ) -&gt; None:
+    
+        broken = _incomplete_implementations()
+    
+&gt;       assert not broken, "incomplete implementations:\n  " + "\n  ".join(broken)
+E       AssertionError: incomplete implementations:
+E           aetheros.desktop.verification.strategy.VerificationStrategy is missing ['_check']
+E           aetheros.trading.providers.fundamentals_base.FundamentalsProvider is missing ['get_fundamentals']
+E           aetheros.trading.providers.news_base.NewsProvider is missing ['get_news']
+E           aetheros.trading.providers.calendar_base.CalendarProvider is missing ['get_events']
+E           aetheros.trading.services.prediction_store.PredictionStore is missing ['get', 'list_records', 'record']
+E       assert not ["aetheros.desktop.verification.strategy.VerificationStrategy is missing ['_check']", "aetheros.trading.providers.fund...t_events']", "aetheros.trading.services.prediction_store.PredictionStore is missing ['get', 'list_records', 'record']"]
+
+tests\test_interface_contracts.py:125: AssertionError</failure></testcase><testcase classname="tests.test_interface_contracts.TestInterfaceContracts" name="test_the_scan_actually_inspected_something" time="0.016" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.__main__]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.agent]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.context]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.core]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.execution]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.gateway]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.observation]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.observation.factory]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.observation.log]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.observation.models]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.planner]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.planner.actions]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.planner.goal]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.planner.planner]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.policy]" time="0.002" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.policy.config]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.policy.decision]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.policy.engine]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.state]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.tasks]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.tasks.context]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.tasks.exceptions]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.tasks.manager]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.tasks.models]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.agents.tasks.state]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.bootstrap]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.bootstrap.application]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.bootstrap.bootstrapper]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.bootstrap.lifecycle]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.browser.controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.browser.providers.base]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.browser.providers.playwright_provider]" time="0.002"><failure message="ModuleNotFoundError: No module named 'playwright'">self = &lt;test_interface_contracts.TestPackageImports object at 0x00000288FF20D090&gt;
+module = 'aetheros.browser.providers.playwright_provider'
+
+    @pytest.mark.parametrize("module", _package_modules())
+    def test_every_package_module_imports(self, module: str) -&gt; None:
+        """
+        Six modules used absolute imports (``from core.logging import ...``)
+        that assumed ``src/`` was the import root. Each failed only when
+        something happened to import it, which for two whole subsystems was
+        never.
+        """
+    
+&gt;       importlib.import_module(module)
+
+tests\test_interface_contracts.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\ayush\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1331: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:935: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:1023: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    from __future__ import annotations
+    
+    from importlib.metadata import PackageNotFoundError, version as package_version
+    from pathlib import Path
+    from typing import Any
+    
+&gt;   from playwright.async_api import (
+        Browser,
+        BrowserContext,
+        Page,
+        async_playwright,
+    )
+E   ModuleNotFoundError: No module named 'playwright'
+
+src\aetheros\browser\providers\playwright_provider.py:7: ModuleNotFoundError</failure></testcase><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.browser.tools]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.cli]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.cli.commands]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.cli.main]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.cli.parser]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.cli.tool_commands]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.cli.ui]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.config.config_loader]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.config.constants]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.config.env]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.config.settings]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.application]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.container]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.container.container]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.container.registry]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.errors.agent_error]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.errors.base_error]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.errors.browser_error]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.errors.desktop_error]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.errors.hud_error]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.errors.llm_error]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.errors.tool_error]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.errors.vision_error]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.errors.voice_error]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.interfaces.clipboard_controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.interfaces.file_controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.interfaces.keyboard_controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.interfaces.llm_provider]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.interfaces.memory_provider]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.interfaces.mouse_controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.interfaces.process_controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.interfaces.screen_controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.interfaces.speech_to_text]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.interfaces.text_to_speech]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.interfaces.vision_provider]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.interfaces.voice_activator]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.interfaces.window_controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.logging]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.logging.formatter]" time="0.002" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.logging.handlers]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.logging.logger]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.logging.logging]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.observability]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.observability.emitter]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.observability.events]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.observability.interaction]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.observability.levels]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.observability.persistence]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.observability.pipeline]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.observability.recorder]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.observability.redaction]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.core.observability.ui]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.application]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.application.controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.application.resolver]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.application.tools]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.automation]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.automation.engine]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.automation.recovery]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.automation.tools]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.automation.workflow]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.clipboard]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.clipboard.controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.clipboard.pyautogui_backend]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.clipboard.tools]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.keyboard]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.keyboard.controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.keyboard.pyautogui_backend]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.keyboard.tools]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.mouse]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.mouse.controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.mouse.pyautogui_backend]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.mouse.tools]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.process]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.process.controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.process.psutil_backend]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.process.terminal]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.process.tools]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.safety]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.safety.paths]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.safety.policy]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.screen]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.screen.controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.screen.mss_backend]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.screen.tools]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.verification]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.verification.result]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.verification.strategy]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.verification.tools]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.verification.verifier]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.window]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.window.controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.window.models]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.window.tools]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.desktop.window.win32_backend]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.app]" time="0.002"><failure message="ModuleNotFoundError: No module named 'PySide6'">self = &lt;test_interface_contracts.TestPackageImports object at 0x00000288FF20EE40&gt;
+module = 'aetheros.hud.app'
+
+    @pytest.mark.parametrize("module", _package_modules())
+    def test_every_package_module_imports(self, module: str) -&gt; None:
+        """
+        Six modules used absolute imports (``from core.logging import ...``)
+        that assumed ``src/`` was the import root. Each failed only when
+        something happened to import it, which for two whole subsystems was
+        never.
+        """
+    
+&gt;       importlib.import_module(module)
+
+tests\test_interface_contracts.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\ayush\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1331: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:935: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:1023: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    from __future__ import annotations
+    
+    import argparse
+    import os
+    import signal
+    import sys
+    import time
+    from typing import Any
+    
+&gt;   from PySide6.QtCore import Qt, QTimer
+E   ModuleNotFoundError: No module named 'PySide6'
+
+src\aetheros\hud\app.py:10: ModuleNotFoundError</failure></testcase><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.config]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.demo]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.layers]" time="0.002"><failure message="ModuleNotFoundError: No module named 'PySide6'">self = &lt;test_interface_contracts.TestPackageImports object at 0x00000288FF20EF30&gt;
+module = 'aetheros.hud.layers'
+
+    @pytest.mark.parametrize("module", _package_modules())
+    def test_every_package_module_imports(self, module: str) -&gt; None:
+        """
+        Six modules used absolute imports (``from core.logging import ...``)
+        that assumed ``src/`` was the import root. Each failed only when
+        something happened to import it, which for two whole subsystems was
+        never.
+        """
+    
+&gt;       importlib.import_module(module)
+
+tests\test_interface_contracts.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\ayush\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1331: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:935: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:1023: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+src\aetheros\hud\layers\__init__.py:3: in &lt;module&gt;
+    from .base import Layer
+src\aetheros\hud\layers\base.py:5: in &lt;module&gt;
+    from ..paint import RenderContext
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    from __future__ import annotations
+    
+    from dataclasses import dataclass
+    
+&gt;   from PySide6.QtCore import QPointF, Qt
+E   ModuleNotFoundError: No module named 'PySide6'
+
+src\aetheros\hud\paint.py:5: ModuleNotFoundError</failure></testcase><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.layers.base]" time="0.003"><failure message="ModuleNotFoundError: No module named 'PySide6'">self = &lt;test_interface_contracts.TestPackageImports object at 0x00000288FF20EF80&gt;
+module = 'aetheros.hud.layers.base'
+
+    @pytest.mark.parametrize("module", _package_modules())
+    def test_every_package_module_imports(self, module: str) -&gt; None:
+        """
+        Six modules used absolute imports (``from core.logging import ...``)
+        that assumed ``src/`` was the import root. Each failed only when
+        something happened to import it, which for two whole subsystems was
+        never.
+        """
+    
+&gt;       importlib.import_module(module)
+
+tests\test_interface_contracts.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\ayush\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1310: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1331: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:935: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:1023: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+src\aetheros\hud\layers\__init__.py:3: in &lt;module&gt;
+    from .base import Layer
+src\aetheros\hud\layers\base.py:5: in &lt;module&gt;
+    from ..paint import RenderContext
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    from __future__ import annotations
+    
+    from dataclasses import dataclass
+    
+&gt;   from PySide6.QtCore import QPointF, Qt
+E   ModuleNotFoundError: No module named 'PySide6'
+
+src\aetheros\hud\paint.py:5: ModuleNotFoundError</failure></testcase><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.layers.core]" time="0.002"><failure message="ModuleNotFoundError: No module named 'PySide6'">self = &lt;test_interface_contracts.TestPackageImports object at 0x00000288FF20EFD0&gt;
+module = 'aetheros.hud.layers.core'
+
+    @pytest.mark.parametrize("module", _package_modules())
+    def test_every_package_module_imports(self, module: str) -&gt; None:
+        """
+        Six modules used absolute imports (``from core.logging import ...``)
+        that assumed ``src/`` was the import root. Each failed only when
+        something happened to import it, which for two whole subsystems was
+        never.
+        """
+    
+&gt;       importlib.import_module(module)
+
+tests\test_interface_contracts.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\ayush\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1310: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1331: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:935: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:1023: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+src\aetheros\hud\layers\__init__.py:3: in &lt;module&gt;
+    from .base import Layer
+src\aetheros\hud\layers\base.py:5: in &lt;module&gt;
+    from ..paint import RenderContext
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    from __future__ import annotations
+    
+    from dataclasses import dataclass
+    
+&gt;   from PySide6.QtCore import QPointF, Qt
+E   ModuleNotFoundError: No module named 'PySide6'
+
+src\aetheros\hud\paint.py:5: ModuleNotFoundError</failure></testcase><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.layers.particles]" time="0.002"><failure message="ModuleNotFoundError: No module named 'PySide6'">self = &lt;test_interface_contracts.TestPackageImports object at 0x00000288FF20F020&gt;
+module = 'aetheros.hud.layers.particles'
+
+    @pytest.mark.parametrize("module", _package_modules())
+    def test_every_package_module_imports(self, module: str) -&gt; None:
+        """
+        Six modules used absolute imports (``from core.logging import ...``)
+        that assumed ``src/`` was the import root. Each failed only when
+        something happened to import it, which for two whole subsystems was
+        never.
+        """
+    
+&gt;       importlib.import_module(module)
+
+tests\test_interface_contracts.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\ayush\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1310: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1331: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:935: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:1023: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+src\aetheros\hud\layers\__init__.py:3: in &lt;module&gt;
+    from .base import Layer
+src\aetheros\hud\layers\base.py:5: in &lt;module&gt;
+    from ..paint import RenderContext
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    from __future__ import annotations
+    
+    from dataclasses import dataclass
+    
+&gt;   from PySide6.QtCore import QPointF, Qt
+E   ModuleNotFoundError: No module named 'PySide6'
+
+src\aetheros\hud\paint.py:5: ModuleNotFoundError</failure></testcase><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.layers.rings]" time="0.002"><failure message="ModuleNotFoundError: No module named 'PySide6'">self = &lt;test_interface_contracts.TestPackageImports object at 0x00000288FF20F070&gt;
+module = 'aetheros.hud.layers.rings'
+
+    @pytest.mark.parametrize("module", _package_modules())
+    def test_every_package_module_imports(self, module: str) -&gt; None:
+        """
+        Six modules used absolute imports (``from core.logging import ...``)
+        that assumed ``src/`` was the import root. Each failed only when
+        something happened to import it, which for two whole subsystems was
+        never.
+        """
+    
+&gt;       importlib.import_module(module)
+
+tests\test_interface_contracts.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\ayush\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1310: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1331: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:935: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:1023: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+src\aetheros\hud\layers\__init__.py:3: in &lt;module&gt;
+    from .base import Layer
+src\aetheros\hud\layers\base.py:5: in &lt;module&gt;
+    from ..paint import RenderContext
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    from __future__ import annotations
+    
+    from dataclasses import dataclass
+    
+&gt;   from PySide6.QtCore import QPointF, Qt
+E   ModuleNotFoundError: No module named 'PySide6'
+
+src\aetheros\hud\paint.py:5: ModuleNotFoundError</failure></testcase><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.layers.text]" time="0.002"><failure message="ModuleNotFoundError: No module named 'PySide6'">self = &lt;test_interface_contracts.TestPackageImports object at 0x00000288FF20F0C0&gt;
+module = 'aetheros.hud.layers.text'
+
+    @pytest.mark.parametrize("module", _package_modules())
+    def test_every_package_module_imports(self, module: str) -&gt; None:
+        """
+        Six modules used absolute imports (``from core.logging import ...``)
+        that assumed ``src/`` was the import root. Each failed only when
+        something happened to import it, which for two whole subsystems was
+        never.
+        """
+    
+&gt;       importlib.import_module(module)
+
+tests\test_interface_contracts.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\ayush\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1310: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1331: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:935: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:1023: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+src\aetheros\hud\layers\__init__.py:3: in &lt;module&gt;
+    from .base import Layer
+src\aetheros\hud\layers\base.py:5: in &lt;module&gt;
+    from ..paint import RenderContext
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    from __future__ import annotations
+    
+    from dataclasses import dataclass
+    
+&gt;   from PySide6.QtCore import QPointF, Qt
+E   ModuleNotFoundError: No module named 'PySide6'
+
+src\aetheros\hud\paint.py:5: ModuleNotFoundError</failure></testcase><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.layers.waveform]" time="0.002"><failure message="ModuleNotFoundError: No module named 'PySide6'">self = &lt;test_interface_contracts.TestPackageImports object at 0x00000288FF20F110&gt;
+module = 'aetheros.hud.layers.waveform'
+
+    @pytest.mark.parametrize("module", _package_modules())
+    def test_every_package_module_imports(self, module: str) -&gt; None:
+        """
+        Six modules used absolute imports (``from core.logging import ...``)
+        that assumed ``src/`` was the import root. Each failed only when
+        something happened to import it, which for two whole subsystems was
+        never.
+        """
+    
+&gt;       importlib.import_module(module)
+
+tests\test_interface_contracts.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\ayush\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1310: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1331: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:935: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:1023: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+src\aetheros\hud\layers\__init__.py:3: in &lt;module&gt;
+    from .base import Layer
+src\aetheros\hud\layers\base.py:5: in &lt;module&gt;
+    from ..paint import RenderContext
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    from __future__ import annotations
+    
+    from dataclasses import dataclass
+    
+&gt;   from PySide6.QtCore import QPointF, Qt
+E   ModuleNotFoundError: No module named 'PySide6'
+
+src\aetheros\hud\paint.py:5: ModuleNotFoundError</failure></testcase><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.paint]" time="0.002"><failure message="ModuleNotFoundError: No module named 'PySide6'">self = &lt;test_interface_contracts.TestPackageImports object at 0x00000288FF20F160&gt;
+module = 'aetheros.hud.paint'
+
+    @pytest.mark.parametrize("module", _package_modules())
+    def test_every_package_module_imports(self, module: str) -&gt; None:
+        """
+        Six modules used absolute imports (``from core.logging import ...``)
+        that assumed ``src/`` was the import root. Each failed only when
+        something happened to import it, which for two whole subsystems was
+        never.
+        """
+    
+&gt;       importlib.import_module(module)
+
+tests\test_interface_contracts.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\ayush\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1331: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:935: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:1023: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    from __future__ import annotations
+    
+    from dataclasses import dataclass
+    
+&gt;   from PySide6.QtCore import QPointF, Qt
+E   ModuleNotFoundError: No module named 'PySide6'
+
+src\aetheros\hud\paint.py:5: ModuleNotFoundError</failure></testcase><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.pipe]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.process]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.protocol]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.renderer]" time="0.001"><failure message="ModuleNotFoundError: No module named 'PySide6'">self = &lt;test_interface_contracts.TestPackageImports object at 0x00000288FF20F2A0&gt;
+module = 'aetheros.hud.renderer'
+
+    @pytest.mark.parametrize("module", _package_modules())
+    def test_every_package_module_imports(self, module: str) -&gt; None:
+        """
+        Six modules used absolute imports (``from core.logging import ...``)
+        that assumed ``src/`` was the import root. Each failed only when
+        something happened to import it, which for two whole subsystems was
+        never.
+        """
+    
+&gt;       importlib.import_module(module)
+
+tests\test_interface_contracts.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\ayush\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1331: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:935: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:1023: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    from __future__ import annotations
+    
+    import time
+    
+&gt;   from PySide6.QtCore import QPointF, Qt
+E   ModuleNotFoundError: No module named 'PySide6'
+
+src\aetheros\hud\renderer.py:5: ModuleNotFoundError</failure></testcase><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.scene]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.state]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.theme]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.hud.window]" time="0.002"><failure message="ModuleNotFoundError: No module named 'PySide6'">self = &lt;test_interface_contracts.TestPackageImports object at 0x00000288FF20F430&gt;
+module = 'aetheros.hud.window'
+
+    @pytest.mark.parametrize("module", _package_modules())
+    def test_every_package_module_imports(self, module: str) -&gt; None:
+        """
+        Six modules used absolute imports (``from core.logging import ...``)
+        that assumed ``src/`` was the import root. Each failed only when
+        something happened to import it, which for two whole subsystems was
+        never.
+        """
+    
+&gt;       importlib.import_module(module)
+
+tests\test_interface_contracts.py:147: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Users\ayush\AppData\Local\Programs\Python\Python313\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1395: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1360: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1331: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:935: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:1023: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:488: in _call_with_frames_removed
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    from __future__ import annotations
+    
+    import sys
+    import time
+    from typing import Callable
+    
+&gt;   from PySide6.QtCore import QPoint, Qt, QTimer
+E   ModuleNotFoundError: No module named 'PySide6'
+
+src\aetheros\hud\window.py:7: ModuleNotFoundError</failure></testcase><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.llm.agent_loop]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.llm.config]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.llm.engine]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.llm.manager]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.llm.providers.openai_compatible]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.llm.tool_calls]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.llm.tool_schema]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.runtime.events]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.runtime.events.event_bus]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.runtime.events.events]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.runtime.events.publisher]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.runtime.events.subscriber]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.tools]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.tools.annotations]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.tools.discovery]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.tools.executor]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.tools.registry]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.tools.schema]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.tools.tool]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.tools.validator]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.cache]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.analysis]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.backtest]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.critique]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.enums]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.event_calendar]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.evidence]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.fundamentals]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.instrument]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.market_data]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.news]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.prediction]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.probability]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.provenance]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.regime]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.report]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.risk]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.structure]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.domain.technical]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.errors]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.events]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.indicators]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.indicators.core]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.news]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.news.sentiment]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.providers]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.providers.base]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.providers.calendar_base]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.providers.fundamentals_base]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.providers.mock_calendar_provider]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.providers.mock_fundamentals_provider]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.providers.mock_news_provider]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.providers.mock_provider]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.providers.news_base]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.providers.yahoo_provider]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.quant]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.quant.calibration]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.quant.features]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.quant.model]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services.analysis_service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services.backtest_service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services.calendar_service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services.critic_service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services.evidence_service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services.fundamental_service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services.market_data_service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services.market_structure_service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services.news_service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services.orchestration_service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services.prediction_store]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services.probability_service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services.regime_service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services.risk_service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.services.technical_analysis_service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.trading.tools]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.controller]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.frame_cache]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.grounding]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.grounding.engine]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.grounding.models]" time="0.002" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.grounding.parser]" time="0.002" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.grounding.scoring]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.grounding.spatial]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.grounding.tools]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.image]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.main]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.models]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.models.detection]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.models.match]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.models.text]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.profiling]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.providers]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.providers.base]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.providers.opencv_provider]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.providers.paddleocr_provider]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.providers.template_provider]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.providers.yolo_provider]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.selfcheck]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.vision.tools]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.activation]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.audio]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.config]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.events]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.pipeline]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.reasoner]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.service]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.state]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.stt]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.stt.faster_whisper_stt]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.stt.null_stt]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.tts]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.tts.decode]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.tts.edge_tts_provider]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.tts.null_tts]" time="0.001" /><testcase classname="tests.test_interface_contracts.TestPackageImports" name="test_every_package_module_imports[aetheros.voice.tts.sapi_tts]" time="0.001" /></testsuite></testsuites>

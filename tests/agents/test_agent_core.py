@@ -23,10 +23,15 @@ from typing import Any
 
 import pytest
 
-from aetheros.agents.core import AgentCore
+from aetheros.agents.core import (
+    MAX_CONSECUTIVE_FAILURES,
+    MAX_REPEATED_CALLS,
+    AgentCore,
+)
 from aetheros.agents.policy import PolicyConfig, PolicyEngine
 from aetheros.agents.state import (
     STOP_CANCELLED,
+    STOP_LOOP_GUARD,
     STOP_MAX_ITERATIONS,
     AgentState,
     AgentStatus,
@@ -59,6 +64,67 @@ def boom() -> str:
     raise RuntimeError("tool exploded")
 
 
+# -- doubles for the Phase-4 execution-architecture tests ----------------
+#
+# These model the shapes the real subsystems return, without the subsystems:
+# a browser open, a completion check whose *content* tells the model the goal
+# is already met, a grounding call that resolves below the safe band, and a
+# click that reports success while the screen never actually changes. Each
+# returns a content string (or a JSON-serialisable dict the executor renders),
+# because the whole point of the fix is that the observation now carries what
+# the tool returned, not a bare "succeeded".
+
+
+def open_browser(url: str) -> str:
+    """Open a browser at a URL (test double)."""
+
+    return f"browser opened at {url}"
+
+
+def check_playing() -> str:
+    """Report what is currently playing (test double).
+
+    The content names the finished goal, so a model that reads the observation
+    can recognise the task is already done and stop -- the direct counter to the
+    32-iteration trace, where every observation said only "succeeded".
+    """
+
+    return "now playing: Churake by Vilen"
+
+
+def ground_target(target: str) -> dict[str, Any]:
+    """Resolve a target below the safe-to-act band (test double).
+
+    Mirrors the grounding engine's not-safe result: it *succeeds* as a tool
+    call, but the payload says the match is low-confidence and was not acted on.
+    The model must read that and decide, not blindly retry.
+    """
+
+    return {
+        "target": target,
+        "confidence": 0.3,
+        "band": "LOW",
+        "safe_to_act": False,
+        "action": "none",
+        "action_reason": (
+            "Not clicked: the target was not resolved with high enough "
+            "confidence to act on safely."
+        ),
+    }
+
+
+def click_element(selector: str) -> str:
+    """Click an element, reporting success but changing nothing (test double).
+
+    The tool call is ``ok``; the returned content is identical every time. A
+    model that cannot verify a change may keep issuing the same click -- which
+    is exactly the unproductive loop the guard must catch.
+    """
+
+    return f"click dispatched to {selector}"
+
+
+
 # ==============================================================
 # Executor witness and helpers
 # ==============================================================
@@ -88,6 +154,20 @@ def tools(registry: ToolRegistry, define: Any) -> ToolRegistry:
     registry.register(define(move_mouse, category="desktop"))
     registry.register(define(type_text, category="desktop"))
     registry.register(define(boom, category="desktop"))
+    return registry
+
+
+@pytest.fixture
+def rich_tools(registry: ToolRegistry, define: Any) -> ToolRegistry:
+    """The doubles above plus the base three, for the execution-architecture tests."""
+
+    registry.register(define(move_mouse, category="desktop"))
+    registry.register(define(type_text, category="desktop"))
+    registry.register(define(boom, category="desktop"))
+    registry.register(define(open_browser, category="browser"))
+    registry.register(define(check_playing, category="browser"))
+    registry.register(define(ground_target, category="vision.grounding"))
+    registry.register(define(click_element, category="browser"))
     return registry
 
 
@@ -333,6 +413,66 @@ class TestMaxIterations:
 
 
 # ==============================================================
+# 7b. The configured (run-wide) iteration budget
+# ==============================================================
+
+
+class TestConfiguredBudget:
+    """The budget threaded into ``from_provider`` reaches the real loop.
+
+    This is the seam the ``AETHEROS_MAX_TOOL_CALLS`` setting flows through: the
+    bootstrapper builds the core with ``max_iterations=<configured>`` and every
+    run that does not pass its own budget must use it. Without this wiring the
+    setting would be read at startup and then quietly ignored by the loop.
+    """
+
+    @pytest.mark.asyncio
+    async def test_from_provider_budget_stops_a_run_with_no_per_call_override(
+        self, make_provider: Any, tools: ToolRegistry, tool_calls: Any
+    ) -> None:
+        # The core is built with a budget of 3 (as the bootstrapper does from
+        # config) and run() is NOT given a max_iterations, so the configured
+        # value is the only thing that can stop this never-answering model.
+        provider = make_provider([tool_calls(("move_mouse", {"x": 1, "y": 2}))])
+        executor = _CountingExecutor(tools)
+        core = AgentCore.from_provider(
+            provider,
+            registry=tools,
+            executor=executor,
+            system_prompt="Test system prompt.",
+            max_iterations=3,
+        )
+
+        result = await core.run("Loop without answering.")
+
+        assert result.status is AgentStatus.COMPLETED
+        assert result.stopped_reason == STOP_MAX_ITERATIONS
+        assert result.iterations == 3
+        assert executor.asked == ["move_mouse", "move_mouse", "move_mouse"]
+
+    @pytest.mark.asyncio
+    async def test_per_call_max_iterations_overrides_the_configured_budget(
+        self, make_provider: Any, tools: ToolRegistry, tool_calls: Any
+    ) -> None:
+        # A run that names its own budget wins over the core's configured
+        # default, so a caller can still bound a single run more tightly.
+        provider = make_provider([tool_calls(("move_mouse", {"x": 1, "y": 2}))])
+        executor = _CountingExecutor(tools)
+        core = AgentCore.from_provider(
+            provider,
+            registry=tools,
+            executor=executor,
+            system_prompt="Test system prompt.",
+            max_iterations=5,
+        )
+
+        result = await core.run("Loop without answering.", max_iterations=2)
+
+        assert result.stopped_reason == STOP_MAX_ITERATIONS
+        assert result.iterations == 2
+
+
+# ==============================================================
 # 8. The emergency stop
 # ==============================================================
 
@@ -537,3 +677,235 @@ class TestEndToEndMousePosition:
             assert len(result.observations) == 1
         finally:
             container.remove(MouseService)
+
+
+# ==============================================================
+# 13. Phase-4: the execution-architecture behaviours
+# ==============================================================
+
+
+class TestSimpleBrowserTask:
+    """A bounded multi-step task completes and the effort metrics are split.
+
+    The 32-iteration trace conflated "loop passes" with "work done" and could
+    not say how much actually happened. Here a two-step browser task answers on
+    the third pass, and the metrics report the pieces separately: three model
+    round-trips, two tool calls, two steps, no retries and no recovery.
+    """
+
+    @pytest.mark.asyncio
+    async def test_two_steps_complete_and_metrics_are_recorded(
+        self,
+        make_provider: Any,
+        rich_tools: ToolRegistry,
+        tool_calls: Any,
+        answer: Any,
+    ) -> None:
+        provider = make_provider(
+            [
+                tool_calls(("open_browser", {"url": "youtube.com"})),
+                tool_calls(("type_text", {"text": "Churake Vilen"})),
+                answer("Playing Churake by Vilen."),
+            ]
+        )
+        core, executor = _build(provider, rich_tools)
+
+        result = await core.run("Play Churake by Vilen on YouTube.")
+
+        assert result.ok
+        assert result.final_response == "Playing Churake by Vilen."
+        assert executor.asked == ["open_browser", "type_text"]
+        assert result.iterations == 3
+        # The counters are separate numbers, not the iteration count reused.
+        assert result.metrics["llm_calls"] == 3
+        assert result.metrics["tool_calls"] == 2
+        assert result.metrics["step_count"] == 2
+        assert result.metrics["retries"] == 0
+        assert result.metrics["recovery_attempts"] == 0
+
+
+class TestGroundingBelowSafeBand:
+    """A low-confidence grounding result is surfaced with its content.
+
+    The grounding call succeeds as a tool call, but resolves at confidence 0.3
+    and is not safe to act on. The fix means the observation now carries that
+    payload -- not a bare "ground_target succeeded" -- so the model can read the
+    low confidence, decline to act, and answer, instead of clicking a guess.
+    """
+
+    @pytest.mark.asyncio
+    async def test_not_safe_result_is_observed_and_the_model_can_decline(
+        self,
+        make_provider: Any,
+        rich_tools: ToolRegistry,
+        tool_calls: Any,
+        answer: Any,
+    ) -> None:
+        provider = make_provider(
+            [
+                tool_calls(("ground_target", {"target": "the Search button"})),
+                answer("Could not locate the target with enough confidence."),
+            ]
+        )
+        core, executor = _build(provider, rich_tools)
+
+        result = await core.run("Click the Search button.")
+
+        assert result.ok
+        assert executor.asked == ["ground_target"]
+        assert result.iterations == 2
+        # The observation carries the grounding payload, not just "succeeded":
+        # the confidence and the not-safe verdict are what let the model decide.
+        latest = result.observations.latest(1)[0]
+        assert "0.3" in latest.description
+        assert "safe_to_act" in latest.description
+
+
+class TestConsecutiveFailureCeiling:
+    """A run whose every tool round fails is stopped with a reason, not silently.
+
+    The model keeps calling a tool that always fails. Rather than burning the
+    whole iteration budget, the loop guard ends the run once
+    ``MAX_CONSECUTIVE_FAILURES`` rounds in a row have all failed -- a bounded
+    failure path with an honest stop reason and a recorded recovery attempt for
+    each retry after the first failure.
+    """
+
+    @pytest.mark.asyncio
+    async def test_all_failing_rounds_trip_the_loop_guard(
+        self,
+        make_provider: Any,
+        rich_tools: ToolRegistry,
+        tool_calls: Any,
+    ) -> None:
+        # One repeating response: boom always raises, and no answer ever comes.
+        provider = make_provider([tool_calls(("boom", {}))])
+        core, executor = _build(provider, rich_tools)
+
+        # Budget well above the failure ceiling, so the guard -- not the budget
+        # -- is what stops the run.
+        result = await core.run("Keep hitting the broken tool.", max_iterations=20)
+
+        assert result.status is AgentStatus.COMPLETED
+        assert result.stopped_reason == STOP_LOOP_GUARD
+        # Stopped at the ceiling, far short of the 20-iteration budget.
+        assert result.iterations == MAX_CONSECUTIVE_FAILURES
+        assert executor.asked == ["boom"] * MAX_CONSECUTIVE_FAILURES
+        # Each act after the first failure is a bounded recovery attempt.
+        assert result.metrics["recovery_attempts"] == MAX_CONSECUTIVE_FAILURES - 1
+        assert result.stopped_reason != STOP_MAX_ITERATIONS
+
+
+class TestAlreadyCompletedRecognition:
+    """A content-bearing observation lets the model stop the moment it is done.
+
+    The completion check returns content that names the finished goal. Because
+    the observation now carries that content, the model recognises the task is
+    already met and answers on the next pass -- it does not re-check. This is the
+    behaviour whose absence produced the 32-iteration run.
+    """
+
+    @pytest.mark.asyncio
+    async def test_the_goal_is_recognised_from_the_observation_content(
+        self,
+        make_provider: Any,
+        rich_tools: ToolRegistry,
+        tool_calls: Any,
+        answer: Any,
+    ) -> None:
+        provider = make_provider(
+            [
+                tool_calls(("check_playing", {})),
+                answer("Churake by Vilen is already playing; nothing to do."),
+            ]
+        )
+        core, executor = _build(provider, rich_tools)
+
+        result = await core.run("Make sure Churake by Vilen is playing.")
+
+        assert result.ok
+        # Checked once and stopped -- no re-verification loop.
+        assert executor.asked == ["check_playing"]
+        assert result.iterations == 2
+        # The observation carried the concrete state, not a bare "succeeded".
+        latest = result.observations.latest(1)[0]
+        assert "Churake" in latest.description
+
+
+class TestToolFailureRecovery:
+    """A single failure is a recoverable event, not the end of the run.
+
+    ``boom`` fails once; the model then switches to a different action that
+    succeeds, and answers. The consecutive-failure counter resets on the
+    success, so the guard never trips, and the recovery -- acting again right
+    after an all-failed round -- is counted exactly once.
+    """
+
+    @pytest.mark.asyncio
+    async def test_a_failure_then_a_different_action_recovers(
+        self,
+        make_provider: Any,
+        rich_tools: ToolRegistry,
+        tool_calls: Any,
+        answer: Any,
+    ) -> None:
+        provider = make_provider(
+            [
+                tool_calls(("boom", {})),
+                tool_calls(("move_mouse", {"x": 5, "y": 6})),
+                answer("Recovered and moved."),
+            ]
+        )
+        core, executor = _build(provider, rich_tools)
+
+        result = await core.run("Fail once, then recover.")
+
+        assert result.ok
+        assert result.final_response == "Recovered and moved."
+        assert executor.asked == ["boom", "move_mouse"]
+        assert result.iterations == 3
+        assert result.stopped_reason != STOP_LOOP_GUARD
+        # Exactly one recovery: the move that followed the failing round.
+        assert result.metrics["recovery_attempts"] == 1
+        assert result.metrics["tool_calls"] == 2
+
+
+class TestVerificationFailureLoopGuard:
+    """An action that reports success but never changes the state is caught.
+
+    ``click_element`` returns ``ok`` with identical content every time, so the
+    goal is never actually verified as met. A model that cannot tell the screen
+    did not change may keep issuing the same click. The fingerprint guard sees
+    the identical outcome recur and stops the run at ``MAX_REPEATED_CALLS`` --
+    turning an unbounded verification loop into a bounded, explained stop.
+    """
+
+    @pytest.mark.asyncio
+    async def test_an_unverifiable_repeat_trips_the_loop_guard(
+        self,
+        make_provider: Any,
+        rich_tools: ToolRegistry,
+        tool_calls: Any,
+    ) -> None:
+        # The model keeps clicking the same element and never answers.
+        provider = make_provider(
+            [tool_calls(("click_element", {"selector": "#play"}))]
+        )
+        core, executor = _build(provider, rich_tools)
+
+        result = await core.run("Click play until it plays.", max_iterations=20)
+
+        assert result.status is AgentStatus.COMPLETED
+        assert result.stopped_reason == STOP_LOOP_GUARD
+        # The identical outcome recurred until the repeat ceiling; the run
+        # stopped there rather than at the far larger budget.
+        assert result.iterations == MAX_REPEATED_CALLS
+        assert executor.asked == ["click_element"] * MAX_REPEATED_CALLS
+        # Every pass after the first was a counted retry of the same outcome.
+        assert result.metrics["retries"] == MAX_REPEATED_CALLS - 1
+
+
+
+
+
+

@@ -121,3 +121,5 @@ class ClipboardService:
 
     async def get_content_type(self) -> str:
         return self._controller.get_content_type()
+    
+    

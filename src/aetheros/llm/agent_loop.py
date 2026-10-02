@@ -45,7 +45,13 @@ DEFAULT_SYSTEM_PROMPT = (
     "You are AetherOS, an autonomous computer operator. "
     "Use the provided tools when they are needed to answer "
     "accurately, then give the user a short, direct answer. "
-    "Do not repeat a tool call whose result you already have."
+    "Do not repeat a tool call whose result you already have. "
+    "When a task is a sequence of dependent computer actions -- open an "
+    "app, click something, type, then verify -- prefer the run_workflow "
+    "tool, which runs and verifies the steps together, over issuing the "
+    "individual actions one call at a time. "
+    "The moment the goal is achieved, stop and give the answer; do not keep "
+    "acting or re-checking once you have confirmed the result."
 )
 
 
@@ -55,7 +61,11 @@ class AgentLoopConfig:
     Bounds and behaviour for a single loop run.
     """
 
-    # Hard ceiling on provider round-trips.
+    # Hard ceiling on provider round-trips. This is the fallback used only when
+    # the loop is constructed without an explicit config (isolated/unit use).
+    # At runtime the bootstrapper seeds this from ``Settings.MAX_TOOL_CALLS``
+    # (env ``AETHEROS_MAX_TOOL_CALLS``), so the number here just mirrors that
+    # setting's default and must stay in sync with it.
     max_iterations: int = 8
 
     # How many times one identical (name, arguments) call may actually execute

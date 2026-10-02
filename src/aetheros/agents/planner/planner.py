@@ -70,7 +70,11 @@ from .actions import (
 
 # Calls accepted from one provider response. Eight matches the iteration budget
 # in ``AgentLoopConfig``: a model that wants more actions than the run has turns
-# is not being helped by having all of them accepted.
+# is not being helped by having all of them accepted. This is only the fallback
+# for a PlannerConfig built without an explicit value (isolated/unit use); at
+# runtime the bootstrapper seeds ``max_tool_calls`` from
+# ``Settings.MAX_TOOL_CALLS`` (env ``AETHEROS_MAX_TOOL_CALLS``), so this default
+# mirrors that setting's default and must stay in sync with it.
 DEFAULT_MAX_TOOL_CALLS = 8
 
 # Absolute cap, whatever the configuration says. A provider that returns

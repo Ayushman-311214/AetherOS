@@ -70,8 +70,7 @@ class MSSScreen(ScreenController):
             raise VisionError(
                 code="INVALID_REGION",
                 message=(
-                    f"Capture region must have positive size, "
-                    f"got {width}x{height}."
+                    f"Capture region must have positive size, " f"got {width}x{height}."
                 ),
                 context=ErrorContext(
                     module="desktop.screen",
@@ -236,3 +235,22 @@ class MSSScreen(ScreenController):
         """
 
         self._sct.close()
+
+    # ==========================================================
+    # Status
+    # ==========================================================
+
+    @staticmethod
+    def is_available() -> bool:
+        """Return whether screen capture is available."""
+        try:
+            with mss.mss() as sct:
+                return len(sct.monitors) > 1
+        except Exception:
+            return False
+
+    def status(self) -> dict[str, str]:
+        """Return the current screen subsystem status."""
+        return {
+            "status": "OK" if self.is_available() else "UNAVAILABLE",
+        }

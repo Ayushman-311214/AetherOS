@@ -701,6 +701,81 @@ class TestToolExposure:
         assert context.tool_names[0] == "annotate"
 
 
+class TestToolCategoryScoping:
+    """``tool_categories`` narrows the menu to the relevant tools for a run.
+
+    Left unset (the default), every enabled tool is offered -- backward
+    compatible. Set, only tools in the named categories appear, so a browsing
+    run is not handed the whole tool surface. Filtering is by category and does
+    not touch the registry, so a disabled tool stays hidden either way.
+    """
+
+    def _mixed(self, registry: ToolRegistry, define: Any) -> None:
+        def zoom(level: int) -> str:
+            """Zoom the chart."""
+            return "zoomed"
+
+        def open_page(url: str) -> str:
+            """Open a page."""
+            return "opened"
+
+        def read_price(symbol: str) -> str:
+            """Read a price."""
+            return "100"
+
+        registry.register(define(zoom, category="chart"))
+        registry.register(define(open_page, category="browser"))
+        registry.register(define(read_price, category="market"))
+
+    def test_default_none_offers_every_enabled_tool(
+        self, registry: ToolRegistry, define: Any
+    ) -> None:
+        self._mixed(registry, define)
+        builder = ContextBuilder(ContextConfig(), registry=registry)
+
+        assert set(builder.build(_state()).tool_names) == {
+            "open_page",
+            "read_price",
+            "zoom",
+        }
+
+    def test_scoping_limits_the_menu_to_the_named_categories(
+        self, registry: ToolRegistry, define: Any
+    ) -> None:
+        self._mixed(registry, define)
+        builder = ContextBuilder(
+            ContextConfig(tool_categories=("browser", "market")),
+            registry=registry,
+        )
+
+        # Only the two named categories, and still alphabetical.
+        assert builder.build(_state()).tool_names == ("open_page", "read_price")
+
+    def test_scoping_still_honours_the_enabled_flag(
+        self, registry: ToolRegistry, define: Any
+    ) -> None:
+        self._mixed(registry, define)
+        registry.disable("read_price")
+        builder = ContextBuilder(
+            ContextConfig(tool_categories=("browser", "market")),
+            registry=registry,
+        )
+
+        # read_price is in scope by category but disabled, so it is not offered.
+        assert builder.build(_state()).tool_names == ("open_page",)
+
+    def test_an_unknown_category_yields_no_tools(
+        self, registry: ToolRegistry, define: Any
+    ) -> None:
+        self._mixed(registry, define)
+        builder = ContextBuilder(
+            ContextConfig(tool_categories=("nonexistent",)),
+            registry=registry,
+        )
+
+        assert builder.build(_state()).tools == ()
+
+
 # ==============================================================
 # Size limits
 # ==============================================================

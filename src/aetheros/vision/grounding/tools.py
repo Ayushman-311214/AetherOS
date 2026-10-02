@@ -24,6 +24,7 @@ from typing import Any
 from ...config.config_loader import get_settings
 from ...core.container import container
 from ...tools import tool
+from ..frame_cache import get_frame_cache
 from ..tools import _capture, _vision
 from .engine import GroundingEngine
 
@@ -96,7 +97,9 @@ async def click_grounded_target(
 
     from ...desktop.mouse.controller import MouseService
 
-    image = await _capture()
+    # fresh=True: a click must be placed on the screen as it is at the instant
+    # of acting, never on a frame the cache happened to still hold.
+    image = await _capture(fresh=True)
     result = await _engine().ground(target, image)
     payload = result.to_dict()
 
@@ -111,6 +114,10 @@ async def click_grounded_target(
     mouse: MouseService = container.resolve(MouseService)
     await mouse.move(result.center["x"], result.center["y"])
     await mouse.click(button=button)
+
+    # The click likely changed the screen; drop the cached frame so the next
+    # read captures the new state rather than the pre-click one.
+    get_frame_cache().invalidate()
 
     payload["action"] = "click"
     payload["action_reason"] = (
@@ -141,7 +148,9 @@ async def type_into_grounded_target(
     from ...desktop.keyboard.controller import KeyboardService
     from ...desktop.mouse.controller import MouseService
 
-    image = await _capture()
+    # fresh=True for the same reason as click: focus and typing must target the
+    # field where it is now, not where a cached frame last saw it.
+    image = await _capture(fresh=True)
     result = await _engine().ground(target, image)
     payload = result.to_dict()
 
@@ -159,6 +168,9 @@ async def type_into_grounded_target(
     await mouse.move(result.center["x"], result.center["y"])
     await mouse.click(button="left")
     await keyboard.write(text=text, interval=interval)
+
+    # Typing changed the screen; the cached frame is now stale.
+    get_frame_cache().invalidate()
 
     payload["action"] = "type"
     # The typed text itself is not echoed back: it routinely carries secrets.

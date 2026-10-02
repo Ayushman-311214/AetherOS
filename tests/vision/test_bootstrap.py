@@ -34,15 +34,21 @@ def bootstrapper(isolated_container, monkeypatch) -> Bootstrapper:
     """
     A bootstrapper over the isolated container, with detection opted out.
 
-    ``Bootstrapper.__init__`` binds the process-wide container, which
-    ``isolated_container`` has already emptied and will restore. Clearing
+    These tests call the individual ``_bootstrap_*`` steps directly rather than
+    ``start()``, and ``start()`` is what normally binds ``self._container`` (in
+    ``_bootstrap_container``). So the fixture binds it to the already-emptied
+    process-wide container that ``isolated_container`` yields, which is the exact
+    object the vision steps register into and the tests then read back. Clearing
     AETHEROS_YOLO_WEIGHTS keeps the default path deterministic on a developer
     machine that happens to have weights configured.
     """
 
     monkeypatch.delenv("AETHEROS_YOLO_WEIGHTS", raising=False)
 
-    return Bootstrapper()
+    boot = Bootstrapper()
+    boot._container = isolated_container
+
+    return boot
 
 
 # ============================================================================

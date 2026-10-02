@@ -26,6 +26,7 @@ from aetheros.core.container.container import ServiceContainer
 from aetheros.core.container.registry import container
 from aetheros.core.interfaces.screen_controller import ScreenController
 from aetheros.vision.controller import VisionService
+from aetheros.vision.frame_cache import reset_frame_cache
 from aetheros.vision.image import Image
 from aetheros.vision.models import Detection, TextBlock
 from aetheros.vision.providers.base import (
@@ -243,6 +244,24 @@ class FakeScreen(ScreenController):
 # ==============================================================
 # Image fixtures
 # ==============================================================
+
+
+@pytest.fixture(autouse=True)
+def _reset_frame_cache() -> Iterator[None]:
+    """
+    Clear the process-wide frame cache around every vision test.
+
+    ``_capture()`` reuses a recently captured frame for up to
+    ``VISION_FRAME_TTL_MS``. Without this reset a frame cached by one test could
+    be handed to the next, making capture-count assertions order- and
+    timing-dependent. Reset both before and after so nothing leaks either way.
+    """
+
+    reset_frame_cache()
+    try:
+        yield
+    finally:
+        reset_frame_cache()
 
 
 @pytest.fixture

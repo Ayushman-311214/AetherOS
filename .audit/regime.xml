@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<testsuites name="pytest tests">
+    <testsuite name="pytest" errors="0" failures="0" skipped="0" tests="11" time="0.195" timestamp="2026-09-29T19:50:16.647443+05:30" hostname="AYUSHMAN">
+        <testcase classname="tests.trading.test_regime" name="test_clean_uptrend_is_trending_up" time="0.011" />
+        <testcase classname="tests.trading.test_regime" name="test_clean_downtrend_is_trending_down" time="0.007" />
+        <testcase classname="tests.trading.test_regime" name="test_noisy_stationary_tape_is_ranging" time="0.020" />
+        <testcase classname="tests.trading.test_regime" name="test_wide_swinging_tape_is_volatile" time="0.009" />
+        <testcase classname="tests.trading.test_regime" name="test_mock_data_is_classified_but_never_reliable" time="0.008" />
+        <testcase classname="tests.trading.test_regime" name="test_too_thin_series_is_unknown" time="0.003" />
+        <testcase classname="tests.trading.test_regime" name="test_unknown_regime_carries_no_fabricated_numbers" time="0.003" />
+        <testcase classname="tests.trading.test_regime" name="test_regime_read_is_deterministic" time="0.010" />
+        <testcase classname="tests.trading.test_regime" name="test_to_dict_exposes_the_full_contract" time="0.006" />
+        <testcase classname="tests.trading.test_regime" name="test_detect_emits_event_when_bus_wired" time="0.006" />
+        <testcase classname="tests.trading.test_regime" name="test_detect_without_bus_is_a_no_op" time="0.008" />
+    </testsuite>
+</testsuites>

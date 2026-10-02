@@ -1,0 +1,46 @@
+{
+  "name": "clipboard_pipeline_demo",
+  "description": "Deterministic, focus-independent automation: drive the real OS clipboard through two states and verify each transition. Proves the file->run_workflow->engine->dispatch-by-name->verify path end to end without fighting any window for focus.",
+  "stop_on_failure": true,
+  "steps": [
+    {
+      "name": "reset_clipboard",
+      "tool": "clear_clipboard",
+      "arguments": {},
+      "wait_after": 0.2
+    },
+    {
+      "name": "write_stage_one",
+      "tool": "copy_text",
+      "arguments": { "text": "AETHER-STAGE-ONE :: automation framework works" },
+      "wait_after": 0.2,
+      "verify": {
+        "method": "clipboard",
+        "mode": "contains",
+        "expected": "AETHER-STAGE-ONE"
+      }
+    },
+    {
+      "name": "write_stage_two",
+      "tool": "copy_text",
+      "arguments": { "text": "AETHER-STAGE-TWO :: real desktop state carried the coupling" },
+      "wait_after": 0.2,
+      "verify": {
+        "method": "clipboard",
+        "mode": "contains",
+        "expected": "AETHER-STAGE-TWO"
+      }
+    },
+    {
+      "name": "confirm_stage_one_gone",
+      "tool": "copy_text",
+      "arguments": { "text": "AETHER-STAGE-TWO :: real desktop state carried the coupling" },
+      "wait_after": 0.2,
+      "verify": {
+        "method": "clipboard",
+        "mode": "not_contains",
+        "expected": "AETHER-STAGE-ONE"
+      }
+    }
+  ]
+}

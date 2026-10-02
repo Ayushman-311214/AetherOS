@@ -510,35 +510,60 @@ class TestDetectScreenObjects:
 
 class TestAnalyzeScreen:
     @pytest.mark.asyncio
-    async def test_reports_text_and_capabilities(self, executor, wire):
-        wire()
+    async def test_is_lightweight_by_default(self, executor, wire):
+        """
+        The default call is a cheap summary: dimensions and capabilities, but
+        NOT the expensive OCR/detection passes. This is the core §2
+        optimisation -- "what's on screen?" must not silently run everything.
+        """
+
+        wired = wire()
 
         result = await executor.execute("analyze_screen")
 
-        assert result["text"] == "AETHEROS VISION TEST"
+        # Capabilities and geometry are always reported.
         assert result["capabilities"]["ocr"] is True
         assert result["capabilities"]["detection"] is False
+        assert result["width"] > 0 and result["height"] > 0
+
+        # Heavy stages did not run and did not leak into the result.
+        assert result["included"] == {"text": False, "objects": False}
+        assert "text" not in result
+        assert "objects" not in result
+        assert wired.ocr.calls == []
 
     @pytest.mark.asyncio
-    async def test_degrades_instead_of_failing_without_a_detector(
+    async def test_include_text_runs_ocr(self, executor, wire):
+        wired = wire()
+
+        result = await executor.execute("analyze_screen", {"include_text": True})
+
+        assert result["included"]["text"] is True
+        assert result["text"] == "AETHEROS VISION TEST"
+        assert result["blocks"]
+        assert len(wired.ocr.calls) == 1
+
+    @pytest.mark.asyncio
+    async def test_include_text_without_a_detector_still_returns_text(
         self,
         executor,
         wire,
     ):
         """
-        A missing optional backend must not cost the caller the OCR result it
-        would otherwise have got.
+        Asking for text on a box with no detector must still yield the text; a
+        missing optional backend costs only the objects the caller did not ask
+        for.
         """
 
         wire()
 
-        result = await executor.execute("analyze_screen")
+        result = await executor.execute("analyze_screen", {"include_text": True})
 
-        assert result["objects"] == []
         assert result["blocks"]
+        assert "objects" not in result
 
     @pytest.mark.asyncio
-    async def test_includes_objects_when_a_detector_exists(
+    async def test_include_objects_runs_detection_when_available(
         self,
         executor,
         wire,
@@ -559,10 +584,33 @@ class TestAnalyzeScreen:
             )
         )
 
-        result = await executor.execute("analyze_screen")
+        result = await executor.execute(
+            "analyze_screen", {"include_objects": True}
+        )
 
         assert result["capabilities"]["detection"] is True
+        assert result["included"]["objects"] is True
         assert [o["label"] for o in result["objects"]] == ["candle"]
+
+    @pytest.mark.asyncio
+    async def test_include_objects_without_a_detector_is_a_noop(
+        self,
+        executor,
+        wire,
+    ):
+        """
+        Opting in to objects on a box with no detector must not fail; it simply
+        returns no objects rather than raising.
+        """
+
+        wire()
+
+        result = await executor.execute(
+            "analyze_screen", {"include_objects": True}
+        )
+
+        assert result["capabilities"]["detection"] is False
+        assert "objects" not in result
 
     @pytest.mark.asyncio
     async def test_captures_once_for_both_analyses(
@@ -577,7 +625,10 @@ class TestAnalyzeScreen:
 
         wired = wire(detector=make_fake_detector())
 
-        await executor.execute("analyze_screen")
+        await executor.execute(
+            "analyze_screen",
+            {"include_text": True, "include_objects": True},
+        )
 
         assert wired.screen.captures == 1
 
@@ -586,6 +637,12 @@ class TestAnalyzeScreen:
         wire()
 
         json.dumps(await executor.execute("analyze_screen"))
+        json.dumps(
+            await executor.execute(
+                "analyze_screen",
+                {"include_text": True, "include_objects": True},
+            )
+        )
 
 
 # ============================================================================

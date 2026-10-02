@@ -151,9 +151,7 @@ class PsutilProcess(ProcessController):
         if pid == os.getpid():
             raise DesktopError(
                 code="PROCESS_PROTECTED",
-                message=(
-                    f"Refusing to {action} pid {pid}: that is this process."
-                ),
+                message=(f"Refusing to {action} pid {pid}: that is this process."),
                 hint=(
                     "Stopping the agent's own process would end the session "
                     "with no record of why. Check where the pid came from."
@@ -372,9 +370,7 @@ class PsutilProcess(ProcessController):
             raise DesktopError(
                 code="PROCESS_OPEN_FAILED",
                 message=f"The shell could not open {target}: {exc}.",
-                hint=(
-                    "There may be no application registered for this file type."
-                ),
+                hint=("There may be no application registered for this file type."),
                 cause=exc,
             ) from exc
 
@@ -727,9 +723,7 @@ class PsutilProcess(ProcessController):
         except psutil.TimeoutExpired as exc:
             raise DesktopError(
                 code="PROCESS_WAIT_TIMEOUT",
-                message=(
-                    f"pid {pid} was still running after {timeout}s."
-                ),
+                message=(f"pid {pid} was still running after {timeout}s."),
                 hint="Raise the timeout, or stop the process explicitly.",
                 cause=exc,
             ) from exc
@@ -753,6 +747,19 @@ class PsutilProcess(ProcessController):
         """
 
         return self._snapshot(self._process(pid))
+
+    @staticmethod
+    def is_available() -> bool:
+        """Return whether the process backend is available."""
+        return _IMPORT_ERROR is None
+
+    def status(self) -> dict[str, str]:
+        """Return the current process subsystem status."""
+        available = self.is_available()
+
+        return {
+            "status": "OK" if available else "UNAVAILABLE",
+        }
 
 
 __all__ = [

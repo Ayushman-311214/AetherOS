@@ -31,6 +31,7 @@ where policy is enforced and the executor is invoked. What the core owns is the
 from __future__ import annotations
 
 import asyncio
+import hashlib
 from dataclasses import dataclass
 
 from ..core.interfaces.llm_provider import LLMProvider
@@ -45,12 +46,17 @@ from ..llm.tool_calls import ToolCall
 from ..tools.executor import ToolExecutor
 from ..tools.registry import ToolRegistry
 from .context import ContextBuilder, ContextConfig
-from .execution import ExecutionBatch, ToolExecutionCoordinator
+from .execution import (
+    AgentExecutionResult,
+    ExecutionBatch,
+    ToolExecutionCoordinator,
+)
 from .observation import ObservationLog, tool_observation
 from .planner import AgentPlanner, PlannedAction, PlannerConfig
 from .policy import POLICY_EMERGENCY_STOP, PolicyEngine
 from .state import (
     STOP_CANCELLED,
+    STOP_LOOP_GUARD,
     STOP_MAX_ITERATIONS,
     AgentState,
     AgentStatus,
@@ -61,6 +67,20 @@ from .state import (
 #: per-call refusal the coordinator raises: this is the loop ending the whole
 #: run, not one call being turned away at the gate.
 STOP_EMERGENCY_STOP = "emergency_stop"
+
+#: How many times one identical outcome -- the same tool, the same argument
+#: names, the same ok/failed verdict, the same returned content -- may be
+#: observed before the loop concludes the run is repeating itself without making
+#: progress and stops it. Set above the largest sequential-repeat any existing
+#: budget test drives (3), so a genuine short retry is not mistaken for a loop,
+#: while the 4x/6x thrashing seen in the 32-iteration trace is caught early.
+MAX_REPEATED_CALLS = 4
+
+#: How many consecutive iterations may end with *every* executed tool failing
+#: before the loop gives up. This is the bounded recovery path: the model is
+#: given room to try a different action after a failure, but a run that only
+#: fails is stopped with a reason rather than burning its whole budget.
+MAX_CONSECUTIVE_FAILURES = 3
 
 
 @dataclass(frozen=True, slots=True)
@@ -95,6 +115,19 @@ class AgentRunResult:
     @property
     def iterations(self) -> int:
         return self.state.iteration
+
+    @property
+    def metrics(self) -> dict[str, int]:
+        """The per-run effort counters (llm_calls, tool_calls, step_count,
+        retries, recovery_attempts), separate from ``iterations``.
+
+        ``iterations`` counts loop passes; these count the work done inside them.
+        A run can spend several loop passes on one step (a retry, a recovery),
+        so the two are deliberately not the same number -- reporting them
+        together is what makes the trace's effort honest rather than conflating
+        "how many times round the loop" with "how much was actually done".
+        """
+        return self.state.metrics
 
 
 def _planned_to_call(action: PlannedAction) -> ToolCall:
@@ -134,6 +167,7 @@ class AgentCore:
         "_context_builder",
         "_policy",
         "_system_prompt",
+        "_default_max_iterations",
         "_logger",
     )
 
@@ -144,6 +178,7 @@ class AgentCore:
         *,
         context_builder: ContextBuilder | None = None,
         system_prompt: str | None = None,
+        max_iterations: int | None = None,
     ) -> None:
         self._planner = planner
         self._coordinator = coordinator
@@ -155,6 +190,12 @@ class AgentCore:
         # disagree about whether the stop is engaged.
         self._policy: PolicyEngine | None = coordinator.policy
         self._system_prompt = system_prompt
+        # Run-wide default iteration budget. None means "use AgentState's own
+        # default"; a value here is applied to every run that does not pass its
+        # own ``max_iterations``, so the configured limit reaches the real loop.
+        # AgentState still clamps it to ITERATION_CEILING, so this cannot exceed
+        # the absolute safety bound.
+        self._default_max_iterations = max_iterations
         self._logger = get_logger("agents.core")
 
     @classmethod
@@ -168,6 +209,7 @@ class AgentCore:
         planner_config: PlannerConfig | None = None,
         context_config: ContextConfig | None = None,
         system_prompt: str | None = None,
+        max_iterations: int | None = None,
     ) -> AgentCore:
         """Assemble a core from a provider and, optionally, its collaborators.
 
@@ -196,6 +238,7 @@ class AgentCore:
             coordinator,
             context_builder=builder,
             system_prompt=system_prompt,
+            max_iterations=max_iterations,
         )
 
     @property
@@ -224,9 +267,18 @@ class AgentCore:
         """
 
         if state is None:
-            state = (
-                AgentState(goal, max_iterations=max_iterations)
+            # A per-call ``max_iterations`` wins; otherwise fall back to the
+            # run-wide default this core was built with (from configuration),
+            # and only then to AgentState's own default. AgentState clamps
+            # whichever value it receives to ITERATION_CEILING.
+            budget = (
+                max_iterations
                 if max_iterations is not None
+                else self._default_max_iterations
+            )
+            state = (
+                AgentState(goal, max_iterations=budget)
+                if budget is not None
                 else AgentState(goal)
             )
 
@@ -297,6 +349,15 @@ class AgentCore:
         built.
         """
 
+        # Per-run loop-guard state, local so one core can drive many runs
+        # without leaking guard state between them. ``seen_fingerprints`` counts
+        # how often each identical outcome has been observed; the failure and
+        # recovery counters carry across iterations so a bounded recovery path
+        # and a consecutive-failure ceiling can be recognised over several turns.
+        seen_fingerprints: dict[str, int] = {}
+        consecutive_failures = 0
+        prior_round_all_failed = False
+
         while state.has_iterations_left and not state.is_terminal:
             # Emergency stop -- a run-ending condition, checked before any work.
             if self._policy is not None and self._policy.is_emergency_stopped:
@@ -325,6 +386,11 @@ class AgentCore:
             # PLAN -- the model's answer, described as a typed action. The
             # planner emits the LLM and PLANNER_DECISION events itself.
             plan = await self._planner.plan(state, context)
+
+            # Every plan is one model round-trip, whatever action it yields --
+            # counted apart from the loop's iteration count so the two do not
+            # get conflated in the metrics.
+            await state.record_metrics(llm_calls=1)
 
             # A provider failure is recorded even when the plan still carries a
             # usable action; a fail action is paired with it.
@@ -425,6 +491,84 @@ class AgentCore:
                 )
                 # OBSERVE -- fold each recorded result in for the next turn.
                 await self._observe(state, observations, results, iteration)
+
+                # GUARD -- bounded loop / consecutive-failure detection over the
+                # calls that actually reached a tool this turn. A refused call
+                # never ran, so it is neither progress nor a repeat; excluding it
+                # keeps the guard measuring real execution, not gate decisions.
+                executed = [r for r in results if r.delegated and not r.refused]
+                if executed:
+                    # Acting again right after a round where every tool failed is
+                    # a recovery attempt -- the bounded second chance, counted so
+                    # a run that only ever recovers is still visible as such.
+                    recovery = 1 if prior_round_all_failed else 0
+
+                    repeats = 0
+                    tripped_repeat = False
+                    for r in executed:
+                        fingerprint = self._fingerprint(r)
+                        count = seen_fingerprints.get(fingerprint, 0) + 1
+                        seen_fingerprints[fingerprint] = count
+                        if count > 1:
+                            # The identical outcome has been seen before: this
+                            # turn added nothing new, so it is a retry.
+                            repeats += 1
+                        if count >= MAX_REPEATED_CALLS:
+                            tripped_repeat = True
+
+                    all_failed = all(r.failed for r in executed)
+                    consecutive_failures = (
+                        consecutive_failures + 1 if all_failed else 0
+                    )
+                    prior_round_all_failed = all_failed
+
+                    await state.record_metrics(
+                        step_count=1,
+                        tool_calls=len(executed),
+                        retries=repeats,
+                        recovery_attempts=recovery,
+                    )
+
+                    tripped_failures = (
+                        consecutive_failures >= MAX_CONSECUTIVE_FAILURES
+                    )
+                    if tripped_repeat or tripped_failures:
+                        reason = (
+                            "the same tool call kept returning the same result "
+                            "without making progress"
+                            if tripped_repeat
+                            else (
+                                f"{consecutive_failures} tool rounds in a row "
+                                "failed with no recovery"
+                            )
+                        )
+                        message = (
+                            "The run was stopped to avoid an unproductive loop: "
+                            f"{reason}. Stopping is safer than repeating an "
+                            "action that is not changing the outcome."
+                        )
+                        log.bind(
+                            stopped_reason=STOP_LOOP_GUARD,
+                            consecutive_failures=consecutive_failures,
+                            repeated=tripped_repeat,
+                        ).warning("Loop guard tripped; ending the run.")
+                        await state.complete(
+                            message, stopped_reason=STOP_LOOP_GUARD
+                        )
+                        await emit_trace(
+                            TraceEventType.FINAL_RESPONSE_CREATED,
+                            message=message,
+                            status=TraceStatus.SUCCESS,
+                            run_id=state.state_id,
+                            iteration=iteration,
+                            metadata={
+                                "stopped_reason": STOP_LOOP_GUARD,
+                                "consecutive_failures": consecutive_failures,
+                                "repeated": tripped_repeat,
+                            },
+                            payload={"response": message},
+                        )
+                        return
             elif plan.action.is_continue:
                 log.bind(action="continue").debug("Agent chose to continue.")
                 await state.record_observation(
@@ -506,6 +650,25 @@ class AgentCore:
                 metadata={"tool_name": result.tool_name, "source": projected.source},
                 payload={"observation_preview": safe_preview(projected.text)},
             )
+
+    @staticmethod
+    def _fingerprint(result: AgentExecutionResult) -> str:
+        """A stable identity for *what this call did*, for loop detection.
+
+        Two calls share a fingerprint when they ran the same tool, with the same
+        argument names, to the same verdict, and got back the same content. That
+        -- not "the same tool name" -- is the signature of a call that is not
+        making progress: a search that keeps returning the same page, a ground
+        that keeps failing the same way. Argument *names* only and a hash of the
+        content, never the values or the text itself, so the fingerprint is safe
+        to hold in memory beside a keystroke that might be a password.
+        """
+
+        names = ",".join(result.argument_names)
+        digest = hashlib.sha1(
+            result.content.encode("utf-8", "replace")
+        ).hexdigest()[:12]
+        return f"{result.tool_name}|{names}|{result.ok}|{digest}"
 
     @staticmethod
     def _limit_message(max_iterations: int) -> str:

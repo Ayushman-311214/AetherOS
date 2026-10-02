@@ -1,0 +1,15 @@
+{
+  "schema_version": 1,
+  "items": [
+    {
+      "title": "Write the previous Trading Intelligence explanation to the requested Markdown file",
+      "status": "done"
+    },
+    {
+      "title": "Verify the written document contains the complete structure and required sections",
+      "status": "done"
+    }
+  ],
+  "updated_at": "2026-10-01T03:47:32.151Z",
+  "session_id": "01a0f572-cffb-715d-b02c-bd751e159fc4"
+}

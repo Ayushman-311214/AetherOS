@@ -578,5 +578,38 @@ class Win32Window(WindowController):
 
         return self._describe(self._validated(window))
 
+    @staticmethod
+    def is_available() -> bool:
+        """
+        Return True when the Win32 window backend can be used.
+
+        This is a non-throwing capability check. It is safe to call during
+        startup, diagnostics, or status reporting.
+        """
+        return (
+            win32gui is not None and win32con is not None and win32process is not None
+        )
+
+    @classmethod
+    def status(cls) -> dict[str, Any]:
+        """
+        Return the current availability status of the Win32 window backend.
+
+        This method never raises because it is intended for diagnostics,
+        health checks, and CLI/system status reporting.
+        """
+        available = cls.is_available()
+
+        return {
+            "name": "win32_window",
+            "available": available,
+            "platform": "windows",
+            "dependencies": {
+                "pywin32": available,
+                "psutil": psutil is not None,
+            },
+            "error": (None if available else "pywin32 is not installed or unavailable"),
+        }
+
 
 __all__ = ["Win32Window"]
