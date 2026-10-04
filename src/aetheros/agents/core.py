@@ -51,6 +51,7 @@ from .execution import (
     ExecutionBatch,
     ToolExecutionCoordinator,
 )
+from .memory_port import AgentMemory, NullAgentMemory
 from .observation import ObservationLog, tool_observation
 from .planner import AgentPlanner, PlannedAction, PlannerConfig
 from .policy import POLICY_EMERGENCY_STOP, PolicyEngine
@@ -168,6 +169,8 @@ class AgentCore:
         "_policy",
         "_system_prompt",
         "_default_max_iterations",
+        "_memory",
+        "_recall_max_chars",
         "_logger",
     )
 
@@ -179,6 +182,8 @@ class AgentCore:
         context_builder: ContextBuilder | None = None,
         system_prompt: str | None = None,
         max_iterations: int | None = None,
+        memory: AgentMemory | None = None,
+        recall_max_chars: int = 1500,
     ) -> None:
         self._planner = planner
         self._coordinator = coordinator
@@ -196,6 +201,11 @@ class AgentCore:
         # AgentState still clamps it to ITERATION_CEILING, so this cannot exceed
         # the absolute safety bound.
         self._default_max_iterations = max_iterations
+        # Memory is an optional collaborator behind the AgentMemory port. When
+        # the subsystem is off the bootstrapper injects NullAgentMemory, so the
+        # loop never branches on whether memory exists (spec Phase 20K).
+        self._memory: AgentMemory = memory or NullAgentMemory()
+        self._recall_max_chars = recall_max_chars
         self._logger = get_logger("agents.core")
 
     @classmethod
@@ -210,6 +220,8 @@ class AgentCore:
         context_config: ContextConfig | None = None,
         system_prompt: str | None = None,
         max_iterations: int | None = None,
+        memory: AgentMemory | None = None,
+        recall_max_chars: int = 1500,
     ) -> AgentCore:
         """Assemble a core from a provider and, optionally, its collaborators.
 
@@ -218,7 +230,9 @@ class AgentCore:
         registry, so the planner validates against, the executor runs from, and
         the context advertises, the *same* set of tools. Passing ``registry``
         (and, for tests, ``executor``) keeps an isolated run off the process-wide
-        singletons.
+        singletons. ``memory`` injects the AgentMemory port (NullAgentMemory when
+        omitted), so recall + recording are wired without the core knowing which
+        memory backend, if any, is behind the port.
         """
 
         planner = AgentPlanner(provider, registry=registry, config=planner_config)
@@ -239,6 +253,8 @@ class AgentCore:
             context_builder=builder,
             system_prompt=system_prompt,
             max_iterations=max_iterations,
+            memory=memory,
+            recall_max_chars=recall_max_chars,
         )
 
     @property
@@ -287,6 +303,10 @@ class AgentCore:
         if state.status is AgentStatus.PENDING:
             await state.start()
             await state.seed_conversation(system_prompt or self._system_prompt)
+            # RECALL -- fold relevant memory into the state before the first
+            # plan, as advisory observations. Best-effort: a memory failure is
+            # logged and the run continues without it (spec Phase 20C/20L).
+            await self._recall_into(state)
 
         log = self._logger.bind(
             state_id=state.state_id, goal_chars=len(state.goal)
@@ -328,7 +348,71 @@ class AgentCore:
             iterations=state.iteration,
         ).info("Agent core run finished.")
 
+        # RECORD -- turn the finished run into an episode (and failure/recovery
+        # records). Best-effort and after the terminal state is set, so a memory
+        # write can never change the run's own outcome (spec Phase 20F-20I/20L).
+        await self._record_run(state)
+
         return AgentRunResult(state, observations)
+
+    # -- memory integration (spec Phase 20) -------------------------------
+
+    async def _recall_into(self, state: AgentState) -> None:
+        """Recall relevant memory and inject it as advisory observations.
+
+        Wrapped end-to-end: recall is an enhancement, never a point of failure
+        (spec Phase 20L). The injected block is explicitly framed as historical
+        guidance so the planner does not blindly replay stale values such as
+        coordinates (spec Phase 20E/20R).
+        """
+
+        try:
+            memory_context = await self._memory.recall(
+                state.goal, session_id=state.session_id
+            )
+        except Exception:  # noqa: BLE001 - memory must not break the run
+            self._logger.bind(state_id=state.state_id).warning(
+                "Memory recall failed; continuing without memory.", exc_info=True
+            )
+            return
+
+        if memory_context.error:
+            self._logger.bind(
+                state_id=state.state_id, error=memory_context.error
+            ).warning("Memory recall reported an error; continuing without memory.")
+            return
+
+        lines = memory_context.to_observation_lines(max_chars=self._recall_max_chars)
+        if not lines:
+            return
+
+        await state.record_observation(
+            "\n".join(lines),
+            source="memory",
+            iteration=0,
+            metadata={"recalled": len(memory_context.items)},
+        )
+        await emit_trace(
+            TraceEventType.OBSERVATION_CREATED,
+            message=f"Recalled {len(memory_context.items)} memories",
+            status=TraceStatus.INFO,
+            run_id=state.state_id,
+            iteration=0,
+            metadata={"source": "memory", "recalled": len(memory_context.items)},
+        )
+
+    async def _record_run(self, state: AgentState) -> None:
+        """Record the finished run into memory, best-effort (spec Phase 20F-20I)."""
+
+        if not state.is_terminal or state.status is AgentStatus.CANCELLED:
+            return
+        try:
+            await self._memory.record_run(state)
+        except Exception:  # noqa: BLE001 - recording must not break the run
+            self._logger.bind(state_id=state.state_id).warning(
+                "Memory recording failed; the run outcome is unaffected.",
+                exc_info=True,
+            )
 
     # -- the loop ---------------------------------------------------------
 

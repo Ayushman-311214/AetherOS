@@ -31,7 +31,7 @@ class CommandRegistry:
         agent=None,
         trace=None,
         gateway=None,
-      
+    
     ) -> None:
 
         self._commands = {}
@@ -80,6 +80,8 @@ class CommandRegistry:
         self.register("monitor", self._monitor_command)
         self.register("monitor-loop", self._monitor_loop_command)
         self.register("track-record", self._track_record_command)
+
+        self.register("memory", self._memory_command)
 
         self.register("desktop", self._desktop)
         self.register("browser", self._browser)
@@ -157,6 +159,7 @@ class CommandRegistry:
                 monitor    Resolve + score recorded predictions (monitor [SYMBOL:EXCHANGE] [limit])
                 monitor-loop  Autonomous monitoring loop (monitor-loop start|stop|status)
                 track-record  Recorded predictions + how they scored (track-record [SYMBOL:EXCHANGE] [limit])
+                memory     Inspect/manage memory (memory [stats|search <q>|show <id>|list|forget <id>])
                 tools      List registered tools
                 desktop    Desktop operations
                 browser    Browser operations
@@ -321,6 +324,114 @@ class CommandRegistry:
         return repr(value)
 
 
+    async def _memory_command(self, args: list[str]) -> str:
+        """
+        Inspect and manage the memory subsystem (spec Phase 15/28).
+
+        Usage:
+            memory                      Show memory statistics
+            memory stats                Show memory statistics
+            memory search <query>       Hybrid, explainable recall
+            memory show <id>            Full detail for one memory
+            memory list [type]          List recent memories (optionally by type)
+            memory forget <id> [hard]   Forget a memory (soft, or hard-delete)
+
+        Read-only by default; `forget` is the only mutation and it is explicit.
+        Resolves the live MemoryManager from the DI container, so it honestly
+        reports NOT ENABLED when ENABLE_MEMORY is off rather than pretending.
+        """
+        from ..core.container import container
+        from ..memory.services.manager import MemoryManager
+
+        if not container.has(MemoryManager):
+            return (
+                "\nMemory\n------\n"
+                "Status : NOT ENABLED\n"
+                "Set ENABLE_MEMORY=true to turn the memory subsystem on.\n"
+            )
+
+        manager = container.resolve(MemoryManager)
+        sub = (args[0].strip().lower() if args else "stats")
+        rest = args[1:]
+
+        if sub in ("stats", ""):
+            stats = await manager.stats()
+            by_type = ", ".join(f"{k}={v}" for k, v in sorted(stats["by_type"].items()))
+            return (
+                "\nMemory\n------\n"
+                f"Total memories : {stats['total']}\n"
+                f"By type        : {by_type or 'none'}\n"
+                f"Vectors        : {stats['vectors']}\n"
+                f"Graph          : {stats['graph']['entities']} entities, "
+                f"{stats['graph']['relationships']} relationships\n"
+                f"Working set    : {stats['working']}\n"
+                f"Embedder       : {stats['embedder']} (dim {stats['embedding_dim']})\n"
+                f"Schema version : {stats['schema_version']}\n"
+            )
+
+        if sub == "search":
+            if not rest:
+                return "Usage: memory search <query>"
+            results = await manager.retrieve(" ".join(rest), limit=10)
+            if not results:
+                return "No matching memories."
+            lines = [f"\nMemory search: {' '.join(rest)}\n"]
+            for r in results:
+                why = "; ".join(r.explanation.reasons)
+                lines.append(
+                    f"[{r.score:.2f}] ({r.memory.memory_type.value}) "
+                    f"{r.memory.content}\n      id={r.memory.id}  why: {why}"
+                )
+            return "\n".join(lines)
+
+        if sub == "show":
+            if not rest:
+                return "Usage: memory show <id>"
+            memory = await manager.get(rest[0])
+            if memory is None:
+                return f"No memory with id {rest[0]}"
+            d = memory.to_dict()
+            return (
+                f"\nMemory {d['id']}\n"
+                f"  type       : {d['memory_type']}\n"
+                f"  veracity   : {d['veracity']}\n"
+                f"  content    : {d['content']}\n"
+                f"  confidence : {d['confidence']:.3f} ({memory.confidence_band})\n"
+                f"  importance : {d['importance']}\n"
+                f"  status     : {d['status']}  scope: {d['scope']}\n"
+                f"  source     : {d['source']['source_type']} / {d['source']['origin']}\n"
+                f"  tags       : {', '.join(d['tags']) or 'none'}\n"
+                f"  entities   : {', '.join(d['entities']) or 'none'}\n"
+                f"  created    : {d['created_at']}\n"
+            )
+
+        if sub == "list":
+            mtype = rest[0].strip().lower() if rest else None
+            memories = await manager._repo.list_by(memory_type=mtype, limit=20)
+            if not memories:
+                return "No memories stored."
+            lines = ["\nStored memories\n"]
+            for m in memories:
+                lines.append(
+                    f"  {m.id[:8]}  [{m.memory_type.value:<10}] "
+                    f"({m.status.value}) {m.content[:70]}"
+                )
+            return "\n".join(lines)
+
+        if sub == "forget":
+            if not rest:
+                return "Usage: memory forget <id> [hard]"
+            hard = len(rest) > 1 and rest[1].strip().lower() in ("hard", "--hard")
+            ok = await manager.forget(rest[0], hard=hard)
+            if not ok:
+                return f"No memory with id {rest[0]}"
+            return f"Forgot {rest[0]} ({'hard-deleted' if hard else 'soft-deleted'})."
+
+        return (
+            f"Unknown memory subcommand: {sub}\n"
+            "Try: memory [stats|search|show|list|forget]"
+        )
+
     def _desktop(self, args: list[str]) -> str:
         from ..desktop.main import status
 
@@ -338,10 +449,6 @@ class CommandRegistry:
             f"Window   : {status_dict.get('window', 'N/A')}\n"
             "Status   : ONLINE\n"
         )
-        
-        
-        
-        
 
     def _browser(self, args: list[str]) -> str:
         return "Browser subsystem."

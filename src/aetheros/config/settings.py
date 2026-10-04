@@ -39,7 +39,11 @@ class Settings(BaseSettings):
     # Logging
     # -----------------------
 
-    LOG_LEVEL: str = "INFO"
+    LOG_LEVEL: str = "INFO"  # "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL"
+    LOG_ROTATION: str = "10 MB"
+    # LOG_RETENTION: str = "14 days"
+    LOG_RUNS_TO_KEEP: int = 2
+    LOG_COMPRESSION: str = "zip"
 
     # -----------------------
     # Live execution trace
@@ -48,12 +52,13 @@ class Settings(BaseSettings):
     # Verbosity of the live trace dashboard: off | error | minimal | normal |
     # debug | verbose. Parsed tolerantly by observability.resolve_level, so an
     # unknown value falls back to NORMAL rather than failing a run.
-    TRACE_LEVEL: str = "normal"
+    
+    TRACE_LEVEL: str = "verbose" # "off" | "error" | "minimal" | "normal" | "debug" | "verbose"
 
     # Whether each run's trace is persisted as JSONL under LOG_DIR/traces. The
     # live dashboard is independent of this: turning persistence off still shows
     # the trace, it just leaves no file behind.
-    TRACE_PERSIST: bool = True
+    TRACE_PERSIST: bool = False
 
     # -----------------------
     # Paths
@@ -330,14 +335,15 @@ class Settings(BaseSettings):
     # -----------------------
 
     ENABLE_VISION: bool = True
-    ENABLE_MEMORY: bool = False
-    ENABLE_BROWSER: bool = False
-    ENABLE_VOICE: bool = False
+    ENABLE_MEMORY: bool = True
+    ENABLE_BROWSER: bool = True
+    ENABLE_VOICE: bool = True
 
-    # -----------------------
-    # Trading Intelligence
-    # -----------------------
-    #
+
+    # ╔══════════════════════════════════════════╗
+    # ║         Trading Intelligence             ║
+    # ╚══════════════════════════════════════════╝
+    
     # The numerical trading core (market data -> indicators -> structure ->
     # evidence -> analysis) is self-contained and does not depend on Vision,
     # Desktop or an LLM. Every default below is non-breaking: with the flag on
@@ -599,12 +605,17 @@ class Settings(BaseSettings):
         ),
     )
 
-    # --- News & sentiment (Increment 9) -----------------------------------
+
+    # ═══════════════════════════════════════════════
+    #                News & sentiment
+    # ═══════════════════════════════════════════════
+    
+    
     # Which news provider the bootstrapper wires. "mock" is the deterministic,
     # loudly-labelled synthetic feed; a real feed can be added behind the same
     # NewsProvider ABC without touching the sentiment/service layers.
     NEWS_PROVIDER: str = Field(
-        default="mock",
+        default="yahoo",
         validation_alias=AliasChoices("AETHEROS_NEWS_PROVIDER", "NEWS_PROVIDER"),
     )
 
@@ -629,13 +640,17 @@ class Settings(BaseSettings):
         ),
     )
 
-    # --- Event / economic calendar (Increment 11) -------------------------
+
+    # ═══════════════════════════════════════════════
+    #         Event / economic calendar
+    # ═══════════════════════════════════════════════
+    
     # Which calendar provider the bootstrapper wires. "mock" is the
     # deterministic, loudly-labelled synthetic feed; a real earnings/economic
     # calendar can be added behind the same CalendarProvider ABC without
     # touching the service layer.
     CALENDAR_PROVIDER: str = Field(
-        default="mock",
+        default="yahoo",
         validation_alias=AliasChoices(
             "AETHEROS_CALENDAR_PROVIDER", "CALENDAR_PROVIDER"
         ),
@@ -653,13 +668,17 @@ class Settings(BaseSettings):
         ),
     )
 
-    # --- Fundamental analysis (Increment 13) ------------------------------
+
+    # ═══════════════════════════════════════════════
+    #         Fundamental analysis
+    # ═══════════════════════════════════════════════
+    
     # Which fundamentals provider the bootstrapper wires. "mock" is the
     # deterministic, loudly-labelled synthetic feed; a real financial-statements
     # vendor can be added behind the same FundamentalsProvider ABC without
     # touching the service layer.
     FUNDAMENTALS_PROVIDER: str = Field(
-        default="mock",
+        default="yahoo",
         validation_alias=AliasChoices(
             "AETHEROS_FUNDAMENTALS_PROVIDER", "FUNDAMENTALS_PROVIDER"
         ),
@@ -676,7 +695,11 @@ class Settings(BaseSettings):
         ),
     )
 
-    # --- Market-regime detection (Increment 17) ---------------------------
+    # ═══════════════════════════════════════════════
+    #        Market-regime detection
+    # ═══════════════════════════════════════════════
+    
+    # ---  (Increment 17) ---------------------------
     # ADX threshold at/above which the market is treated as trending rather
     # than range-bound (Wilder's classic 25); below it the tape is choppy.
     TRADING_REGIME_ADX_TREND: float = Field(
@@ -891,7 +914,7 @@ class Settings(BaseSettings):
     # sweep every TRADING_MONITOR_INTERVAL_SECONDS; it never runs unless this is
     # explicitly turned on.
     TRADING_MONITOR_ENABLED: bool = Field(
-        default=False,
+        default=True,
         validation_alias=AliasChoices(
             "AETHEROS_TRADING_MONITOR_ENABLED", "TRADING_MONITOR_ENABLED"
         ),
@@ -1089,5 +1112,169 @@ class Settings(BaseSettings):
         le=100000,
         validation_alias=AliasChoices(
             "AETHEROS_TRADING_PERF_MIN_SAMPLE", "TRADING_PERF_MIN_SAMPLE"
+        ),
+    )
+
+
+    # ╔══════════════════════════════════════════╗
+    # ║                Memory                     ║
+    # ╚══════════════════════════════════════════╝
+
+    # The memory subsystem is self-contained and offline-safe: the default
+    # embedding backend is a deterministic, dependency-free hashing embedder, so
+    # with MEMORY_ENABLED on and no model configured the layer still remembers
+    # and retrieves (just with lexical-grade semantics). Every knob is read once,
+    # here, into MemoryConfig -- never via scattered os.getenv (CLAUDE.md §18).
+    # ENABLE_MEMORY (above) remains the master switch the bootstrapper gates on.
+
+    # Path the SQLite memory database is written to. Relative paths resolve under
+    # DATA_DIR; the default is DATA_DIR/memory.db.
+    MEMORY_DATABASE: str = Field(
+        default="memory.db",
+        min_length=1,
+        validation_alias=AliasChoices("AETHEROS_MEMORY_DATABASE", "MEMORY_DATABASE"),
+    )
+
+    # Embedding backend. "hashing" (default) is the deterministic local fallback;
+    # real providers (ollama / openai) can be wired behind the same ABC later
+    # without touching the vector or retrieval layers.
+    MEMORY_VECTOR_PROVIDER: str = Field(
+        default="hashing",
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_VECTOR_PROVIDER", "MEMORY_VECTOR_PROVIDER"
+        ),
+    )
+
+    # Model identifier passed to a real embedding provider; ignored by the
+    # hashing fallback. Empty means "provider default".
+    MEMORY_EMBEDDING_MODEL: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_EMBEDDING_MODEL", "MEMORY_EMBEDDING_MODEL"
+        ),
+    )
+
+    # Dimensionality of the hashing embedder's vectors. Fixed per database: a
+    # change only takes effect for memories embedded afterwards.
+    MEMORY_EMBEDDING_DIM: int = Field(
+        default=256,
+        ge=16,
+        le=4096,
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_EMBEDDING_DIM", "MEMORY_EMBEDDING_DIM"
+        ),
+    )
+
+    # Default number of memories a retrieval returns after ranking.
+    MEMORY_RETRIEVAL_LIMIT: int = Field(
+        default=5,
+        ge=1,
+        le=100,
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_RETRIEVAL_LIMIT", "MEMORY_RETRIEVAL_LIMIT"
+        ),
+    )
+
+    # Minimum blended similarity a candidate needs to survive retrieval. Keeps
+    # weakly-related memories out of the LLM context (Rule 7).
+    MEMORY_SIMILARITY_THRESHOLD: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_SIMILARITY_THRESHOLD", "MEMORY_SIMILARITY_THRESHOLD"
+        ),
+    )
+
+    # Whether decay / lifecycle transitions run (spec Phase 14).
+    MEMORY_DECAY_ENABLED: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_DECAY_ENABLED", "MEMORY_DECAY_ENABLED"
+        ),
+    )
+
+    # Half-life, in days, used by the recency score and the decay pass. A memory
+    # untouched for this long contributes half its original recency weight.
+    MEMORY_DECAY_HALFLIFE_DAYS: float = Field(
+        default=30.0,
+        gt=0.0,
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_DECAY_HALFLIFE_DAYS", "MEMORY_DECAY_HALFLIFE_DAYS"
+        ),
+    )
+
+    # Whether consolidation (dedup / merge / promotion) runs (spec Phase 12).
+    MEMORY_CONSOLIDATION_ENABLED: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_CONSOLIDATION_ENABLED", "MEMORY_CONSOLIDATION_ENABLED"
+        ),
+    )
+
+    # Cosine similarity at/above which two memories of the same type are treated
+    # as near-duplicates by the consolidator.
+    MEMORY_DEDUP_THRESHOLD: float = Field(
+        default=0.95,
+        ge=0.5,
+        le=1.0,
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_DEDUP_THRESHOLD", "MEMORY_DEDUP_THRESHOLD"
+        ),
+    )
+
+    # Maximum number of items held in working memory before the oldest/least
+    # important are summarised out (spec Phase 8 -- bounded context window).
+    MEMORY_MAX_WORKING_CONTEXT: int = Field(
+        default=50,
+        ge=1,
+        le=1000,
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_MAX_WORKING_CONTEXT", "MEMORY_MAX_WORKING_CONTEXT"
+        ),
+    )
+
+    # Whether the agent automatically remembers useful experience after a run
+    # (spec Phase 20). On by default now that the agent integration exists: when
+    # memory is enabled the agent records an episode (and failure/recovery
+    # records) after each meaningful run. Turn off to keep memory enabled for
+    # recall + manual tools but stop automatic writes. (ENABLE_MEMORY is still
+    # the master switch; this only matters when memory is on at all.)
+    MEMORY_AUTO_REMEMBER: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_AUTO_REMEMBER", "MEMORY_AUTO_REMEMBER"
+        ),
+    )
+
+    # Agent recall (spec Phase 20C/20N). The maximum memories injected into the
+    # planning context before a run, the minimum blended relevance score a
+    # memory needs to be injected, and the total character budget for the
+    # injected memory block -- the strict context budget that keeps recall from
+    # polluting the LLM context (Rule 7).
+    MEMORY_AGENT_RECALL_LIMIT: int = Field(
+        default=5,
+        ge=1,
+        le=50,
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_AGENT_RECALL_LIMIT", "MEMORY_AGENT_RECALL_LIMIT"
+        ),
+    )
+
+    MEMORY_AGENT_RECALL_MIN_SCORE: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1.0,
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_AGENT_RECALL_MIN_SCORE", "MEMORY_AGENT_RECALL_MIN_SCORE"
+        ),
+    )
+
+    MEMORY_AGENT_RECALL_MAX_CHARS: int = Field(
+        default=1500,
+        ge=100,
+        le=20000,
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_AGENT_RECALL_MAX_CHARS", "MEMORY_AGENT_RECALL_MAX_CHARS"
         ),
     )

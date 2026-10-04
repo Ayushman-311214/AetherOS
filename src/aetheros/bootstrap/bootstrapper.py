@@ -704,6 +704,15 @@ class Bootstrapper:
         if self._trading_enabled():
             from ..trading import tools as trading_tools  # noqa: F401
 
+        # Memory tools. Registered only when the subsystem is enabled; importing
+        # the module is what registers the @tool functions. They resolve the
+        # MemoryManager from the container at *call* time, so it is fine that
+        # _bootstrap_memory runs just after this -- no tool fires during startup.
+        from ..config.config_loader import get_settings
+
+        if get_settings().ENABLE_MEMORY:
+            from ..memory import tools as memory_tools  # noqa: F401
+
         self._logger.bind(
             tool_count=tool_registry.count,
             categories=tool_registry.categories(),
@@ -1535,6 +1544,70 @@ class Bootstrapper:
             "Initializing memory services..."
         )
 
+        from ..config.config_loader import get_settings
+
+        settings = get_settings()
+        if not settings.ENABLE_MEMORY:
+            self._logger.info(
+                "Memory disabled (ENABLE_MEMORY=false); memory services and "
+                "tools will not be registered."
+            )
+            return
+
+        from ..core.interfaces.memory_provider import MemoryProvider
+        from ..memory.config import MemoryConfig
+        from ..memory.services.manager import MemoryManager
+        from ..memory.services.provider import SQLiteMemoryProvider
+        from ..runtime.events.event_bus import EventBus
+
+        config = MemoryConfig.from_settings(settings)
+
+        # One manager, shared by both the rich API and the ABC port. It owns the
+        # SQLite connection and brings the schema up to date on initialize().
+        manager = MemoryManager(
+            config,
+            event_bus=self._container.resolve(EventBus),
+        )
+        await manager.initialize()
+
+        self._container.register_singleton(MemoryManager, lambda: manager)
+        self._container.register_singleton("memory_manager", lambda: manager)
+
+        # Register the key/value ABC port over the *same* manager so
+        # interface-typed consumers resolve a working provider (CLAUDE.md §10).
+        provider = SQLiteMemoryProvider(config, manager=manager)
+        self._container.register_singleton(MemoryProvider, lambda: provider)
+
+        self._logger.bind(
+            db=str(config.database_path),
+        ).info("Memory services initialized.")
+
+    def _build_agent_memory(self):
+        """
+        Resolve the agent-memory port for AgentCore (spec Phase 20K).
+
+        Returns ``(AgentMemory, recall_max_chars)``. When memory is enabled and
+        its manager was registered by _bootstrap_memory (which runs first), wire
+        the real ManagerAgentMemory; otherwise return a NullAgentMemory so the
+        agent loop runs identically with memory off. This is the one place the
+        ENABLE_MEMORY decision reaches the agent.
+        """
+        from ..agents.memory_port import NullAgentMemory
+        from ..config.config_loader import get_settings
+        from ..memory.services.manager import MemoryManager
+
+        settings = get_settings()
+        if not settings.ENABLE_MEMORY or not self._container.has(MemoryManager):
+            return NullAgentMemory(), settings.MEMORY_AGENT_RECALL_MAX_CHARS
+
+        from ..memory.config import MemoryConfig
+        from ..memory.integration import build_agent_memory
+
+        config = MemoryConfig.from_settings(settings)
+        manager = self._container.resolve(MemoryManager)
+        self._logger.info("Agent memory integration enabled (recall + recording).")
+        return build_agent_memory(manager, config), config.agent_recall_max_chars
+
     async def _bootstrap_llm(self) -> None:
         self._logger.info(
             "Initializing LLM providers..."
@@ -1633,6 +1706,12 @@ class Bootstrapper:
         # logic is duplicated. A default (permissive) policy preserves today's
         # behaviour -- every enabled tool is allowed -- while establishing the
         # gate the safety layer needs.
+        # Memory integration (spec Phase 20): resolve the agent-memory port once,
+        # here, so the agent loop never branches on whether memory exists. When
+        # memory is disabled this returns a NullAgentMemory, keeping the single
+        # ENABLE_MEMORY decision in the bootstrapper rather than in the loop.
+        agent_memory, recall_max_chars = self._build_agent_memory()
+
         agent_core = AgentCore.from_provider(
             provider,
             registry=tool_registry,
@@ -1640,6 +1719,8 @@ class Bootstrapper:
             policy=PolicyEngine(PolicyConfig()),
             planner_config=PlannerConfig(max_tool_calls=max_tool_calls),
             max_iterations=max_tool_calls,
+            memory=agent_memory,
+            recall_max_chars=recall_max_chars,
         )
 
         # ----------------------------------------------------------
@@ -1885,8 +1966,6 @@ class Bootstrapper:
         Park the overlay at IDLE when nothing will publish voice events.
         """
 
-
-
         hud = self._hud
 
         if hud is None or not hud.is_running:
@@ -1980,6 +2059,23 @@ class Bootstrapper:
         self._logger.debug(
             "Stopping memory services..."
         )
+
+        if self._container is None:
+            return
+
+        from ..memory.services.manager import MemoryManager
+
+        # is_instantiated, not has: resolving would construct a manager (and open
+        # a database) purely in order to close one that was never built.
+        if not self._container.is_instantiated(MemoryManager):
+            return
+
+        try:
+            await self._container.resolve(MemoryManager).shutdown()
+        except Exception:
+            self._logger.exception(
+                "Memory services did not shut down cleanly."
+            )
 
     async def _shutdown_browser(self) -> None:
         self._logger.debug(

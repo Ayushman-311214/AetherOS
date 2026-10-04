@@ -113,6 +113,7 @@ class CLIUI:
                 "Show available commands",
             ),
             ("status", "Show system status"),
+            ("ask", "Send a message to the LLM"),
             (
                 "analyze",
                 "Deterministic trading report (analyze <symbol> [timeframe] [backtest])",
@@ -124,34 +125,41 @@ class CLIUI:
             (
                 "investigate",
                 "Agentic CEO tool-loop (investigate [research|quant|critic] <request>)",
-        ),
+            ),
+            (
+                "explain",
+                "Why a recommendation came out that way (explain <symbol> [timeframe])",
+            ),
             ("scan", "Rank a watchlist by signal (scan <SYM1> <SYM2> ... [timeframe])"),
             (
                 "portfolio",
                 "Risk-budget a basket (portfolio <SYM1> <SYM2> ... <equity>)",
             ),
             (
-                "explain",
-                "Why a recommendation came out that way (explain <symbol> [timeframe])",
-            ),
-            (
                 "monitor",
                 "Resolve + score recorded predictions (monitor [SYMBOL:EXCHANGE] [limit])",
+            ),
+            (
+                "monitor-loop",
+                "Autonomous monitoring loop (monitor-loop start|stop|status)",
             ),
             (
                 "track-record",
                 "Recorded predictions + how they scored (track-record [SYMBOL:EXCHANGE] [limit])",
             ),
+            (
+                "memory",
+                "Inspect/manage memory (memory [stats|search <q>|show <id>|list|forget <id>])",
+            ),
             ("tools", "List registered tools"),
-            ("ask", "Send a message to the LLM"),
             ("desktop", "Desktop operations"),
             ("browser", "Browser operations"),
             ("vision", "Vision operations"),
+            ("llm", "LLM operations"),
             (
                 "trace",
                 "Live execution trace (trace / on / off / level / clear / status)",
             ),
-            ("llm", "LLM operations"),
             ("clear", "Clear terminal"),
             ("exit", "Shutdown AetherOS"),
         ]

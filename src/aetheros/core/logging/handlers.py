@@ -129,10 +129,13 @@
 #         enqueue=True,
 #     )
 
+import shutil
 import sys
 from pathlib import Path
 
 from loguru import logger
+from datetime import datetime
+import os
 
 # from aetheros.config.config_loader import get_settings
 from ...config.config_loader import get_settings
@@ -140,13 +143,81 @@ from ...config.config_loader import get_settings
 settings = get_settings()
 
 LOG_DIR = settings.LOG_DIR
-LOG_DIR.mkdir(exist_ok=True)
+# LOG_DIR.mkdir(exist_ok=True)
+
+DEFAULT_ROTATION = settings.LOG_ROTATION  # "10 MB"
+# DEFAULT_RETENTION = settings.LOG_RETENTION  # "14 days"
+LOG_RUNS_TO_KEEP = settings.LOG_RUNS_TO_KEEP
+DEFAULT_COMPRESSION = settings.LOG_COMPRESSION  # "zip"
+
+
+def create_run_directory() -> Path:
+    """
+    Create a unique directory for the current AetherOS execution.
+
+    Example:
+        logs/run_20261004_122130_12345/
+    """
+
+    LOG_DIR.mkdir(parents=True, exist_ok=True)
+
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+
+    run_dir = LOG_DIR / f"run_{timestamp}"
+
+    run_dir.mkdir(parents=True, exist_ok=False)
+
+    return run_dir
+
+
+def cleanup_old_runs() -> None:
+    """
+    Keep only the newest LOG_RUNS_TO_KEEP application runs.
+
+    Each run is represented by a directory:
+
+        logs/
+            run_20261004_122130_12345/
+            run_20261003_184512_11872/
+
+    Older run directories are completely removed.
+    """
+
+    if LOG_RUNS_TO_KEEP < 1:
+        raise ValueError("LOG_RUNS_TO_KEEP must be at least 1")
+
+    if not LOG_DIR.exists():
+        return
+
+    run_directories = [
+        path
+        for path in LOG_DIR.iterdir()
+        if path.is_dir() and path.name.startswith("run_")
+    ]
+
+    # Newest first.
+    run_directories.sort(
+        key=lambda path: path.stat().st_mtime,
+        reverse=True,
+    )
+
+    old_runs = run_directories[LOG_RUNS_TO_KEEP:]
+
+    for run_dir in old_runs:
+        try:
+            shutil.rmtree(run_dir)
+        except OSError:
+            # Logging should never prevent AetherOS from starting.
+            logger.warning(
+                "Failed to remove old log run: {}",
+                run_dir,
+            )
 
 
 def configure_handlers(
     *,
     console: bool = False,
-) -> None:
+) -> Path:
     """
     Configure every AetherOS log sink.
 
@@ -166,7 +237,14 @@ def configure_handlers(
     API key into ``error.log``.
     """
 
+    # Remove Loguru's default handler and any previous handlers.
     logger.remove()
+
+    # Create a directory for this execution.
+    run_dir = create_run_directory()
+
+    # Remove runs older than the newest LOG_RUNS_TO_KEEP runs.
+    cleanup_old_runs()
 
     # Console (opt-in, stderr, never stdout)
     if console:
@@ -174,47 +252,63 @@ def configure_handlers(
             sink=sys.stderr,
             colorize=True,
             level=settings.LOG_LEVEL,
+            backtrace=False,
             diagnose=False,
+            enqueue=True,
         )
 
     # Application log
     logger.add(
-        LOG_DIR / "app.log",
-        rotation="10 MB",
-        retention="30 days",
-        compression="zip",
+        run_dir / "app.log",
+        rotation=DEFAULT_ROTATION,
+        # retention=DEFAULT_RETENTION,
+        compression=DEFAULT_COMPRESSION,
         enqueue=True,
         level="INFO",
+        encoding="utf-8",
         diagnose=False,
     )
 
     # Error log
     logger.add(
-        LOG_DIR / "error.log",
-        rotation="10 MB",
-        retention="60 days",
-        compression="zip",
+        run_dir / "error.log",
+        rotation=DEFAULT_ROTATION,
+        # retention=DEFAULT_RETENTION,
+        compression=DEFAULT_COMPRESSION,
         enqueue=True,
         level="ERROR",
+        encoding="utf-8",
         backtrace=True,
         diagnose=False,
     )
 
     # Debug log
     logger.add(
-        LOG_DIR / "debug.log",
-        rotation="10 MB",
-        retention="14 days",
+        run_dir / "debug.log",
+        rotation=DEFAULT_ROTATION,
+        # retention=DEFAULT_RETENTION,
+        compression=DEFAULT_COMPRESSION,
         enqueue=True,
         level="DEBUG",
+        encoding="utf-8",
         diagnose=False,
     )
 
     # JSON log
     logger.add(
-        LOG_DIR / "events.jsonl",
+        run_dir / "events.jsonl",
         serialize=True,
         enqueue=True,
-        rotation="25 MB",
+        rotation=DEFAULT_ROTATION,
+        # retention=DEFAULT_RETENTION,
+        compression=DEFAULT_COMPRESSION,
+        encoding="utf-8",
         diagnose=False,
     )
+
+    logger.info(
+        "Logging initialized for AetherOS run: {}",
+        run_dir.name,
+    )
+
+    return run_dir

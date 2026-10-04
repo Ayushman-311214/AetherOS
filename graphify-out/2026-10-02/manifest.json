@@ -168,9 +168,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/bootstrap/bootstrapper.py": {
-    "mtime": 1790905496.0781033,
-    "seen": 1790905769.9776673,
-    "ast_hash": "7b0063c67a8223b1fe9d70afd5b27f10",
+    "mtime": 1790910406.7114174,
+    "seen": 1790910906.634808,
+    "ast_hash": "a0a8d500f75026c87f5c05ac7fce0ebc",
     "semantic_hash": ""
   },
   "src/aetheros/bootstrap/lifecycle.py": {
@@ -210,9 +210,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/cli/commands.py": {
-    "mtime": 1790906248.7264948,
-    "seen": 1790906604.2357893,
-    "ast_hash": "3046798396a97efc19322ec4eefd78e9",
+    "mtime": 1790907771.125234,
+    "seen": 1790910906.6348288,
+    "ast_hash": "c34b8beaa266ad86295bc0d22338a33f",
     "semantic_hash": ""
   },
   "src/aetheros/cli/main.py": {
@@ -234,9 +234,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/cli/ui.py": {
-    "mtime": 1790906597.1103072,
-    "seen": 1790906604.2358005,
-    "ast_hash": "e291e14bf79c901ba411bd249a395d2e",
+    "mtime": 1790906679.6377368,
+    "seen": 1790910906.6348395,
+    "ast_hash": "778e31bc2f1d99b2dfcc597666e06328",
     "semantic_hash": ""
   },
   "src/aetheros/config/config_loader.py": {
@@ -258,9 +258,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/config/settings.py": {
-    "mtime": 1790872292.3136678,
-    "seen": 1790872696.7416239,
-    "ast_hash": "0a164dbb8d41ab87a08a1b6aad3899ae",
+    "mtime": 1790909268.6743593,
+    "seen": 1790910906.6348498,
+    "ast_hash": "b9697a329455d9ebfdc2f384c3a66cde",
     "semantic_hash": ""
   },
   "src/aetheros/core/application.py": {
@@ -1902,9 +1902,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/tools.py": {
-    "mtime": 1790906106.1969626,
-    "seen": 1790906604.236333,
-    "ast_hash": "c52d33c34b2a9c0b63a78ccda6e27456",
+    "mtime": 1790907654.5986073,
+    "seen": 1790910906.6355488,
+    "ast_hash": "439bb185278afcefedbe8d4aa15c18f5",
     "semantic_hash": ""
   },
   "tests/trading/__init__.py": {
@@ -1962,9 +1962,9 @@
     "semantic_hash": ""
   },
   "tests/trading/test_trading_tools.py": {
-    "mtime": 1790905637.6542094,
-    "seen": 1790905769.978211,
-    "ast_hash": "181194729b52d0a0ea3670476c252461",
+    "mtime": 1790907848.162873,
+    "seen": 1790910906.6359375,
+    "ast_hash": "d962dc53d38d863ade4badbf9284129f",
     "semantic_hash": ""
   },
   "src/aetheros/trading/domain/risk.py": {
@@ -2292,9 +2292,9 @@
     "semantic_hash": ""
   },
   "tests/cli/test_track_record_command.py": {
-    "mtime": 1790871561.082186,
-    "seen": 1790871957.7162516,
-    "ast_hash": "1c999a1d043d6c6ac7e6f72afe2fb9d2",
+    "mtime": 1790907922.085428,
+    "seen": 1790910906.6357057,
+    "ast_hash": "1e7b875f723a6273f8bc68c13424dec6",
     "semantic_hash": ""
   },
   "src/aetheros/trading/providers/yahoo_fundamentals_provider.py": {
@@ -2568,21 +2568,21 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/domain/calibration_audit.py": {
-    "mtime": 1790872319.9205523,
-    "seen": 1790872696.741905,
-    "ast_hash": "4b5532cf15c2aac419932e16840f025d",
+    "mtime": 1790906824.4780927,
+    "seen": 1790910906.6352978,
+    "ast_hash": "cc9b9e15175c4e17e9f19af4ec4402ef",
     "semantic_hash": ""
   },
   "src/aetheros/trading/services/calibration_history_service.py": {
-    "mtime": 1790872359.3692484,
-    "seen": 1790872696.7420495,
-    "ast_hash": "83b2348a7a0d98b6093d7333b37c86aa",
+    "mtime": 1790906866.545622,
+    "seen": 1790910906.6354702,
+    "ast_hash": "e61666a63a01ef34aaa66e432f699f10",
     "semantic_hash": ""
   },
   "tests/trading/test_calibration_history.py": {
-    "mtime": 1790872459.7826514,
-    "seen": 1790872696.742309,
-    "ast_hash": "e029ee0581ff185b30dab3797a0ab2f7",
+    "mtime": 1790907102.0715811,
+    "seen": 1790910906.6358209,
+    "ast_hash": "a1adeaed2701423e7fb416763314aa6c",
     "semantic_hash": ""
   },
   "src/aetheros/trading/domain/ceo_brief.py": {
@@ -2625,6 +2625,264 @@
     "mtime": 1790905988.7200062,
     "seen": 1790906604.236196,
     "ast_hash": "9665fcdbbf1b0e26155753337045f64b",
+    "semantic_hash": ""
+  },
+  "src/aetheros/core/errors/memory_error.py": {
+    "mtime": 1790908934.61923,
+    "seen": 1790910906.6348808,
+    "ast_hash": "f9c07e9ff6fa2d30c8ff31f3b843670f",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/__init__.py": {
+    "mtime": 1790910168.435624,
+    "seen": 1790910906.6351652,
+    "ast_hash": "b17d55be8952b4bc3140067d41b6d97c",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/_clock.py": {
+    "mtime": 1790909712.5691414,
+    "seen": 1790910906.6351686,
+    "ast_hash": "e957982544af9c538fcaa0d93fa6d491",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/config.py": {
+    "mtime": 1790909284.0848777,
+    "seen": 1790910906.6351712,
+    "ast_hash": "f99711f46158aa5a7f7e577cc68b1475",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/domain/__init__.py": {
+    "mtime": 1790909235.962359,
+    "seen": 1790910906.6351736,
+    "ast_hash": "e4c2565e3c80d95140b965dc4912574f",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/domain/enums.py": {
+    "mtime": 1790908972.9049866,
+    "seen": 1790910906.6351757,
+    "ast_hash": "fb964a25fef25fbc3e1a3b9c0e4714b0",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/domain/episode.py": {
+    "mtime": 1790909108.98587,
+    "seen": 1790910906.635178,
+    "ast_hash": "61272394a0adb1dd56715e9d17f6a097",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/domain/memory.py": {
+    "mtime": 1790909029.8375387,
+    "seen": 1790910906.63518,
+    "ast_hash": "39ef9a3e4801bd25ba6b4d9447f33f2f",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/domain/preference.py": {
+    "mtime": 1790909144.8863113,
+    "seen": 1790910906.635182,
+    "ast_hash": "a2d5fec0338da446d830c5eed76f9af1",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/domain/procedure.py": {
+    "mtime": 1790909167.5689144,
+    "seen": 1790910906.635184,
+    "ast_hash": "e0c0ea899cc25ee114f62195738ee370",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/domain/query.py": {
+    "mtime": 1790909050.405349,
+    "seen": 1790910906.6351862,
+    "ast_hash": "6ef25772e4eb8fad1d2df77714cd9b03",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/domain/semantic.py": {
+    "mtime": 1790909080.9737926,
+    "seen": 1790910906.6351883,
+    "ast_hash": "edf65be753abb9fdd84ca30cbefbcdb5",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/domain/trading.py": {
+    "mtime": 1790909223.427579,
+    "seen": 1790910906.63519,
+    "ast_hash": "5847f0102b62ed5eb415b06702b4c72b",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/embeddings/__init__.py": {
+    "mtime": 1790909670.9480412,
+    "seen": 1790910906.6351924,
+    "ast_hash": "4e2519850f485e254b570a746f80d040",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/embeddings/base.py": {
+    "mtime": 1790909644.8551414,
+    "seen": 1790910906.6351943,
+    "ast_hash": "fb921f1f364df3fdaad69ecc8096f280",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/embeddings/hashing.py": {
+    "mtime": 1790909660.9179904,
+    "seen": 1790910906.6351964,
+    "ast_hash": "86b68d05306395951032a764bff4c641",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/events.py": {
+    "mtime": 1790909916.7432718,
+    "seen": 1790910906.6351984,
+    "ast_hash": "fa9d98a22f12a19839317ec0f37215e9",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/graph/__init__.py": {
+    "mtime": 1790909795.3349292,
+    "seen": 1790910906.6352007,
+    "ast_hash": "0afcfe9c771bea3b760ad6d3fa7ee155",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/graph/store.py": {
+    "mtime": 1790909788.7793934,
+    "seen": 1790910906.635203,
+    "ast_hash": "d7a75a8408678ffc2258f874034b6fe0",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/services/__init__.py": {
+    "mtime": 1790910160.2195923,
+    "seen": 1790910906.6352048,
+    "ast_hash": "36d04c21d057bf38c7dfcfde7d30d489",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/services/consolidator.py": {
+    "mtime": 1790910028.129486,
+    "seen": 1790910906.635207,
+    "ast_hash": "23000d7f1901b8f5f54c5e41f199b36e",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/services/lifecycle.py": {
+    "mtime": 1790909882.223647,
+    "seen": 1790910906.6352093,
+    "ast_hash": "f26644e703d0127e14777cf33f28ba9e",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/services/manager.py": {
+    "mtime": 1790910092.8297575,
+    "seen": 1790910906.6352115,
+    "ast_hash": "cace1ace916c068899f0e5020ab74e7d",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/services/policy.py": {
+    "mtime": 1790909899.779652,
+    "seen": 1790910906.6352134,
+    "ast_hash": "e8a7f6a42444819e905e83dcb39bbd93",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/services/provider.py": {
+    "mtime": 1790910343.9969995,
+    "seen": 1790910906.6352155,
+    "ast_hash": "12b296b4d38d0893947a969c1e54fda0",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/services/retriever.py": {
+    "mtime": 1790909974.6508045,
+    "seen": 1790910906.6352177,
+    "ast_hash": "1c482078a24165c83337c48382140b54",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/services/scorer.py": {
+    "mtime": 1790909839.0022085,
+    "seen": 1790910906.6352198,
+    "ast_hash": "8f6f2ac098cd9c4a4a559cc4f5b822af",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/services/validator.py": {
+    "mtime": 1790909854.777177,
+    "seen": 1790910906.6352215,
+    "ast_hash": "525477c9b6a3eed3e2ceefc5b60dc8cb",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/services/working_memory.py": {
+    "mtime": 1790909999.747857,
+    "seen": 1790910906.6352236,
+    "ast_hash": "576941589fca2aeee24fe5fcab7354af",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/services/writer.py": {
+    "mtime": 1790909939.453729,
+    "seen": 1790910906.6352255,
+    "ast_hash": "295f15c56065b5173a50f81fe6276655",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/storage/__init__.py": {
+    "mtime": 1790909482.806044,
+    "seen": 1790910906.6352274,
+    "ast_hash": "e0000050cfa58d7ee9cf35cac054ec71",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/storage/database.py": {
+    "mtime": 1790910182.960835,
+    "seen": 1790910906.635229,
+    "ast_hash": "cca958a040f5c6035eb91759840bd16c",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/storage/repository.py": {
+    "mtime": 1790910127.902009,
+    "seen": 1790910906.6352315,
+    "ast_hash": "6d7906ee3012f0c0b7d5e7bf8a91094d",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/storage/schema.py": {
+    "mtime": 1790909332.5056744,
+    "seen": 1790910906.6352332,
+    "ast_hash": "556e93bf6e7642c099b75225b7125f28",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/tools.py": {
+    "mtime": 1790910321.4306927,
+    "seen": 1790910906.6352355,
+    "ast_hash": "e631daf035bd2bbb7e8994dc13932385",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/vector/__init__.py": {
+    "mtime": 1790909727.1261814,
+    "seen": 1790910906.635238,
+    "ast_hash": "d08e8f064ae4a30d39fe070f18a2c443",
+    "semantic_hash": ""
+  },
+  "src/aetheros/memory/vector/index.py": {
+    "mtime": 1790909720.447718,
+    "seen": 1790910906.6352398,
+    "ast_hash": "319819ce80853a7e2127caac3267121f",
+    "semantic_hash": ""
+  },
+  "src/aetheros/trading/services/monitoring_scheduler.py": {
+    "mtime": 1790907549.1922226,
+    "seen": 1790910906.6355023,
+    "ast_hash": "a90b365e5b1016b3992dcb9d3e8f8742",
+    "semantic_hash": ""
+  },
+  "tests/memory/conftest.py": {
+    "mtime": 1790910211.876042,
+    "seen": 1790910906.6357498,
+    "ast_hash": "923b87f44105325c5010c58fbc315495",
+    "semantic_hash": ""
+  },
+  "tests/memory/test_memory_services.py": {
+    "mtime": 1790910263.6479812,
+    "seen": 1790910906.6357522,
+    "ast_hash": "7f69c7790875777a655b22ec7363a8b0",
+    "semantic_hash": ""
+  },
+  "tests/memory/test_memory_storage.py": {
+    "mtime": 1790909559.51001,
+    "seen": 1790910906.6357543,
+    "ast_hash": "e3f7f27285ea3fc2544721f4467da414",
+    "semantic_hash": ""
+  },
+  "tests/memory/test_memory_tools.py": {
+    "mtime": 1790910431.6329412,
+    "seen": 1790910906.6357563,
+    "ast_hash": "9e604c1490b9ad60d5286a0a73a4b6fc",
+    "semantic_hash": ""
+  },
+  "tests/trading/test_monitoring_scheduler.py": {
+    "mtime": 1790907069.7091017,
+    "seen": 1790910906.6358595,
+    "ast_hash": "62af598680c4a5f3d0ae3389bc3b6c2b",
     "semantic_hash": ""
   }
 }

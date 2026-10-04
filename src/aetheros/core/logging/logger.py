@@ -145,7 +145,7 @@ def setup_logging(
     if _CONFIGURED and not force:
         return logger
 
-    configure_handlers(console=console)
+    run_dir = configure_handlers(console=console)
 
     _CONFIGURED = True
 
@@ -171,7 +171,7 @@ def enable_console_logging() -> None:
     Re-configure logging with a stderr console sink attached.
     """
 
-    setup_logging(console=True, force=True)
+    setup_logging(console=True, force=False)
 
 
 def disable_console_logging() -> None:
