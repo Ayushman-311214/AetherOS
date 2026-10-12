@@ -1,0 +1,13 @@
+# Normalize line endings: keep LF in the repo on every platform so tools
+# (ruff, formatters, editors) can't introduce CRLF churn in diffs.
+* text=auto eol=lf
+
+# Binary assets must never be line-ending normalized.
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.db binary
+*.sig binary
