@@ -10,10 +10,313 @@ internal shape.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any
 
 from ..runtime.events.events import Event
+
+
+@dataclass(frozen=True, slots=True)
+class MarketOpened(Event):
+    """A market session opened for an instrument or venue."""
+
+    market: str = ""
+    instrument_key: str | None = None
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "market": self.market,
+            "instrument_key": self.instrument_key,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class MarketDataReceived(Event):
+    """
+    A fresh market-data snapshot arrived and passed validation.
+
+    This is the pull-based system's analogue of "data received on the wire": it
+    fires when :meth:`MarketDataService.get_candles` returns a newly fetched
+    series, before any per-bar ``CandleClosed`` events are replayed. It carries
+    only the snapshot's own shape -- instrument, timeframe, bar count, the last
+    bar's identity -- never a fabricated live-stream detail. ``is_mock`` is
+    surfaced so a subscriber downstream can never mistake synthetic data for a
+    real feed (CLAUDE.md section 9).
+    """
+
+    instrument_key: str = ""
+    timeframe: str = ""
+    candle_count: int = 0
+    last_price: float | None = None
+    first_bar_timestamp: str = ""
+    last_bar_timestamp: str = ""
+    source_tier: str = ""
+    quality_status: str = ""
+    is_mock: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "instrument_key": self.instrument_key,
+            "timeframe": self.timeframe,
+            "candle_count": self.candle_count,
+            "last_price": self.last_price,
+            "first_bar_timestamp": self.first_bar_timestamp,
+            "last_bar_timestamp": self.last_bar_timestamp,
+            "source_tier": self.source_tier,
+            "quality_status": self.quality_status,
+            "is_mock": self.is_mock,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class CandleClosed(Event):
+    """
+    A single completed (closed) OHLCV bar became part of an instrument's series.
+
+    AetherOS is pull-based: it fetches a *snapshot* of bars rather than a live
+    tick stream. A candle in a delivered snapshot is by definition closed -- the
+    provider only hands over bars whose period has elapsed -- so every bar the
+    service surfaces is announced here as ``CandleClosed``. There is deliberately
+    no ``CandleUpdated``: this build does not track a still-forming bar, and
+    inventing one would pretend a granularity the data does not have (see the
+    module docstring and docs/trading-intelligence/03-event-contracts.md).
+
+    ``is_final_bar`` marks the last candle of the delivered series -- the bar a
+    downstream subscriber usually acts on -- so a replaying consumer can emit the
+    whole series yet a live one can filter to the newest close.
+    """
+
+    instrument_key: str = ""
+    timeframe: str = ""
+    index: int = 0
+    is_final_bar: bool = False
+    bar_timestamp: str = ""  # the candle's own open time (UTC, ISO) -- not the event's
+    open: float = 0.0
+    high: float = 0.0
+    low: float = 0.0
+    close: float = 0.0
+    volume: float = 0.0
+    source_tier: str = ""
+    quality_status: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),  # event wall-clock time
+            "name": self.name,
+            "instrument_key": self.instrument_key,
+            "timeframe": self.timeframe,
+            "index": self.index,
+            "is_final_bar": self.is_final_bar,
+            "bar_timestamp": self.bar_timestamp,
+            "open": self.open,
+            "high": self.high,
+            "low": self.low,
+            "close": self.close,
+            "volume": self.volume,
+            "source_tier": self.source_tier,
+            "quality_status": self.quality_status,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class OrderBookUpdated(Event):
+    """
+    An order-book (depth) snapshot became available for an instrument.
+
+    Mirrors the pull-based design: it carries the *top* of the delivered book
+    (best bid/ask, mid, spread, level counts) so a subscriber can react to
+    microstructure without re-serialising every level. ``depth`` is the number
+    of levels per side actually delivered -- the event reports what the source
+    provided, never pads to a nominal depth (CLAUDE.md section 9).
+    """
+
+    instrument_key: str = ""
+    bid_levels: int = 0
+    ask_levels: int = 0
+    best_bid: float | None = None
+    best_ask: float | None = None
+    mid_price: float | None = None
+    spread: float | None = None
+    book_timestamp: str = ""
+    source_tier: str = ""
+    is_mock: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "instrument_key": self.instrument_key,
+            "bid_levels": self.bid_levels,
+            "ask_levels": self.ask_levels,
+            "best_bid": self.best_bid,
+            "best_ask": self.best_ask,
+            "mid_price": self.mid_price,
+            "spread": self.spread,
+            "book_timestamp": self.book_timestamp,
+            "source_tier": self.source_tier,
+            "is_mock": self.is_mock,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class TradeReceived(Event):
+    """
+    A single executed trade print was reported for an instrument.
+
+    Carries the print itself (price, amount, aggressor side) plus provenance.
+    ``side`` is the aggressor: ``up`` = buyer-initiated, ``down`` = seller-initiated
+    (matching ``TradeTick.side``). An event is only as honest as its source --
+    ``is_mock`` keeps a synthetic print from reading as a real one.
+    """
+
+    instrument_key: str = ""
+    price: float = 0.0
+    amount: float = 0.0
+    side: str = ""
+    trade_timestamp: str = ""
+    tick_id: str = ""
+    source_tier: str = ""
+    is_mock: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "instrument_key": self.instrument_key,
+            "price": self.price,
+            "amount": self.amount,
+            "side": self.side,
+            "trade_timestamp": self.trade_timestamp,
+            "tick_id": self.tick_id,
+            "source_tier": self.source_tier,
+            "is_mock": self.is_mock,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SignalGenerated(Event):
+    """An evidence-backed proposed trade action was generated."""
+
+    signal_id: str = ""
+    instrument_key: str = ""
+    action: str = ""
+    direction: str = ""
+    confidence: str = ""
+    risk: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "signal_id": self.signal_id,
+            "instrument_key": self.instrument_key,
+            "action": self.action,
+            "direction": self.direction,
+            "confidence": self.confidence,
+            "risk": self.risk,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class OrderSubmitted(Event):
+    """An order was submitted to an execution provider."""
+
+    order_id: str = ""
+    instrument_key: str = ""
+    direction: str = ""
+    order_type: str = ""
+    quantity: float = 0.0
+    provider: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "order_id": self.order_id,
+            "instrument_key": self.instrument_key,
+            "direction": self.direction,
+            "order_type": self.order_type,
+            "quantity": self.quantity,
+            "provider": self.provider,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class OrderFilled(Event):
+    """An order received a fill, fully or partially."""
+
+    order_id: str = ""
+    instrument_key: str = ""
+    filled_quantity: float = 0.0
+    fill_price: float = 0.0
+    fully_filled: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "order_id": self.order_id,
+            "instrument_key": self.instrument_key,
+            "filled_quantity": self.filled_quantity,
+            "fill_price": self.fill_price,
+            "fully_filled": self.fully_filled,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class PositionClosed(Event):
+    """A position was closed and its realised result recorded."""
+
+    position_id: str = ""
+    instrument_key: str = ""
+    exit_price: float = 0.0
+    realized_pnl: float = 0.0
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "position_id": self.position_id,
+            "instrument_key": self.instrument_key,
+            "exit_price": self.exit_price,
+            "realized_pnl": self.realized_pnl,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RiskLimitReached(Event):
+    """A configured risk boundary was reached or breached."""
+
+    limit_name: str = ""
+    observed_value: float = 0.0
+    limit_value: float = 0.0
+    instrument_key: str | None = None
+    reason: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "limit_name": self.limit_name,
+            "observed_value": self.observed_value,
+            "limit_value": self.limit_value,
+            "instrument_key": self.instrument_key,
+            "reason": self.reason,
+        }
 
 
 @dataclass(frozen=True, slots=True)
@@ -229,6 +532,12 @@ class MarketEventsDetected(Event):
     has_high_impact: bool = False
     next_event_type: str = ""
     next_event_days: float | None = None
+    # The soonest *high-impact* event's macro release, when it is a named one
+    # ("cpi", "fomc", ...). Empty for an unnamed macro release or a non-macro
+    # event, where next_event_type already says what it is. Present so a
+    # subscriber watching for event risk can tell a CPI print from a PMI
+    # without re-classifying the title itself.
+    next_high_impact_kind: str = ""
     is_reliable: bool = False
     source_tier: str = ""
 
@@ -243,6 +552,7 @@ class MarketEventsDetected(Event):
             "has_high_impact": self.has_high_impact,
             "next_event_type": self.next_event_type,
             "next_event_days": self.next_event_days,
+            "next_high_impact_kind": self.next_high_impact_kind,
             "is_reliable": self.is_reliable,
             "source_tier": self.source_tier,
         }
@@ -512,3 +822,220 @@ class MonitoringSweepCompleted(Event):
             "is_reliable": self.is_reliable,
             "is_mock": self.is_mock,
         }
+
+
+@dataclass(frozen=True, slots=True)
+class MarketRegimeChanged(Event):
+    """
+    The prevailing market regime for an instrument *transitioned* between states.
+
+    This is distinct from ``MarketRegimeDetected`` (which reports the regime read
+    *now*, with no memory of the last). A ``MarketRegimeChanged`` asserts a real
+    before->after transition and so carries both the previous and the new regime.
+    It is only honest to publish when a prior regime for the same
+    instrument+timeframe was genuinely recorded -- the producer that publishes
+    this must hold (or be given) that previous state; the detector itself stays
+    stateless and publishes ``MarketRegimeDetected``. ``is_reliable`` follows the
+    new read's own gate (CLAUDE.md sections 5, 28).
+    """
+
+    instrument_key: str = ""
+    timeframe: str = ""
+    previous_regime: str = ""
+    regime: str = ""
+    direction: str = ""  # directional bias of the NEW regime (never a probability)
+    is_reliable: bool = False
+    source_tier: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "instrument_key": self.instrument_key,
+            "timeframe": self.timeframe,
+            "previous_regime": self.previous_regime,
+            "regime": self.regime,
+            "direction": self.direction,
+            "is_reliable": self.is_reliable,
+            "source_tier": self.source_tier,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class FeatureUpdated(Event):
+    """
+    A feature vector for the quant layer was recomputed for an instrument.
+
+    Carries the *shape and provenance* of the recomputation -- which model fed on
+    it, how many causal features, whether a live (unlabelled) row existed --
+    rather than the raw matrix (which is large and already reproducible from the
+    candles). ``is_reliable`` mirrors the producing estimate's edge gate so a
+    subscriber can never read a mock/no-edge feature set as a real signal input
+    (CLAUDE.md sections 6, 9).
+    """
+
+    instrument_key: str = ""
+    timeframe: str = ""
+    horizon_bars: int = 0
+    feature_names: tuple[str, ...] = ()
+    has_live_row: bool = False
+    model: str = ""
+    is_reliable: bool = False
+    source_tier: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "instrument_key": self.instrument_key,
+            "timeframe": self.timeframe,
+            "horizon_bars": self.horizon_bars,
+            "feature_count": len(self.feature_names),
+            "feature_names": list(self.feature_names),
+            "has_live_row": self.has_live_row,
+            "model": self.model,
+            "is_reliable": self.is_reliable,
+            "source_tier": self.source_tier,
+        }
+
+
+# ======================================================================
+# Liquidity-intelligence events (Phase 2, order-book / tape microstructure)
+#
+# These are distinct named Event subclasses so a subscriber can register for
+# exactly the change it cares about. They share a payload shape -- instrument,
+# side, the zone band it concerns, the supporting numbers and the honesty flag
+# -- carried on a common base so a consumer can read any of them uniformly.
+# ======================================================================
+
+#: Canonical liquidity event kinds (the class names are the event names).
+LIQUIDITY_APPEARED = "LiquidityAppeared"
+LIQUIDITY_REMOVED = "LiquidityRemoved"
+LIQUIDITY_REPLENISHED = "LiquidityReplenished"
+LIQUIDITY_CONSUMED = "LiquidityConsumed"
+LIQUIDITY_SWEPT = "LiquiditySwept"
+LIQUIDITY_ABSORBED = "LiquidityAbsorbed"
+LIQUIDITY_IMBALANCE_CHANGED = "LiquidityImbalanceChanged"
+LIQUIDITY_ZONE_CREATED = "LiquidityZoneCreated"
+LIQUIDITY_ZONE_WEAKENED = "LiquidityZoneWeakened"
+LIQUIDITY_ZONE_INVALIDATED = "LiquidityZoneInvalidated"
+
+
+@dataclass(frozen=True, slots=True)
+class LiquidityEvent(Event):
+    """
+    Base payload for order-book / tape liquidity changes (Phase 2).
+
+    ``zone_id`` is the content-addressed id of the ``LiquidityZone`` the change
+    belongs to (empty for whole-book reads like an imbalance flip). ``side`` is
+    ``"bid"`` / ``"ask"`` / ``"none"``; the numeric context (price, volume,
+    liquidity/persistence scores) is kept flat so a dashboard, a logger, a
+    future Memory adapter or a backtester can read it without deserialising a
+    nested zone. ``is_mock`` is surfaced so synthetic liquidity is never read as
+    a real wall (CLAUDE.md sections 9, 28).
+    """
+
+    instrument_key: str = ""
+    side: str = ""
+    zone_id: str = ""
+    lower_price: float | None = None
+    upper_price: float | None = None
+    price: float | None = None
+    volume: float | None = None
+    liquidity_score: float | None = None
+    persistence_score: float | None = None
+    detail: str = ""
+    source_tier: str = ""
+    is_mock: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "instrument_key": self.instrument_key,
+            "side": self.side,
+            "zone_id": self.zone_id,
+            "lower_price": self.lower_price,
+            "upper_price": self.upper_price,
+            "price": self.price,
+            "volume": self.volume,
+            "liquidity_score": self.liquidity_score,
+            "persistence_score": self.persistence_score,
+            "detail": self.detail,
+            "source_tier": self.source_tier,
+            "is_mock": self.is_mock,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class LiquidityAppeared(LiquidityEvent):
+    """New resting liquidity showed at a band."""
+
+
+@dataclass(frozen=True, slots=True)
+class LiquidityRemoved(LiquidityEvent):
+    """Resting liquidity was pulled from a band (not consumed by the tape)."""
+
+
+@dataclass(frozen=True, slots=True)
+class LiquidityReplenished(LiquidityEvent):
+    """Resting liquidity reappeared at a band after being consumed."""
+
+
+@dataclass(frozen=True, slots=True)
+class LiquidityConsumed(LiquidityEvent):
+    """Executed flow ate into a zone's resting liquidity."""
+
+
+@dataclass(frozen=True, slots=True)
+class LiquiditySwept(LiquidityEvent):
+    """Price cleared through a zone -- an *acceptance* (the wall gave way)."""
+
+
+@dataclass(frozen=True, slots=True)
+class LiquidityAbsorbed(LiquidityEvent):
+    """
+    Aggressive flow was absorbed without proportional price response, or price
+    swept into a zone and was rejected (the wall held). ``detail`` says which.
+    """
+
+
+@dataclass(frozen=True, slots=True)
+class LiquidityImbalanceChanged(LiquidityEvent):
+    """The resting bid/ask balance flipped to a one-sided regime."""
+
+
+@dataclass(frozen=True, slots=True)
+class LiquidityZoneCreated(LiquidityEvent):
+    """A new resting-liquidity cluster became a tracked zone."""
+
+
+@dataclass(frozen=True, slots=True)
+class LiquidityZoneWeakened(LiquidityEvent):
+    """A tracked zone's resting liquidity faded but has not yet dissolved."""
+
+
+@dataclass(frozen=True, slots=True)
+class LiquidityZoneInvalidated(LiquidityEvent):
+    """A tracked zone dissolved -- its resting liquidity fell below the floor."""
+
+
+#: The liquidity event subclasses, keyed by name for the service's dispatch.
+LIQUIDITY_EVENT_TYPES: dict[str, type[LiquidityEvent]] = {
+    cls.__name__: cls
+    for cls in (
+        LiquidityAppeared,
+        LiquidityRemoved,
+        LiquidityReplenished,
+        LiquidityConsumed,
+        LiquiditySwept,
+        LiquidityAbsorbed,
+        LiquidityImbalanceChanged,
+        LiquidityZoneCreated,
+        LiquidityZoneWeakened,
+        LiquidityZoneInvalidated,
+    )
+}

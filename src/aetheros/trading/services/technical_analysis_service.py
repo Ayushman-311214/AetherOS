@@ -13,10 +13,16 @@ from __future__ import annotations
 
 from ...core.logging import get_logger
 from .. import indicators as ind
-from ..domain.enums import SourceTier, Timeframe
+from ..domain.enums import SourceTier
 from ..domain.market_data import MarketData
 from ..domain.provenance import Provenance
-from ..domain.technical import BollingerReading, MACDReading, TechnicalSnapshot
+from ..domain.technical import (
+    BollingerReading,
+    MACDReading,
+    SuperTrendReading,
+    TechnicalSnapshot,
+    VolumeProfileReading,
+)
 from ..errors import InsufficientDataError
 
 logger = get_logger("trading.technical")
@@ -37,7 +43,12 @@ DEFAULT_PARAMS: dict[str, int] = {
     "adx": 14,
     "volume_ma": 20,
     "volatility": 20,
+    "supertrend_period": 10,
+    "volume_profile_bins": 20,
 }
+
+# SuperTrend band multiplier (a float knob, kept beside the integer params).
+DEFAULT_SUPERTREND_MULTIPLIER = 3.0
 
 # Below this many bars there is nothing meaningful to compute at all.
 MIN_BARS = 2
@@ -81,6 +92,34 @@ class TechnicalAnalysisService:
         if None not in (bm, bu, bl):
             boll_reading = BollingerReading(middle=bm, upper=bu, lower=bl)
 
+        st_line, st_dir, st_stop = ind.supertrend(
+            highs, lows, closes, p["supertrend_period"], DEFAULT_SUPERTREND_MULTIPLIER
+        )
+        supertrend_reading = None
+        stl, std, sts = (
+            ind.last_finite(st_line),
+            ind.last_finite(st_dir),
+            ind.last_finite(st_stop),
+        )
+        if None not in (stl, std, sts):
+            supertrend_reading = SuperTrendReading(
+                direction="up" if std > 0 else "down",
+                line=stl,
+                stop=sts,
+            )
+
+        profile = ind.volume_profile(closes, volumes, p["volume_profile_bins"])
+        volume_profile_reading = (
+            VolumeProfileReading(
+                poc=profile.poc,
+                value_area_low=profile.value_area_low,
+                value_area_high=profile.value_area_high,
+                total_volume=profile.total_volume,
+            )
+            if profile is not None
+            else None
+        )
+
         return_pct = None
         rets = ind.returns(closes)
         last_ret = ind.last_finite(rets)
@@ -109,6 +148,8 @@ class TechnicalAnalysisService:
             volume_ma=ind.last_finite(ind.volume_ma(volumes, p["volume_ma"])),
             return_pct=return_pct,
             volatility=ind.last_finite(ind.volatility(closes, p["volatility"])),
+            supertrend=supertrend_reading,
+            volume_profile=volume_profile_reading,
             params=dict(self._params),
         )
         return snapshot

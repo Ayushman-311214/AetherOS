@@ -121,4 +121,5 @@ class MonitoringService:
                 )
             )
         except Exception:
+            
             logger.exception("Failed to publish MonitoringSweepCompleted")

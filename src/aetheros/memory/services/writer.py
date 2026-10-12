@@ -11,6 +11,8 @@ integration) produced it.
 
 from __future__ import annotations
 
+from typing import Any
+
 from ..domain.enums import RelationType
 from ..domain.memory import Memory
 from ..domain.semantic import Entity, Relationship
@@ -62,6 +64,66 @@ class MemoryWriter:
         await self._vectors.index(memory.id, self._embedding_text(memory))
         await self._publish(memory)
         return memory
+
+    # ------------------------------------------------------------------
+    # Projection consistency / repair (spec Phase 4 -- "establish the
+    # consistency and repair seam for later vector/graph projections")
+    # ------------------------------------------------------------------
+
+    async def reindex(self, memory: Memory) -> None:
+        """Rebuild the vector projection for one memory from the authoritative row.
+
+        Structured storage is the source of truth; the vector index is a
+        derived projection. This recomputes that projection without touching the
+        authoritative row -- the primitive used by projection repair.
+        """
+        await self._vectors.index(memory.id, self._embedding_text(memory))
+
+    async def verify_projection(self) -> dict[str, Any]:
+        """Report drift between the authoritative store and the vector projection.
+
+        Does not pretend a distributed transaction exists: it compares the two
+        independent stores and returns what repair would do. ``missing`` =
+        recallable memories with no vector; ``orphan`` = vectors whose memory
+        is gone, soft-deleted, archived or expired (which must not leak
+        through recall). Only recallable statuses require vectors (spec
+        Phase 14 -- the lifecycle deletes vectors when rows leave recall).
+        """
+        from ..domain.enums import RECALLABLE_STATUSES
+
+        live = await self._repo.iter_all(include_deleted=False)
+        needy_ids = {m.id for m in live if m.status in RECALLABLE_STATUSES}
+        vector_ids = set(await self._vectors.ids())
+        missing = sorted(needy_ids - vector_ids)
+        orphan = sorted(vector_ids - needy_ids)
+        return {
+            "memories": len(needy_ids),
+            "vectors": len(vector_ids),
+            "missing": missing,
+            "orphan": orphan,
+            "consistent": not missing and not orphan,
+        }
+
+    async def repair_projection(self) -> dict[str, int]:
+        """Make the vector projection consistent with the authoritative store.
+
+        Re-embeds every recallable memory missing a vector and deletes vectors
+        whose memory is gone, soft-deleted, archived or expired. Idempotent:
+        a second run reports zeros.
+        """
+        report = await self.verify_projection()
+        by_id = {m.id: m for m in await self._repo.iter_all(include_deleted=False)}
+        reindexed = 0
+        for memory_id in report["missing"]:
+            memory = by_id.get(memory_id)
+            if memory is not None:
+                await self._vectors.index(memory_id, self._embedding_text(memory))
+                reindexed += 1
+        removed = 0
+        for memory_id in report["orphan"]:
+            await self._vectors.delete(memory_id)
+            removed += 1
+        return {"reindexed": reindexed, "removed": removed}
 
     @staticmethod
     def _embedding_text(memory: Memory) -> str:

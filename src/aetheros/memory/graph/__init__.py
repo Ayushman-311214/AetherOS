@@ -2,6 +2,6 @@
 
 from __future__ import annotations
 
-from .store import KnowledgeGraph
+from .store import KnowledgeGraph, TraversalBounds
 
-__all__ = ["KnowledgeGraph"]
+__all__ = ["KnowledgeGraph", "TraversalBounds"]

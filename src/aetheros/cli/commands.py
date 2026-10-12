@@ -1,11 +1,10 @@
 from __future__ import annotations
 
+import ast
+import inspect
 import os
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any
-import ast
-
-import inspect
 
 from ..core.logging import get_logger
 from ..tools.annotations import public_parameters, resolve_hints
@@ -31,7 +30,6 @@ class CommandRegistry:
         agent=None,
         trace=None,
         gateway=None,
-    
     ) -> None:
 
         self._commands = {}
@@ -72,6 +70,7 @@ class CommandRegistry:
         self.register("tool", self._tool)
 
         self.register("analyze", self._analyze)
+        self.register("workspace", self._workspace_command)
         self.register("brief", self._brief_command)
         self.register("investigate", self._investigate_command)
         self.register("explain", self._explain_command)
@@ -151,6 +150,7 @@ class CommandRegistry:
                 status     Show system status
                 ask        Send a message to the LLM
                 analyze    Deterministic trading report (analyze <symbol> [timeframe] [backtest])
+                workspace  Live multi-panel TUI workspace (workspace [symbol] [timeframe])
                 brief      CEO brief from a free-text request (brief should I look at AAPL this week)
                 investigate  Agentic CEO tool-loop (investigate [research|quant|critic] <request>)
                 explain    Why a recommendation came out that way (explain <symbol> [timeframe])
@@ -159,7 +159,7 @@ class CommandRegistry:
                 monitor    Resolve + score recorded predictions (monitor [SYMBOL:EXCHANGE] [limit])
                 monitor-loop  Autonomous monitoring loop (monitor-loop start|stop|status)
                 track-record  Recorded predictions + how they scored (track-record [SYMBOL:EXCHANGE] [limit])
-                memory     Inspect/manage memory (memory [stats|search <q>|show <id>|list|forget <id>])
+                memory     Inspect/manage memory (memory [stats|search <q>|show <id>|list|forget <id>|correct|erase|export])
                 tools      List registered tools
                 desktop    Desktop operations
                 browser    Browser operations
@@ -191,22 +191,12 @@ class CommandRegistry:
     def _tools(self, args: list[str]) -> str:
 
         if self._tool_service is None:
-            return (
-                "\n"
-                "Tool Registry\n"
-                "-------------\n"
-                "Status : NOT CONNECTED\n"
-            )
+            return "\n" "Tool Registry\n" "-------------\n" "Status : NOT CONNECTED\n"
 
         names = self._tool_service.list_tools()
 
         if not names:
-            return (
-                "\n"
-                "Tool Registry\n"
-                "-------------\n"
-                "No tools registered.\n"
-            )
+            return "\n" "Tool Registry\n" "-------------\n" "No tools registered.\n"
 
         lines = [
             "",
@@ -222,8 +212,8 @@ class CommandRegistry:
                 signature = self._format_tool_signature(
                     name,
                     tool.function,
-                    # tool.description,   
-                    )
+                    # tool.description,
+                )
                 # lines.append(f"{name}")
             except KeyError:
                 # Listed by the registry but no longer resolvable: keep the
@@ -233,7 +223,6 @@ class CommandRegistry:
                 #     "Tool listed but not found in registry: %s",)
             lines.append(signature)
             lines.append("")
-                
 
         return "\n".join(lines)
 
@@ -323,7 +312,6 @@ class CommandRegistry:
 
         return repr(value)
 
-
     async def _memory_command(self, args: list[str]) -> str:
         """
         Inspect and manage the memory subsystem (spec Phase 15/28).
@@ -335,8 +323,13 @@ class CommandRegistry:
             memory show <id>            Full detail for one memory
             memory list [type]          List recent memories (optionally by type)
             memory forget <id> [hard]   Forget a memory (soft, or hard-delete)
+            memory correct <id> <text>  Correct a user fact (history kept)
+            memory erase <id>           Permanently erase (coordinated; history
+                                        needs allow_history)
+            memory export               Export all memories as JSON
 
-        Read-only by default; `forget` is the only mutation and it is explicit.
+        Read-only by default; `forget`/`correct`/`erase` are explicit
+        mutations routed through the scope-enforced user controls.
         Resolves the live MemoryManager from the DI container, so it honestly
         reports NOT ENABLED when ENABLE_MEMORY is off rather than pretending.
         """
@@ -351,7 +344,7 @@ class CommandRegistry:
             )
 
         manager = container.resolve(MemoryManager)
-        sub = (args[0].strip().lower() if args else "stats")
+        sub = args[0].strip().lower() if args else "stats"
         rest = args[1:]
 
         if sub in ("stats", ""):
@@ -407,14 +400,22 @@ class CommandRegistry:
 
         if sub == "list":
             mtype = rest[0].strip().lower() if rest else None
-            memories = await manager._repo.list_by(memory_type=mtype, limit=20)
-            if not memories:
+            from ..memory.domain.enums import MemoryType as MT
+
+            mtenum = None
+            if mtype:
+                try:
+                    mtenum = MT(mtype)
+                except ValueError:
+                    mtenum = None
+            rows = await manager.controls.list_scope(memory_type=mtenum, limit=20)
+            if not rows:
                 return "No memories stored."
             lines = ["\nStored memories\n"]
-            for m in memories:
+            for d in rows:
                 lines.append(
-                    f"  {m.id[:8]}  [{m.memory_type.value:<10}] "
-                    f"({m.status.value}) {m.content[:70]}"
+                    f"  {d['id'][:8]}  [{d['memory_type']:<10}] "
+                    f"({d['status']}) {d['content'][:70]}"
                 )
             return "\n".join(lines)
 
@@ -422,14 +423,61 @@ class CommandRegistry:
             if not rest:
                 return "Usage: memory forget <id> [hard]"
             hard = len(rest) > 1 and rest[1].strip().lower() in ("hard", "--hard")
-            ok = await manager.forget(rest[0], hard=hard)
-            if not ok:
-                return f"No memory with id {rest[0]}"
-            return f"Forgot {rest[0]} ({'hard-deleted' if hard else 'soft-deleted'})."
+            try:
+                if hard:
+                    result = await manager.controls.erase(rest[0])
+                    return (
+                        f"Forgot {rest[0]} (hard-deleted: row + vector + "
+                        f"{result['links_removed']} links + "
+                        f"{result['graph_edges_scrubbed']} graph refs)."
+                    )
+                result = await manager.controls.forget(rest[0])
+                if not result["forgotten"]:
+                    return f"No memory with id {rest[0]}"
+                return f"Forgot {rest[0]} (soft-deleted)."
+            except Exception as exc:
+                return f"Cannot forget {rest[0]}: {exc}"
+
+        if sub == "correct":
+            if len(rest) < 2:
+                return "Usage: memory correct <id> <new text>"
+            try:
+                result = await manager.controls.correct(
+                    rest[0], " ".join(rest[1:])
+                )
+                if not result["applied"]:
+                    return f"No change for {rest[0]} ({result['reason']})."
+                return f"Corrected {rest[0]} (now version {result['version']})."
+            except Exception as exc:
+                return f"Cannot correct {rest[0]}: {exc}"
+
+        if sub == "erase":
+            if not rest:
+                return "Usage: memory erase <id> [allow_history]"
+            allow_history = any(
+                r.strip().lower() == "allow_history" for r in rest[1:]
+            )
+            try:
+                result = await manager.controls.erase(
+                    rest[0], allow_history=allow_history
+                )
+                return (
+                    f"Forgot {rest[0]} (hard-deleted: row + vector + "
+                    f"{result['links_removed']} links + "
+                    f"{result['graph_edges_scrubbed']} graph refs)."
+                )
+            except Exception as exc:
+                return f"Cannot erase {rest[0]}: {exc}"
+
+        if sub == "export":
+            import json as _json
+
+            data = await manager.controls.export_scope(limit=1000)
+            return "\nMemory export (JSON)\n" + _json.dumps(data, indent=2)[:8000]
 
         return (
             f"Unknown memory subcommand: {sub}\n"
-            "Try: memory [stats|search|show|list|forget]"
+            "Try: memory [stats|search|show|list|forget|correct|erase|export]"
         )
 
     def _desktop(self, args: list[str]) -> str:
@@ -462,12 +510,7 @@ class CommandRegistry:
         """
 
         if self._llm_service is None:
-            return (
-                "\n"
-                "LLM\n"
-                "---\n"
-                "Status : NOT CONNECTED\n"
-            )
+            return "\n" "LLM\n" "---\n" "Status : NOT CONNECTED\n"
 
         provider = self._llm_service
 
@@ -561,9 +604,9 @@ class CommandRegistry:
         )
 
     async def _tool(
-            self,
-            args: list[str],
-            ) -> str:
+        self,
+        args: list[str],
+    ) -> str:
 
         if self._tool_service is None:
             return "Tool Registry is not connected."
@@ -591,8 +634,7 @@ class CommandRegistry:
                         mode="eval",
                     )
                     values = [
-                        ast.literal_eval(argument)
-                        for argument in parsed.body.args
+                        ast.literal_eval(argument) for argument in parsed.body.args
                     ]
                 else:
                     values = []
@@ -609,9 +651,7 @@ class CommandRegistry:
             for value in raw_values:
 
                 try:
-                    values.append(
-                        ast.literal_eval(value)
-                    )
+                    values.append(ast.literal_eval(value))
 
                 except (ValueError, SyntaxError):
                     values.append(value)
@@ -623,25 +663,21 @@ class CommandRegistry:
 
         if tool_definition is None:
 
-            return (
-                f"Tool definition not found: {name}"
-            )
+            return f"Tool definition not found: {name}"
 
-    # ==========================================================
-    # Get underlying function
-    # ==========================================================
+        # ==========================================================
+        # Get underlying function
+        # ==========================================================
 
         function = tool_definition.function
 
         signature = inspect.signature(function)
 
-        parameters = list(
-            signature.parameters.values()
-        )
+        parameters = list(signature.parameters.values())
 
-            # ==========================================================
-    # Build arguments dynamically
-    # ==========================================================
+        # ==========================================================
+        # Build arguments dynamically
+        # ==========================================================
 
         arguments = {}
 
@@ -669,10 +705,7 @@ class CommandRegistry:
 
                     continue
 
-                return (
-                    f"Missing argument: "
-                    f"{parameter.name}"
-                )
+                return f"Missing argument: " f"{parameter.name}"
 
             value = values[positional_index]
 
@@ -715,9 +748,7 @@ class CommandRegistry:
                             value = False
 
                         else:
-                            raise ValueError(
-                                f"Invalid boolean: {value}"
-                            )
+                            raise ValueError(f"Invalid boolean: {value}")
 
                     else:
 
@@ -729,10 +760,7 @@ class CommandRegistry:
 
             except Exception as exc:
 
-                return (
-                    f"Invalid argument "
-                    f"'{parameter.name}': {exc}"
-                )
+                return f"Invalid argument " f"'{parameter.name}': {exc}"
 
             arguments[parameter.name] = value
 
@@ -772,9 +800,7 @@ class CommandRegistry:
                 error_type=type(exc).__name__,
             ).warning("Manual tool invocation failed.")
 
-            return (
-                f"Tool execution failed: {exc}"
-            )
+            return f"Tool execution failed: {exc}"
 
     async def _analyze(
         self,
@@ -865,6 +891,68 @@ class CommandRegistry:
 
         return self._format_trading_report(payload)
 
+    async def _workspace_command(
+        self,
+        args: list[str],
+    ) -> str:
+        """
+        Launch the terminal-native multi-panel trading workspace (Phase 7).
+
+        Usage:
+            workspace [symbol] [timeframe]
+
+        One AetherOS application with synchronized panels (market, decision,
+        heatmap, evidence, events, logs, agents, system) over the same live
+        trading-intelligence state. Keyboard: 1-8 switch panels, p pause,
+        r refresh, q quit. The TUI holds no trading logic -- it renders the
+        real intelligence services' output (spec Phase 7).
+        """
+        symbol = args[0].strip() if args else "SPY"
+        timeframe = args[1].strip() if len(args) > 1 else "1d"
+
+        try:
+            from ..bootstrap.bootstrapper import Bootstrapper
+            from ..workspace import build_workspace
+            from ..workspace.driver import build_refresh_fn
+        except Exception as exc:
+            return f"Workspace unavailable: {exc}"
+
+
+        try:
+            boot = Bootstrapper()
+            await boot.start()
+        except Exception as exc:
+            return f"Bootstrap failed: {exc}"
+
+        try:
+            container = boot._container
+            from ..config.config_loader import get_settings
+            from ..runtime.events.event_bus import EventBus
+
+            settings = get_settings()
+
+            ws, adapter = build_workspace(
+                symbol=symbol,
+                timeframe=timeframe,
+                event_bus=container.resolve(EventBus),
+                memory_enabled=settings.ENABLE_MEMORY,
+            )
+            refresh = build_refresh_fn(container, adapter)
+            await adapter.start()
+            try:
+                await ws.run()
+            finally:
+                await adapter.stop()
+            return (
+                "Workspace closed.\n"
+                "Panels rendered real intelligence state; no trading logic "
+                "lives in the TUI."
+            )
+        except KeyboardInterrupt:
+            return "Workspace closed."
+        except Exception as exc:
+            return f"Workspace error: {exc}"
+
     async def _brief_command(
         self,
         args: list[str],
@@ -884,12 +972,7 @@ class CommandRegistry:
         """
 
         if self._tool_service is None:
-            return (
-                "\n"
-                "CEO Brief\n"
-                "---------\n"
-                "Status : NOT CONNECTED\n"
-            )
+            return "\n" "CEO Brief\n" "---------\n" "Status : NOT CONNECTED\n"
 
         request = " ".join(a for a in args if a.strip()).strip()
         if not request:
@@ -974,9 +1057,11 @@ class CommandRegistry:
         try:
             payload = await self._tool_service.execute(
                 "investigate_ceo",
-                {"request": request, "persona": persona}
-                if persona
-                else {"request": request},
+                (
+                    {"request": request, "persona": persona}
+                    if persona
+                    else {"request": request}
+                ),
             )
         except Exception as exc:
             self._logger.bind(error_type=type(exc).__name__).warning(
@@ -1054,10 +1139,7 @@ class CommandRegistry:
             )
 
         if not args or not args[0].strip():
-            return (
-                "Usage: explain <symbol> [timeframe]\n"
-                "Example: explain AAPL 1d"
-            )
+            return "Usage: explain <symbol> [timeframe]\n" "Example: explain AAPL 1d"
 
         symbol = args[0].strip()
         timeframe = "1d"
@@ -1071,9 +1153,9 @@ class CommandRegistry:
                 {"symbol": symbol, "timeframe": timeframe},
             )
         except Exception as exc:
-            self._logger.bind(
-                symbol=symbol, error_type=type(exc).__name__
-            ).warning("explain command failed.")
+            self._logger.bind(symbol=symbol, error_type=type(exc).__name__).warning(
+                "explain command failed."
+            )
             return f"Explanation failed: {type(exc).__name__}: {exc}"
 
         if isinstance(payload, dict) and "error" in payload:
@@ -1174,12 +1256,7 @@ class CommandRegistry:
         """
 
         if self._tool_service is None:
-            return (
-                "\n"
-                "Watchlist Scan\n"
-                "--------------\n"
-                "Status : NOT CONNECTED\n"
-            )
+            return "\n" "Watchlist Scan\n" "--------------\n" "Status : NOT CONNECTED\n"
 
         if not args:
             return (
@@ -1295,12 +1372,7 @@ class CommandRegistry:
         """
 
         if self._tool_service is None:
-            return (
-                "\n"
-                "Portfolio Risk\n"
-                "--------------\n"
-                "Status : NOT CONNECTED\n"
-            )
+            return "\n" "Portfolio Risk\n" "--------------\n" "Status : NOT CONNECTED\n"
 
         # Split tokens: a known-timeframe token is the timeframe, a numeric token
         # is the account equity (last wins), everything else is a symbol.
@@ -1385,7 +1457,9 @@ class CommandRegistry:
             for p in positions:
                 if not isinstance(p, dict):
                     continue
-                note = p.get("note") or ("included" if p.get("included") else "excluded")
+                note = p.get("note") or (
+                    "included" if p.get("included") else "excluded"
+                )
                 if len(note) > 32:
                     note = note[:29] + "..."
                 lines.append(
@@ -1530,13 +1604,10 @@ class CommandRegistry:
 
         if self._tool_service is None:
             return (
-                "\n"
-                "Monitoring Loop\n"
-                "---------------\n"
-                "Status : NOT CONNECTED\n"
+                "\n" "Monitoring Loop\n" "---------------\n" "Status : NOT CONNECTED\n"
             )
 
-        action = (args[0].strip().lower() if args and args[0].strip() else "status")
+        action = args[0].strip().lower() if args and args[0].strip() else "status"
         tool_by_action = {
             "start": "start_monitoring_loop",
             "stop": "stop_monitoring_loop",
@@ -1563,7 +1634,9 @@ class CommandRegistry:
 
         get = payload.get
         running = "RUNNING" if get("running") else "stopped"
-        enabled = "enabled" if get("enabled") else "disabled (set TRADING_MONITOR_ENABLED)"
+        enabled = (
+            "enabled" if get("enabled") else "disabled (set TRADING_MONITOR_ENABLED)"
+        )
         lines = [
             "",
             "Monitoring Loop",
@@ -1754,12 +1827,7 @@ class CommandRegistry:
             and self._tool_loop is None
             and self._llm_service is None
         ):
-            return (
-                "\n"
-                "LLM\n"
-                "---\n"
-                "Status : NOT CONNECTED\n"
-            )
+            return "\n" "LLM\n" "---\n" "Status : NOT CONNECTED\n"
 
         if not args:
             return "Usage: ask <message>"
@@ -1798,10 +1866,7 @@ class CommandRegistry:
                     error_type=type(exc).__name__,
                 ).exception("Agent run failed.")
 
-                return (
-                    f"LLM request failed: "
-                    f"{type(exc).__name__}: {exc}"
-                )
+                return f"LLM request failed: " f"{type(exc).__name__}: {exc}"
 
             if result.ok:
                 log.bind(
@@ -1847,10 +1912,7 @@ class CommandRegistry:
                     error_type=type(exc).__name__,
                 ).exception("LLM request failed.")
 
-                return (
-                    f"LLM request failed: "
-                    f"{type(exc).__name__}: {exc}"
-                )
+                return f"LLM request failed: " f"{type(exc).__name__}: {exc}"
 
             return self._format_answer(result)
 
@@ -1873,10 +1935,7 @@ class CommandRegistry:
                 error_type=type(exc).__name__,
             ).exception("LLM request failed.")
 
-            return (
-                f"LLM request failed: "
-                f"{type(exc).__name__}: {exc}"
-            )
+            return f"LLM request failed: " f"{type(exc).__name__}: {exc}"
 
     # ==========================================================
     # Formatting
@@ -1906,9 +1965,7 @@ class CommandRegistry:
         # rather than buried in the log file. Names only -- an argument value
         # may be a secret and never belongs in the visible transcript either.
         used = ", ".join(
-            f"{record.name}"
-            f"{'' if record.ok else ' (failed)'}"
-            for record in records
+            f"{record.name}" f"{'' if record.ok else ' (failed)'}" for record in records
         )
 
         lines = [answer, "", f"Tools used: {used}"]
@@ -1937,8 +1994,7 @@ class CommandRegistry:
         # Which tools ran is part of the answer's evidence, so it is shown
         # rather than buried in the log file.
         used = ", ".join(
-            f"{invocation.name}"
-            f"{'' if invocation.ok else ' (failed)'}"
+            f"{invocation.name}" f"{'' if invocation.ok else ' (failed)'}"
             for invocation in result.tool_results
         )
 
@@ -1998,9 +2054,11 @@ class CommandRegistry:
         # Calendar has no direction; it is summarised by event pressure.
         if "has_high_impact" in section or "event_count" in section:
             count = section.get("event_count", 0)
-            impact = "high-impact event ahead" if section.get(
-                "has_high_impact"
-            ) else "no high-impact event"
+            impact = (
+                "high-impact event ahead"
+                if section.get("has_high_impact")
+                else "no high-impact event"
+            )
             return f"{impact}, {count} scheduled"
 
         direction = str(section.get("direction", "unknown")).upper()
@@ -2124,9 +2182,7 @@ class CommandRegistry:
             prob = probability.get("probability") or {}
             lines.append(f"P(UP)            : {self._fmt_pct(prob.get('up'))}")
             lines.append(f"P(DOWN)          : {self._fmt_pct(prob.get('down'))}")
-            lines.append(
-                f"Horizon          : {probability.get('horizon', '-')} bars"
-            )
+            lines.append(f"Horizon          : {probability.get('horizon', '-')} bars")
 
         # ------------------------------------------------------
         # Market regime + key levels

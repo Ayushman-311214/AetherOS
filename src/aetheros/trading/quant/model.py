@@ -55,7 +55,7 @@ class LogisticRegression:
     def is_fitted(self) -> bool:
         return self._weights is not None
 
-    def fit(self, X: np.ndarray, y: np.ndarray) -> "LogisticRegression":
+    def fit(self, X: np.ndarray, y: np.ndarray) -> LogisticRegression:
         X = np.asarray(X, dtype=float)
         y = np.asarray(y, dtype=float)
         if X.ndim != 2:

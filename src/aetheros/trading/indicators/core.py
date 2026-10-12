@@ -14,6 +14,8 @@ anything -- interpretation is the structure/evidence layers' job.
 
 from __future__ import annotations
 
+from dataclasses import dataclass
+
 import numpy as np
 
 _EPS = 1e-12
@@ -337,3 +339,186 @@ def last_finite(values: np.ndarray) -> float | None:
     if finite.size == 0:
         return None
     return float(finite[-1])
+
+
+# ------------------------------------------------------------------
+# SuperTrend
+# ------------------------------------------------------------------
+
+
+def supertrend(
+    high: np.ndarray,
+    low: np.ndarray,
+    close: np.ndarray,
+    period: int = 10,
+    multiplier: float = 3.0,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
+    """
+    SuperTrend indicator: (line, direction, stop_level), input-aligned.
+
+    The classic ATR-band trend follower. Basic bands sit at
+    ``hl2 +/- multiplier * ATR``; a band *persists* (only tightening) while the
+    trend holds, and flips when close crosses it. Direction is +1.0 (up) /
+    -1.0 (down) where computable; the line tracks close in an up-trend and the
+    upper band in a down-trend, so it reads as the trend level; stop_level is
+    the active (opposite) band -- the price that would flip the trend.
+
+    NaN warm-up: the first ``period - 1`` positions (ATR unavailable).
+    """
+    if period <= 0:
+        raise ValueError("period must be positive.")
+    if multiplier <= 0:
+        raise ValueError("multiplier must be positive.")
+    h = _as_float_array(high)
+    l = _as_float_array(low)
+    c = _as_float_array(close)
+    if not (h.size == l.size == c.size):
+        raise ValueError("high/low/close must be the same length.")
+
+    n = c.size
+    line = _nan_prefix(n)
+    direction = _nan_prefix(n)
+    stop_level = _nan_prefix(n)
+    if n < period:
+        return line, direction, stop_level
+
+    atr_values = atr(h, l, c, period)
+    hl2 = (h + l) / 2.0
+
+    # Seeded at the first bar where ATR is finite.
+    start = period - 1
+    upper_band = hl2[start] + multiplier * atr_values[start]
+    lower_band = hl2[start] - multiplier * atr_values[start]
+    # Trend seed: compare close to the mid of the initial bands.
+    trend_up = c[start] >= (upper_band + lower_band) / 2.0
+    line[start] = c[start]
+    direction[start] = 1.0 if trend_up else -1.0
+    stop_level[start] = lower_band if trend_up else upper_band
+
+    for i in range(start + 1, n):
+        a = atr_values[i]
+        basic_upper = hl2[i] + multiplier * a
+        basic_lower = hl2[i] - multiplier * a
+        # Band persistence: the active (stop-side) band only tightens in the
+        # trend's direction, never retreats against it.
+        if trend_up:
+            lower_band = max(basic_lower, lower_band)
+            upper_band = basic_upper  # reference band, unused while up
+        else:
+            upper_band = min(basic_upper, upper_band)
+            lower_band = basic_lower  # reference band, unused while down
+
+        # Flip check: close crossing the active band reverses the trend.
+        if trend_up and c[i] < lower_band:
+            trend_up = False
+            upper_band = basic_upper
+        elif not trend_up and c[i] > upper_band:
+            trend_up = True
+            lower_band = basic_lower
+
+        direction[i] = 1.0 if trend_up else -1.0
+        stop_level[i] = lower_band if trend_up else upper_band
+        line[i] = c[i] if trend_up else upper_band
+
+    return line, direction, stop_level
+
+
+# ------------------------------------------------------------------
+# Volume Profile
+# ------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class VolumeProfileResult:
+    """
+    The volume-at-price histogram for one series.
+
+    ``poc`` is the point of control (centre of the highest-volume bin);
+    ``value_area_low/high`` bracket the contiguous bin window holding (about)
+    70% of total volume around the POC. ``bin_edges`` has ``bins + 1`` entries;
+    ``bin_volumes`` has ``bins`` entries aligned to the edges.
+    """
+
+    bin_edges: tuple[float, ...]
+    bin_volumes: tuple[float, ...]
+    poc: float
+    value_area_low: float
+    value_area_high: float
+    total_volume: float
+
+    def to_dict(self) -> dict:
+        return {
+            "bin_edges": list(self.bin_edges),
+            "bin_volumes": list(self.bin_volumes),
+            "poc": self.poc,
+            "value_area_low": self.value_area_low,
+            "value_area_high": self.value_area_high,
+            "total_volume": self.total_volume,
+        }
+
+
+def volume_profile(
+    close: np.ndarray,
+    volume: np.ndarray,
+    bins: int = 20,
+    value_area_pct: float = 0.70,
+) -> VolumeProfileResult | None:
+    """
+    Histogram of traded volume bucketed by price, close-weighted.
+
+    Non-finite closes/volumes (and zero/negative volumes) are excluded from
+    the buckets rather than fabricated. Returns None when fewer than two
+    usable (finite, distinct) price points exist -- a profile needs a price
+    range to bin into. ``value_area_pct`` (0 < p <= 1) sets the value-area
+    target share of total volume.
+    """
+    if bins <= 1:
+        raise ValueError("bins must be greater than 1.")
+    if not 0.0 < value_area_pct <= 1.0:
+        raise ValueError("value_area_pct must be in (0, 1].")
+    c = _as_float_array(close)
+    v = _as_float_array(volume)
+    if c.size != v.size:
+        raise ValueError("close and volume must be the same length.")
+
+    usable = np.isfinite(c) & np.isfinite(v)
+    prices = c[usable]
+    volumes = v[usable]
+    volumes = np.where(volumes < 0.0, 0.0, volumes)
+    if prices.size < 2 or prices.max() <= prices.min():
+        return None
+
+    hist, edges = np.histogram(prices, bins=bins, weights=volumes)
+    total = float(hist.sum())
+    if total <= _EPS:
+        return None
+
+    # Point of control: centre of the highest-volume bin (first on ties).
+    poc_index = int(np.argmax(hist))
+    poc = float((edges[poc_index] + edges[poc_index + 1]) / 2.0)
+
+    # Value area: expand contiguously around the POC bin until the target
+    # share of total volume is covered (always includes the POC bin).
+    low_idx = poc_index
+    high_idx = poc_index
+    target = value_area_pct * total
+    covered = float(hist[low_idx])
+    while covered < target and (low_idx > 0 or high_idx < bins - 1):
+        # Grow into the heavier of the two neighbouring bins.
+        left = hist[low_idx - 1] if low_idx > 0 else -1.0
+        right = hist[high_idx + 1] if high_idx < bins - 1 else -1.0
+        if right >= left:
+            high_idx += 1
+            covered += float(hist[high_idx])
+        else:
+            low_idx -= 1
+            covered += float(hist[low_idx])
+
+    return VolumeProfileResult(
+        bin_edges=tuple(float(e) for e in edges),
+        bin_volumes=tuple(float(b) for b in hist),
+        poc=poc,
+        value_area_low=float(edges[low_idx]),
+        value_area_high=float(edges[high_idx + 1]),
+        total_volume=total,
+    )

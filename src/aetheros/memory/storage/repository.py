@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import sqlite3
+from datetime import UTC
 from typing import Any
 
 from ..domain.memory import Memory
@@ -149,6 +150,55 @@ class MemoryRepository:
         # has one place to live.
         await asyncio.to_thread(self._write_sync, memory)
 
+    # Columns updated by a guarded write -- the insert column list minus ``id``
+    # (which is the WHERE key, never reassigned).
+    _UPDATE_SQL = """
+        UPDATE memory_items SET
+            memory_type = ?, veracity = ?, content = ?, data = ?, source = ?,
+            confidence = ?, importance = ?, scope = ?, status = ?,
+            evidence_count = ?, access_count = ?,
+            created_at = ?, updated_at = ?, last_accessed_at = ?, expires_at = ?,
+            version = ?, tags = ?, entities = ?, metadata = ?,
+            session_id = ?, task_id = ?, episode_id = ?, instrument_id = ?,
+            user_id = ?, application = ?
+        WHERE id = ? AND version = ?
+    """
+
+    def _update_guarded_sync(self, memory: Memory, expected_version: int) -> bool:
+        # ``memory.version`` is already the NEW version; the guard matches on the
+        # version we last read. 0 rows affected => the row was changed/removed by
+        # someone else since we read it (a lost race), reported to the caller.
+        params = self._insert_params(memory)[1:]  # drop id (it is the WHERE key)
+        affected = self._db.execute_write(
+            self._UPDATE_SQL, (*params, memory.id, expected_version)
+        )
+        if affected == 0:
+            return False
+        # Derived tag/entity rows are safe to rewrite only after the guard won.
+        statements: list[tuple[str, tuple[Any, ...]]] = [
+            ("DELETE FROM memory_tags WHERE memory_id = ?", (memory.id,)),
+            ("DELETE FROM memory_entities WHERE memory_id = ?", (memory.id,)),
+        ]
+        for tag in dict.fromkeys(t.strip().lower() for t in memory.tags if t.strip()):
+            statements.append(
+                ("INSERT OR IGNORE INTO memory_tags (memory_id, tag) VALUES (?,?)",
+                 (memory.id, tag))
+            )
+        for ent in dict.fromkeys(e.strip() for e in memory.entities if e.strip()):
+            statements.append(
+                ("INSERT OR IGNORE INTO memory_entities (memory_id, entity) VALUES (?,?)",
+                 (memory.id, ent))
+            )
+        self._db.execute_script(statements)
+        return True
+
+    async def update_guarded(self, memory: Memory, expected_version: int) -> bool:
+        """Optimistic update: persist ``memory`` only if the stored row is still
+        at ``expected_version``. Returns ``False`` on a lost race."""
+        return await asyncio.to_thread(
+            self._update_guarded_sync, memory, expected_version
+        )
+
     async def delete(self, memory_id: str) -> None:
         def _run() -> None:
             self._db.execute("DELETE FROM memory_items WHERE id = ?", (memory_id,))
@@ -205,9 +255,9 @@ class MemoryRepository:
         """Bump access_count/last_accessed_at and append an access audit row."""
 
         def _run() -> None:
-            from datetime import datetime, timezone
+            from datetime import datetime
 
-            now = datetime.now(timezone.utc).isoformat()
+            now = datetime.now(UTC).isoformat()
             self._db.execute_script(
                 [
                     (
@@ -246,7 +296,9 @@ class MemoryRepository:
             where_params: list[Any] = []
 
             if not query.include_archived:
-                where.append("mi.status IN ('active', 'low_confidence', 'stale')")
+                where.append(
+                    "mi.status IN ('active', 'low_confidence', 'stale', 'decayed')"
+                )
             else:
                 where.append("mi.status != 'deleted'")
 
@@ -395,6 +447,22 @@ class MemoryRepository:
                 other = r["to_id"] if r["from_id"] == memory_id else r["from_id"]
                 out.append((other, r["link_type"], float(r["weight"])))
             return out
+
+        return await asyncio.to_thread(_run)
+
+    async def delete_links(self, memory_id: str) -> int:
+        """Delete every link touching ``memory_id`` (coordinated hard-erasure).
+
+        Returns how many link rows were removed. ``memory_links`` has no FK
+        cascade to ``memory_items``, so without this an erased row's
+        neighbours keep dangling edges.
+        """
+
+        def _run() -> int:
+            return self._db.execute_write(
+                "DELETE FROM memory_links WHERE from_id = ? OR to_id = ?",
+                (memory_id, memory_id),
+            )
 
         return await asyncio.to_thread(_run)
 

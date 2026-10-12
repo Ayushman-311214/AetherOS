@@ -18,7 +18,7 @@ Honesty guarantees:
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ..domain.enums import SourceTier
 from ..domain.fundamentals import FundamentalSnapshot
@@ -30,7 +30,7 @@ _MOCK_SOURCE = "mock-fundamentals"
 
 # A fixed placeholder reporting-period end. Deliberately constant so the mock is
 # fully deterministic (stable content-addressed id) and obviously synthetic.
-_AS_OF = datetime(2025, 12, 31, tzinfo=timezone.utc)
+_AS_OF = datetime(2025, 12, 31, tzinfo=UTC)
 
 
 def _seed_for(symbol: str) -> str:

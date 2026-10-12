@@ -9,7 +9,17 @@ unchanged (Rule 8 -- preserve provenance).
 
 from __future__ import annotations
 
+from .content_policy import (
+    MAX_CONTENT_CHARS,
+    MAX_PAYLOAD_BYTES,
+    ContentPolicy,
+    SecretAction,
+    redact_text,
+    scan_secrets,
+)
+from .document import DocumentChunk, DocumentSource, checksum_text
 from .enums import (
+    RECALLABLE_STATUSES,
     MemoryImportance,
     MemoryScope,
     MemoryStatus,
@@ -21,13 +31,21 @@ from .enums import (
     Veracity,
     confidence_band,
 )
-from .episode import ActionRecord, Episode, Outcome
+from .episode import ActionRecord, Episode, EpisodeObservation, Outcome
 from .memory import Memory, MemoryLink, MemorySource, new_id, utcnow
-from .preference import FailureRecord, Preference
+from .preference import FailureRecord, Preference, RecoveryAttempt
 from .procedure import Procedure, ProcedureStep
-from .query import MemoryQuery, MemoryResult, RetrievalExplanation
+from .query import MemoryQuery, MemoryResult, RetrievalExplanation, RetrievalReport
 from .semantic import Entity, Relationship
-from .trading import PredictionMemory, PredictionOutcomeMemory
+from .trading import (
+    AnalysisSnapshotMemory,
+    CalibrationRecordMemory,
+    MarketRegimeMemory,
+    PredictionMemory,
+    PredictionOutcomeMemory,
+    ReasoningSummaryMemory,
+    StrategyObservationMemory,
+)
 
 __all__ = [
     # enums
@@ -35,6 +53,7 @@ __all__ = [
     "Veracity",
     "SourceType",
     "MemoryStatus",
+    "RECALLABLE_STATUSES",
     "MemoryImportance",
     "MemoryScope",
     "PreferenceKind",
@@ -47,14 +66,27 @@ __all__ = [
     "MemoryLink",
     "new_id",
     "utcnow",
+    # content safety
+    "ContentPolicy",
+    "SecretAction",
+    "scan_secrets",
+    "redact_text",
+    "MAX_CONTENT_CHARS",
+    "MAX_PAYLOAD_BYTES",
     # query
     "MemoryQuery",
     "MemoryResult",
     "RetrievalExplanation",
+    "RetrievalReport",
     # episodic
     "Episode",
     "ActionRecord",
+    "EpisodeObservation",
     "Outcome",
+    # document ingestion
+    "DocumentSource",
+    "DocumentChunk",
+    "checksum_text",
     # semantic graph
     "Entity",
     "Relationship",
@@ -64,7 +96,13 @@ __all__ = [
     # preference / failure
     "Preference",
     "FailureRecord",
+    "RecoveryAttempt",
     # trading
     "PredictionMemory",
     "PredictionOutcomeMemory",
+    "MarketRegimeMemory",
+    "AnalysisSnapshotMemory",
+    "StrategyObservationMemory",
+    "CalibrationRecordMemory",
+    "ReasoningSummaryMemory",
 ]

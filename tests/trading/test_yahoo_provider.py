@@ -20,7 +20,10 @@ import pytest
 from aetheros.trading.domain.enums import SourceTier, Timeframe
 from aetheros.trading.domain.instrument import Instrument
 from aetheros.trading.errors import InsufficientDataError, ProviderError
-from aetheros.trading.providers.yahoo_provider import YahooMarketDataProvider
+from aetheros.trading.providers.yahoo_provider import (
+    YahooMarketDataProvider,
+    yahoo_symbol,
+)
 
 
 def _chart_payload(
@@ -71,10 +74,16 @@ def _chart_payload(
     }
 
 
-def _provider(handler) -> YahooMarketDataProvider:
+def _provider(handler, **kwargs) -> YahooMarketDataProvider:
     transport = httpx.MockTransport(handler)
     client = httpx.AsyncClient(transport=transport)
-    return YahooMarketDataProvider(client=client)
+
+    # Instant awaitable sleeper: retry backoff must never slow the suite.
+    async def sleeper(seconds: float) -> None:
+        return None
+
+    kwargs.setdefault("sleeper", sleeper)
+    return YahooMarketDataProvider(client=client, **kwargs)
 
 
 def _ok_handler(payload, *, capture: list | None = None):
@@ -230,3 +239,179 @@ async def test_network_error_becomes_provider_error():
     provider = _provider(handler)
     with pytest.raises(ProviderError):
         await provider.get_candles(Instrument("AAPL"), Timeframe.D1, limit=100)
+
+
+# ==============================================================
+# Retry policy (Phase 2)
+# ==============================================================
+
+
+def _single_bar_payload() -> dict:
+    return _chart_payload(
+        opens=[1.0], highs=[1.0], lows=[1.0], closes=[1.0], volumes=[1]
+    )
+
+
+@pytest.mark.asyncio
+async def test_rate_limited_then_success_is_retried():
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        if len(calls) == 1:
+            return httpx.Response(429, text="rate limited")
+        return httpx.Response(200, json=_single_bar_payload())
+
+    provider = _provider(handler, max_retries=2)
+    data = await provider.get_candles(Instrument("AAPL"), Timeframe.D1, limit=1)
+    assert data.count == 1
+    assert len(calls) == 2  # one failure, one retry
+
+
+@pytest.mark.asyncio
+async def test_server_error_exhausts_retries_and_raises_typed():
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(503, text="service unavailable")
+
+    provider = _provider(handler, max_retries=1)
+    with pytest.raises(ProviderError):
+        await provider.get_candles(Instrument("AAPL"), Timeframe.D1, limit=1)
+    assert len(calls) == 2  # initial + 1 retry
+
+
+@pytest.mark.asyncio
+async def test_client_error_is_not_retried():
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(404, text="not found")
+
+    provider = _provider(handler, max_retries=3)
+    with pytest.raises(ProviderError):
+        await provider.get_candles(Instrument("NOPE"), Timeframe.D1, limit=1)
+    assert len(calls) == 1  # permanent error: fail fast
+
+
+@pytest.mark.asyncio
+async def test_transport_error_is_retried_then_raises():
+    calls: list[int] = []
+
+    async def sleeper(seconds: float) -> None:
+        calls.append(seconds)  # record the backoff the provider chose
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("connection refused")
+
+    transport = httpx.MockTransport(handler)
+    client = httpx.AsyncClient(transport=transport)
+    provider = YahooMarketDataProvider(
+        client=client, max_retries=1, retry_backoff_seconds=1.0, sleeper=sleeper
+    )
+    with pytest.raises(ProviderError):
+        await provider.get_candles(Instrument("AAPL"), Timeframe.D1, limit=1)
+    assert calls == [1.0]  # exponential backoff: base * 2^0 on first retry
+
+
+@pytest.mark.asyncio
+async def test_no_retries_by_default():
+    calls: list[httpx.Request] = []
+
+    def handler(request: httpx.Request) -> httpx.Response:
+        calls.append(request)
+        return httpx.Response(502, text="bad gateway")
+
+    provider = _provider(handler)  # max_retries=0 default
+    with pytest.raises(ProviderError):
+        await provider.get_candles(Instrument("AAPL"), Timeframe.D1, limit=1)
+    assert len(calls) == 1
+
+
+@pytest.mark.asyncio
+async def test_capability_flags_are_honest():
+    provider = _provider(_ok_handler(_single_bar_payload()))
+    assert provider.supports_order_book is False
+    assert provider.supports_trades is False
+    with pytest.raises(ProviderError, match="does not provide order-book"):
+        await provider.get_order_book(Instrument("AAPL"))
+    with pytest.raises(ProviderError, match="does not provide trade-tick"):
+        await provider.get_recent_trades(Instrument("AAPL"))
+
+
+# ==============================================================
+# Multi-market symbol mapping (Phase 2)
+# ==============================================================
+
+
+@pytest.mark.parametrize(
+    ("instrument", "expected"),
+    [
+        (Instrument("AAPL"), "AAPL"),
+        (Instrument("RELIANCE", exchange="NSE"), "RELIANCE.NS"),
+        (Instrument("UNKNOWN", exchange="ZZZ"), "UNKNOWN"),  # bare fallback
+        (Instrument("EURUSD", asset_class="forex"), "EURUSD=X"),
+        (Instrument("EUR", asset_class="forex"), "EURUSD=X"),
+        (Instrument("BTC", asset_class="crypto"), "BTC-USD"),
+        (Instrument("BTC/USDT", asset_class="crypto"), "BTC-USDT"),
+        (Instrument("SPY", asset_class="index"), "SPY"),
+        (Instrument("GC", asset_class="commodity"), "GC=F"),
+        (Instrument("GC=F", asset_class="commodity"), "GC=F"),
+    ],
+)
+def test_yahoo_symbol_maps_every_asset_class(instrument, expected):
+    assert yahoo_symbol(instrument) == expected
+
+
+@pytest.mark.asyncio
+async def test_forex_symbol_requests_the_fx_quote_convention():
+    captured: list[httpx.Request] = []
+    provider = _provider(
+        _ok_handler(_single_bar_payload(), capture=captured)
+    )
+    await provider.get_candles(
+        Instrument("EURUSD", asset_class="forex"), Timeframe.D1, limit=1
+    )
+    assert "EURUSD=X" in str(captured[0].url)
+
+
+def test_provider_serves_equity_index_forex_crypto_commodity():
+    provider = _provider(_ok_handler(_single_bar_payload()))
+    assert provider.supports_asset_class("equity")
+    assert provider.supports_asset_class("INDEX")
+    assert provider.supports_asset_class("forex")
+    assert provider.supports_asset_class("crypto")
+    assert provider.supports_asset_class("commodity")
+    assert not provider.supports_asset_class("option")
+
+
+@pytest.mark.asyncio
+async def test_commodity_symbol_requests_the_futures_convention():
+    captured: list[httpx.Request] = []
+    provider = _provider(
+        _ok_handler(_single_bar_payload(), capture=captured)
+    )
+    await provider.get_candles(
+        Instrument("GC", asset_class="commodity"), Timeframe.D1, limit=1
+    )
+    assert "GC%3DF" in str(captured[0].url) or "GC=F" in str(captured[0].url)
+
+
+@pytest.mark.asyncio
+async def test_monthly_timeframe_maps_to_yahoo_1mo():
+    captured: list[httpx.Request] = []
+    payload = _chart_payload(
+        opens=[1.0], highs=[1.0], lows=[1.0], closes=[1.0], volumes=[1]
+    )
+    provider = _provider(_ok_handler(payload, capture=captured))
+    data = await provider.get_candles(Instrument("AAPL"), Timeframe.MN, limit=1)
+    assert data.count == 1
+    assert "interval=1mo" in str(captured[0].url)
+
+
+@pytest.mark.asyncio
+async def test_monthly_timeframe_parses_case_sensitively():
+    # Timeframe.parse must not fold "1M" (month) into "1m" (minute).
+    assert Timeframe.parse("1M") is Timeframe.MN

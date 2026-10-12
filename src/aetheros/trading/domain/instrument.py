@@ -26,6 +26,8 @@ class Instrument:
         object.__setattr__(self, "symbol", self.symbol.strip().upper())
         if self.exchange:
             object.__setattr__(self, "exchange", self.exchange.strip().upper())
+        if not self.symbol:
+            raise ValueError("Instrument symbol must not be empty.")
 
     @property
     def key(self) -> str:
@@ -33,7 +35,11 @@ class Instrument:
         return f"{self.exchange}:{self.symbol}" if self.exchange else self.symbol
 
     def to_dict(self) -> dict[str, Any]:
+        # ``key`` is the canonical identifier downstream consumers index on
+        # (cache keys, provenance, ``instrument_key`` on trades); it is derived
+        # but serialised so a reader need not recompute it.
         return {
+            "key": self.key,
             "symbol": self.symbol,
             "exchange": self.exchange,
             "asset_class": self.asset_class,
@@ -41,7 +47,7 @@ class Instrument:
         }
 
     @classmethod
-    def parse(cls, value: str, *, asset_class: str = "equity") -> "Instrument":
+    def parse(cls, value: str, *, asset_class: str = "equity") -> Instrument:
         """
         Parse ``EXCHANGE:SYMBOL`` or a bare ``SYMBOL``.
 

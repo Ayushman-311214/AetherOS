@@ -121,6 +121,14 @@ browser = [
     "playwright>=1.55.0"
 ]
 
+# The ccxt market-data provider (crypto/forex candles, quotes, order books,
+# trade ticks) behind the MarketDataProvider interface. Optional exactly like
+# browser/hud: the trading core runs on mock+yahoo without it, and selecting
+# MARKET_DATA_PROVIDER=ccxt without the package falls back loudly to mock.
+market = [
+    "ccxt>=4.0.0"
+]
+
 # The HUD overlay runs in a child process (`python -m aetheros.hud.app --ipc`)
 # that imports Qt at module level. Kept optional rather than required because
 # Qt is a large download that a headless or server install has no use for:
@@ -220,6 +228,7 @@ pythonpath = [
 # instead of being lost among "unknown mark" noise.
 markers = [
     "integration: exercises a real backend (OCR model, display) rather than a fake",
+    "real_embeddings: opt-in; talks to a real embedding daemon (Ollama). Skipped unless AETHEROS_MEMORY_TEST_OLLAMA=1.",
 ]
 
 # ============================================================

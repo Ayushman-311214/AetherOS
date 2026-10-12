@@ -22,7 +22,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .enums import Assertion, Confidence, Direction, EvidenceType
@@ -30,7 +30,7 @@ from .provenance import DataQuality, Provenance
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 def _stable_id(

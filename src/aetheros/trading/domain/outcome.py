@@ -30,14 +30,14 @@ field traces to the record it judged and the candles it read.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .enums import Direction, PredictionOutcomeStatus
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(frozen=True, slots=True)
@@ -121,7 +121,7 @@ class PredictionOutcome:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "PredictionOutcome":
+    def from_dict(cls, data: dict[str, Any]) -> PredictionOutcome:
         """
         Rebuild an outcome from its :meth:`to_dict` form (durable read-back).
 

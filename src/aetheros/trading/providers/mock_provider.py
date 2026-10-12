@@ -20,7 +20,7 @@ behaviour.
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import numpy as np
 
@@ -66,8 +66,20 @@ class MockMarketDataProvider(MarketDataProvider):
         log_returns = rng.normal(loc=0.0, scale=vol, size=limit)
         prices = start * np.exp(np.cumsum(log_returns))
 
-        now = datetime.now(timezone.utc).replace(microsecond=0)
-        step = timedelta(seconds=timeframe.seconds)
+        # Anchor the most-recent bar to the timeframe grid, not the raw wall
+        # clock. ``datetime.now()`` lands at an arbitrary sub-bar instant, so
+        # two symbols fetched one call apart could get last-bar timestamps a
+        # second (or, at a boundary, a whole bar) different -- and any consumer
+        # that intersects their windows (e.g. ``synchronize``) then drops a
+        # boundary bar nondeterministically. Flooring to a whole multiple of
+        # ``timeframe.seconds`` puts every symbol on the same canonical grid:
+        # a fetch at 09:14 and one at 09:59 of the same UTC day anchor to the
+        # same last bar, so point counts are stable across a suite run.
+        step_seconds = timeframe.seconds
+        epoch = int(datetime.now(UTC).timestamp())
+        anchor = epoch - (epoch % step_seconds)
+        now = datetime.fromtimestamp(anchor, tz=UTC)
+        step = timedelta(seconds=step_seconds)
 
         candles: list[Candle] = []
         prev_close = start

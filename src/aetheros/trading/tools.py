@@ -18,26 +18,42 @@ from typing import Any
 
 from ..core.container import container
 from ..tools import tool
-from .domain.enums import Direction
-from .errors import TradingError
+from .alerts import AlertService
+from .alerts.rules import price_alert
+from .analytics import JournalAnalyticsService
+from .backtesting.comparison import compare_backtests
+from .domain.enums import Direction, OptimizationObjective
 from .domain.market_data import MarketData
+from .errors import TradingError
 from .indicators import core as ind
+from .indicators.registry import get_indicator
 from .services.analysis_service import AnalysisService
+from .services.anomaly_service import AnomalyService
 from .services.backtest_service import BacktestService
 from .services.breakout_service import BreakoutService
 from .services.calendar_service import EventCalendarService
 from .services.calibration_history_service import CalibrationHistoryService
 from .services.ceo_agent_service import CEOAgentService
 from .services.ceo_service import TradingCEOService
+from .services.chart_service import ChartCaptureService, ChartService
 from .services.critic_service import CriticService
+from .services.decision_service import DecisionService
 from .services.divergence_service import DivergenceService
 from .services.evidence_service import EvidenceService
 from .services.explanation_service import ExplanationService
 from .services.fundamental_service import FundamentalAnalysisService
+from .services.historical_analogue_service import HistoricalAnalogueService
+from .services.hybrid_service import HybridContextService
+from .services.ict_service import ICTService
+from .services.journal_service import JournalService
+from .services.journal_store import JournalStore
+from .services.liquidity_service import LiquidityService
+from .services.macro_service import MacroContextService
 from .services.market_data_service import MarketDataService
 from .services.market_structure_service import MarketStructureService
-from .services.monitoring_service import MonitoringService
 from .services.monitoring_scheduler import MonitoringScheduler
+from .services.monitoring_service import MonitoringService
+from .services.multi_timeframe_service import MultiTimeframeService
 from .services.news_service import NewsSentimentService
 from .services.orchestration_service import OrchestrationService
 from .services.outcome_store import OutcomeStore
@@ -45,19 +61,23 @@ from .services.performance_service import PredictionPerformanceService
 from .services.portfolio_service import PortfolioRiskService
 from .services.prediction_store import PredictionStore
 from .services.probability_service import ProbabilityService
-from .services.anomaly_service import AnomalyService
-from .services.historical_analogue_service import HistoricalAnalogueService
-from .services.macro_service import MacroContextService
-from .services.multi_timeframe_service import MultiTimeframeService
 from .services.regime_service import RegimeService
-from .services.scan_service import WatchlistScanService
 from .services.relative_strength_service import RelativeStrengthService
 from .services.risk_service import RiskService
+from .services.scan_service import WatchlistScanService
+from .services.signal_service import SignalService
+from .services.simulation_service import SimulationService
+from .services.smc_service import SMCService
+from .services.strategy_service import StrategyService
 from .services.track_record_service import PredictionTrackRecordService
+from .services.visual_service import VisualObservationService
+from .services.walk_forward_service import WalkForwardService
+from .strategies.optimization import ParameterGrid, strategy_signal
 
 # Indicators exposed by calculate_indicator and the arity of their inputs.
 _PRICE_INDICATORS = {"sma", "ema", "rsi", "bollinger", "volatility", "volume_ma"}
-_OHLC_INDICATORS = {"atr", "adx", "vwap", "macd"}
+_OHLC_INDICATORS = {"atr", "adx", "vwap", "macd", "supertrend"}
+_PRICE_VOLUME_INDICATORS = {"volume_profile"}
 
 
 def _market_data() -> MarketDataService:
@@ -100,6 +120,26 @@ def _macro() -> MacroContextService:
     return container.resolve(MacroContextService)
 
 
+def _liquidity() -> LiquidityService:
+    return container.resolve(LiquidityService)
+
+
+def _smc() -> SMCService:
+    return container.resolve(SMCService)
+
+
+def _ict() -> ICTService:
+    return container.resolve(ICTService)
+
+
+def _strategy() -> StrategyService:
+    return container.resolve(StrategyService)
+
+
+def _signals() -> SignalService:
+    return container.resolve(SignalService)
+
+
 def _scan() -> WatchlistScanService:
     return container.resolve(WatchlistScanService)
 
@@ -120,6 +160,34 @@ def _portfolio() -> PortfolioRiskService:
     return container.resolve(PortfolioRiskService)
 
 
+def _simulation() -> SimulationService:
+    return container.resolve(SimulationService)
+
+
+def _visual() -> VisualObservationService:
+    return container.resolve(VisualObservationService)
+
+
+def _hybrid() -> HybridContextService:
+    return container.resolve(HybridContextService)
+
+
+def _journal() -> JournalService:
+    return container.resolve(JournalService)
+
+
+def _journal_store() -> JournalStore:
+    return container.resolve(JournalStore)
+
+
+def _journal_analytics() -> JournalAnalyticsService:
+    return container.resolve(JournalAnalyticsService)
+
+
+def _alerts() -> AlertService:
+    return container.resolve(AlertService)
+
+
 def _split_symbols(symbols: str | list[str]) -> list[str]:
     """Accept a list, or a comma/whitespace-separated string, of symbols."""
     if isinstance(symbols, str):
@@ -129,6 +197,10 @@ def _split_symbols(symbols: str | list[str]) -> list[str]:
 
 def _backtest() -> BacktestService:
     return container.resolve(BacktestService)
+
+
+def _walk_forward() -> WalkForwardService:
+    return container.resolve(WalkForwardService)
 
 
 def _critic() -> CriticService:
@@ -157,6 +229,10 @@ def _orchestrator() -> OrchestrationService:
 
 def _explanation() -> ExplanationService:
     return container.resolve(ExplanationService)
+
+
+def _decision() -> DecisionService:
+    return container.resolve(DecisionService)
 
 
 def _prediction_store() -> PredictionStore:
@@ -230,7 +306,10 @@ async def get_market_candles(
     description=(
         "Calculate one technical indicator's latest value for an instrument. "
         "Supported: sma, ema, rsi, macd, atr, bollinger, vwap, adx, "
-        "volatility, volume_ma. 'period' applies to indicators that take one."
+        "volatility, volume_ma, supertrend (trend side, line and flip stop), "
+        "volume_profile (point of control and value area; 'period' sets the "
+        "bin count). 'period' applies to indicators that take one. Custom "
+        "indicators registered at runtime are also accepted by name."
     ),
 )
 async def calculate_indicator(
@@ -294,8 +373,37 @@ async def calculate_indicator(
             "lower": ind.last_finite(lower),
         }
         result["period"] = period
+    elif name == "supertrend":
+        st_line, st_dir, st_stop = ind.supertrend(highs, lows, closes, period)
+        direction = ind.last_finite(st_dir)
+        result["value"] = {
+            "direction": ("up" if direction > 0 else "down") if direction is not None else None,
+            "line": ind.last_finite(st_line),
+            "stop": ind.last_finite(st_stop),
+        }
+        result["period"] = period
+    elif name == "volume_profile":
+        profile = ind.volume_profile(closes, volumes, period)
+        result["value"] = profile.to_dict() if profile else None
+        result["bins"] = period
     else:
-        supported = sorted(_PRICE_INDICATORS | _OHLC_INDICATORS)
+        supported = sorted(
+            _PRICE_INDICATORS | _OHLC_INDICATORS | _PRICE_VOLUME_INDICATORS
+        )
+        # A custom indicator registered through the extension point takes the
+        # same arrays and returns an input-aligned result; try it before
+        # refusing the name.
+        custom = get_indicator(name)
+        if custom is not None:
+            try:
+                result["value"] = custom(closes, highs, lows, volumes)
+                result["custom"] = True
+                return result
+            except Exception as exc:  # a custom indicator's failure is its own
+                return {
+                    "error": f"Custom indicator '{name}' failed: {exc}",
+                    "supported": supported,
+                }
         return {
             "error": f"Unknown indicator '{indicator}'.",
             "supported": supported,
@@ -373,6 +481,453 @@ async def get_volume_analysis(
         "provenance": data.provenance.to_dict(),
         "quality": data.quality.to_dict(),
         "volume": volume.to_dict() if volume else None,
+    }
+
+
+@tool(
+    category="trading.analysis",
+    description=(
+        "Analyze the liquidity profile of an instrument: where traded volume "
+        "sits relative to price (volume-profile point of control and 70% value "
+        "area), participation (relative volume vs its moving average), a "
+        "volatility spread proxy (ATR as a fraction of price) and price's "
+        "distance to the point of control. Deterministic situational context "
+        "-- never a prediction; carries no probability. Inputs that cannot be "
+        "computed from the available bars are reported as null with a "
+        "limitation, never fabricated."
+    ),
+)
+async def analyze_liquidity(
+    symbol: str,
+    timeframe: str = "1d",
+    limit: int = 200,
+) -> dict[str, Any]:
+    data = await _market_data().get_candles(symbol, timeframe, limit=limit)
+    liquidity = _liquidity().analyze(data)
+    return {
+        "symbol": data.instrument.key,
+        "timeframe": data.timeframe.value,
+        "provenance": data.provenance.to_dict(),
+        "quality": data.quality.to_dict(),
+        "liquidity": liquidity.to_dict(),
+    }
+
+
+@tool(
+    category="trading.analysis",
+    description=(
+        "Detect Smart Money Concepts structure on an instrument: break of "
+        "structure (BOS) and change of character (CHoCH) from closes through "
+        "confirmed swings, the order blocks and fair value gaps behind those "
+        "moves, mitigation blocks (order blocks price returned to and "
+        "respected), liquidity sweeps and equal-highs/lows pools, and the "
+        "premium/discount read of the active dealing range. Every detection "
+        "carries the bars, prices and reasons it was derived from. "
+        "Deterministic situational context -- never a prediction, never a "
+        "probability, and derived from candle geometry rather than keywords."
+    ),
+)
+async def analyze_smc(
+    symbol: str,
+    timeframe: str = "1d",
+    limit: int = 200,
+) -> dict[str, Any]:
+    data = await _market_data().get_candles(symbol, timeframe, limit=limit)
+    smc = _smc().analyze(data)
+    return {
+        "symbol": data.instrument.key,
+        "timeframe": data.timeframe.value,
+        "provenance": data.provenance.to_dict(),
+        "quality": data.quality.to_dict(),
+        "smc": smc.to_dict(),
+    }
+
+
+@tool(
+    category="trading.analysis",
+    description=(
+        "Run the ICT (Inner Circle Trader) analysis of an instrument: the daily "
+        "bias read from the prior day, market structure shifts (a change of "
+        "character confirmed by displacement), kill-zone windows with the share "
+        "of the session range each carried, the optimal trade entry "
+        "(0.618-0.79) band of the active leg, resting liquidity pools at equal "
+        "highs/lows and session and prior-day extremes, Judas swings, "
+        "Power-of-Three session decomposition, and how each session behaved "
+        "against the one before it. Detection is time-based and deterministic, "
+        "using real session windows in an exchange timezone with daylight-"
+        "saving handled -- every concept carries the timestamps, prices and "
+        "reasons it was derived from. Situational context only: never a "
+        "prediction, never a probability."
+    ),
+)
+async def analyze_ict(
+    symbol: str,
+    timeframe: str = "1d",
+    limit: int = 200,
+) -> dict[str, Any]:
+    data = await _market_data().get_candles(symbol, timeframe, limit=limit)
+    ict = _ict().analyze(data)
+    return {
+        "symbol": data.instrument.key,
+        "timeframe": data.timeframe.value,
+        "provenance": data.provenance.to_dict(),
+        "quality": data.quality.to_dict(),
+        "ict": ict.to_dict(),
+    }
+
+
+@tool(
+    category="trading.analysis",
+    description=(
+        "Select and compare trading strategies on one instrument: run every "
+        "named strategy (or the full registered panel) over a single shared "
+        "read of the market, and report what each made of it -- the setup it "
+        "found, the side it took, the price it was read at, the structural "
+        "level that would void it, and the named rules that did and did not "
+        "hold. Reports the panel's consensus AND its disagreement: a split "
+        "panel yields no consensus direction and lists the dissenters rather "
+        "than averaging a 3-2 vote into one answer. When no strategy finds a "
+        "setup the comparison says so -- that is the system's insufficient-"
+        "evidence result, not a failure. Setups carry no stop, target or size: "
+        "risk geometry is the risk engine's deterministic output."
+    ),
+)
+async def evaluate_strategies(
+    symbol: str,
+    timeframe: str = "1d",
+    limit: int = 200,
+    strategies: str | list[str] | None = None,
+) -> dict[str, Any]:
+    data = await _market_data().get_candles(symbol, timeframe, limit=limit)
+    comparison = await _strategy().compare(
+        data,
+        strategy_ids=_split_symbols(strategies) if strategies else None,
+    )
+    return {
+        "symbol": data.instrument.key,
+        "timeframe": data.timeframe.value,
+        "provenance": data.provenance.to_dict(),
+        "quality": data.quality.to_dict(),
+        "comparison": comparison.to_dict(),
+    }
+
+
+@tool(
+    category="trading.analysis",
+    description=(
+        "List the trading strategies available for evaluation: each strategy's "
+        "id, name, category (scalping, swing, trend following, mean reversion, "
+        "ICT, SMC, breakout), what it looks for, and its current parameters. "
+        "Use the returned ids with evaluate_strategies and optimize_strategy."
+    ),
+)
+async def list_strategies() -> dict[str, Any]:
+    registry = _strategy().registry
+    return {
+        "strategies": [
+            {
+                "strategy_id": strategy.strategy_id,
+                "name": strategy.name,
+                "category": strategy.category.value,
+                "description": strategy.description,
+                "parameters": dict(strategy.parameters),
+            }
+            for strategy in registry.all()
+        ]
+    }
+
+
+@tool(
+    category="trading.analysis",
+    description=(
+        "Search a strategy's parameters for a better configuration, by running "
+        "an explicit grid of values through the walk-forward backtester. Each "
+        "bar is evaluated using only the bars up to and including it, so the "
+        "search cannot see the future, and the strategy's current settings are "
+        "always measured as a baseline to compare against. Reports the best "
+        "*reliable* configuration, or explicitly reports that none qualified -- "
+        "a thin sample or synthetic data never crowns a winner. Objectives: "
+        "directional_accuracy, cumulative_return, sharpe. This measures a "
+        "configuration's historical behaviour; it does not predict."
+    ),
+)
+async def optimize_strategy(
+    symbol: str,
+    strategy: str,
+    parameters: dict[str, list[float]],
+    timeframe: str = "1d",
+    limit: int = 500,
+    objective: str = "directional_accuracy",
+    horizon: int | None = None,
+    warmup: int | None = None,
+) -> dict[str, Any]:
+    data = await _market_data().get_candles(symbol, timeframe, limit=limit)
+    search = await _strategy().optimize(
+        data,
+        strategy,
+        ParameterGrid.from_dict(parameters),
+        objective=OptimizationObjective(objective),
+        horizon=horizon,
+        warmup=warmup,
+    )
+    return {
+        "symbol": data.instrument.key,
+        "timeframe": data.timeframe.value,
+        "provenance": data.provenance.to_dict(),
+        "quality": data.quality.to_dict(),
+        "search": search.to_dict(),
+    }
+
+
+@tool(
+    category="trading.analysis",
+    description=(
+        "Walk-forward test a strategy: split its history into consecutive "
+        "train/test folds, choose the best parameters on each training window "
+        "using only what was known then, and measure those choices on the test "
+        "window that follows. Reports the pooled OUT-OF-SAMPLE accuracy, win "
+        "rate, profit factor, expectancy, Sharpe and max drawdown, alongside the "
+        "in-sample average so the gap between them is visible -- a large gap "
+        "means the parameters were fitted, not found. An embargo of 'horizon' "
+        "bars sits between train and test so a training bar's forward label "
+        "cannot reach into the test window. Returns not-reliable with the reason "
+        "when the data is MOCK or the folds too few or too thin."
+    ),
+)
+async def walk_forward_backtest(
+    symbol: str,
+    strategy: str,
+    parameters: dict[str, list[float]] | None = None,
+    timeframe: str = "1d",
+    limit: int = 1000,
+    objective: str = "directional_accuracy",
+    horizon: int | None = None,
+    warmup: int | None = None,
+    train_bars: int | None = None,
+    test_bars: int | None = None,
+    anchored: bool = False,
+) -> dict[str, Any]:
+    data = await _market_data().get_candles(symbol, timeframe, limit=limit)
+    report = await _walk_forward().run(
+        data,
+        strategy,
+        ParameterGrid.from_dict(parameters or {}),
+        objective=OptimizationObjective(objective),
+        horizon=horizon,
+        warmup=warmup,
+        train_bars=train_bars,
+        test_bars=test_bars,
+        anchored=anchored,
+    )
+    return {
+        "symbol": data.instrument.key,
+        "timeframe": data.timeframe.value,
+        "provenance": data.provenance.to_dict(),
+        "quality": data.quality.to_dict(),
+        "walk_forward": report.to_dict(),
+    }
+
+
+@tool(
+    category="trading.analysis",
+    description=(
+        "Compare several strategies by backtesting each over the SAME "
+        "instrument, timeframe, horizon and warmup, then ranking them on one "
+        "named metric: directional_accuracy, win_rate, profit_factor, "
+        "expectancy, sharpe, cumulative_return (higher is better) or "
+        "max_drawdown (lower is better). Refuses to compare backtests measured "
+        "on different questions, and declares a winner ONLY when it is reliable "
+        "and strictly beat the runner-up -- a tie, a synthetic-data leader or an "
+        "unreliable leader yields no winner with the reason stated."
+    ),
+)
+async def compare_strategy_backtests(
+    symbol: str,
+    strategies: str | list[str],
+    timeframe: str = "1d",
+    limit: int = 300,
+    metric: str = "directional_accuracy",
+    horizon: int | None = None,
+    warmup: int | None = None,
+) -> dict[str, Any]:
+    service = _strategy()
+    data = await _market_data().get_candles(symbol, timeframe, limit=limit)
+    build_context = service.build_context
+
+    results: dict[str, Any] = {}
+    for strategy_id in _split_symbols(strategies):
+        strategy = service.registry.get(strategy_id)
+        if strategy is None:
+            raise TradingError(
+                f"Unknown strategy '{strategy_id}'. Registered: "
+                f"{', '.join(service.registry.ids()) or 'none'}.",
+                hint="Run list_strategies to see the registered strategies.",
+            )
+        results[strategy_id] = await _backtest().run(
+            data,
+            strategy_signal(strategy, build_context),
+            horizon=horizon,
+            warmup=warmup,
+        )
+
+    comparison = compare_backtests(results, metric=metric)
+    return {
+        "symbol": data.instrument.key,
+        "timeframe": data.timeframe.value,
+        "provenance": data.provenance.to_dict(),
+        "quality": data.quality.to_dict(),
+        "comparison": comparison.to_dict(),
+    }
+
+
+@tool(
+    category="trading.simulation",
+    description=(
+        "Paper-trade one strategy over an instrument's own history against a "
+        "VIRTUAL account: replay the candles bar by bar, decide each bar on a "
+        "past-only window, size the position from the account's live equity, "
+        "pass it through the admission gate, and let the real PAPER venue fill "
+        "it at the replayed bar. Returns the trades, the equity curve, "
+        "per-trade metrics and an is_reliable verdict with its limitations. "
+        "Real market data, fake money: no order here can reach a live venue, "
+        "and a MOCK or too-thin series comes back unreliable with the reason "
+        "stated rather than dressed up as a result."
+    ),
+)
+async def simulate_strategy(
+    symbol: str,
+    strategy: str,
+    timeframe: str = "1d",
+    limit: int = 300,
+    warmup: int | None = None,
+    initial_balance: float | None = None,
+    commission_bps: float | None = None,
+    slippage_bps: float | None = None,
+) -> dict[str, Any]:
+    registry = _strategy().registry
+    if registry.get(strategy) is None:
+        raise TradingError(
+            f"Unknown strategy '{strategy}'. Registered: "
+            f"{', '.join(registry.ids()) or 'none'}.",
+            hint="Run list_strategies to see the registered strategies.",
+        )
+    data = await _market_data().get_candles(symbol, timeframe, limit=limit)
+    report = await _simulation().run(
+        data,
+        strategy,
+        warmup=warmup,
+        initial_balance=initial_balance,
+        commission_bps=commission_bps,
+        slippage_bps=slippage_bps,
+    )
+    entries = _journal().entries_for_report(report)
+    # Persist the settled trail (spec Phase 27). Recording upserts on the
+    # entry's content-addressed id, so re-running the same history refreshes
+    # the row in place rather than duplicating it; a run that settled nothing
+    # writes nothing. Persistence is a side effect -- the tool returns the same
+    # entries whether or not the store is durable.
+    for entry in entries:
+        await _journal_store().record(entry)
+    return {
+        "symbol": data.instrument.key,
+        "timeframe": data.timeframe.value,
+        "simulation": report.to_dict(),
+        "journal": {
+            "entry_count": len(entries),
+            "entries": [entry.to_dict() for entry in entries],
+        },
+    }
+
+
+@tool(
+    category="trading.analytics",
+    description=(
+        "Measure trading performance from a strategy's own paper-trade "
+        "journal: paper-trade the strategy over its history, turn the settled "
+        "trades into journal entries, and aggregate them into win rate, "
+        "profit factor, expectancy, Sharpe, max drawdown, average planned "
+        "risk/reward, monthly return and per-strategy/symbol/timeframe "
+        "breakdowns. Open trades carry no result and never enter the P/L "
+        "metrics; a thin or MOCK book comes back is_reliable=false with the "
+        "reason stated. Measures a book that already exists -- it never trades."
+    ),
+)
+async def journal_performance(
+    symbol: str,
+    strategy: str,
+    timeframe: str = "1d",
+    limit: int = 300,
+    warmup: int | None = None,
+    initial_balance: float | None = None,
+    commission_bps: float | None = None,
+    slippage_bps: float | None = None,
+) -> dict[str, Any]:
+    registry = _strategy().registry
+    if registry.get(strategy) is None:
+        raise TradingError(
+            f"Unknown strategy '{strategy}'. Registered: "
+            f"{', '.join(registry.ids()) or 'none'}.",
+            hint="Run list_strategies to see the registered strategies.",
+        )
+    data = await _market_data().get_candles(symbol, timeframe, limit=limit)
+    report = await _simulation().run(
+        data,
+        strategy,
+        warmup=warmup,
+        initial_balance=initial_balance,
+        commission_bps=commission_bps,
+        slippage_bps=slippage_bps,
+    )
+    entries = _journal().entries_for_report(report)
+    analytics = _journal_analytics().summarize(entries)
+    return {
+        "symbol": data.instrument.key,
+        "timeframe": data.timeframe.value,
+        "strategy": strategy,
+        "entry_count": len(entries),
+        "analytics": analytics.to_dict(),
+    }
+
+
+@tool(
+    category="trading.analysis",
+    description=(
+        "Generate trading signals on an instrument: run every strategy (or a "
+        "named subset), and for each setup that fired, derive the full risk "
+        "geometry (entry, stop, target, risk/reward, size from the account "
+        "risk budget), run the critic, and emit a BUY or SELL signal ONLY if "
+        "every gate passes -- side agreement, actionable data, an APPROVE "
+        "critic verdict, and an acceptable risk/reward. Every rejected "
+        "candidate names the gates it failed; a run where nothing fired is "
+        "the honest insufficient-evidence result. A signal is a proposal with "
+        "confidence, risk, reasoning and evidence -- never an order, and "
+        "nothing here reaches a broker."
+    ),
+)
+async def generate_signals(
+    symbol: str,
+    timeframe: str = "1d",
+    limit: int = 200,
+    strategies: str | list[str] | None = None,
+    account_equity: float | None = None,
+    risk_pct: float | None = None,
+) -> dict[str, Any]:
+    evaluation = await _signals().evaluate(
+        symbol,
+        timeframe=timeframe,
+        limit=limit,
+        strategy_ids=_split_symbols(strategies) if strategies else None,
+        account_equity=account_equity,
+        risk_pct=risk_pct,
+    )
+    return {
+        "symbol": symbol,
+        "timeframe": timeframe,
+        "provenance": evaluation.provenance.to_dict()
+        if evaluation.provenance
+        else None,
+        "quality": evaluation.quality.to_dict() if evaluation.quality else None,
+        "signals": evaluation.to_dict(),
     }
 
 
@@ -860,6 +1415,36 @@ async def explain_signal(
 @tool(
     category="trading.analysis",
     description=(
+        "Produce the structured trading decision for an instrument: market view, "
+        "strategy setup, direction, confidence, supporting vs contradictory "
+        "evidence, entry/stop/target/risk-reward/invalidation, reasoning, "
+        "uncertainty and provenance -- assembled from the deterministic report, "
+        "the strategy panel and (when a screenshot is available) the visual "
+        "read. The decision never exceeds its report and never reaches a broker: "
+        "the LLM reasons over it, execution stays deterministic and "
+        "policy-controlled. A MOCK/insufficient run decides NO_TRADE with the "
+        "uncertainty stated. Pass 'with_visual=True' to include the chart-"
+        "screenshot read as an advisory note. This is analysis, not trade advice."
+    ),
+)
+async def decide(
+    symbol: str,
+    timeframe: str = "1d",
+    limit: int = 300,
+    with_visual: bool = False,
+) -> dict[str, Any]:
+    hybrid = None
+    if with_visual:
+        hybrid = await _hybrid().build(symbol, timeframe, limit=limit)
+    decision = await _decision().decide(
+        symbol, timeframe=timeframe, limit=limit, hybrid=hybrid
+    )
+    return _decision().to_dict_context(decision)
+
+
+@tool(
+    category="trading.analysis",
+    description=(
         "Produce a plain-language CEO brief for an instrument: run the full "
         "deterministic report, then have the LLM narrate it in clear prose. The "
         "deterministic core decides (direction, probability, risk, "
@@ -867,15 +1452,20 @@ async def explain_signal(
         "full report is embedded as the source of truth. If no LLM is configured "
         "(or it fails) the brief falls back to a deterministic templated summary "
         "rather than failing -- the core works without the LLM. A MOCK/"
-        "insufficient run is narrated honestly as NO_TRADE."
+        "insufficient run is narrated honestly as NO_TRADE. Pass "
+        "'with_visual=True' to hand the LLM the unified hybrid context (report "
+        "numbers plus the chart-screenshot read and its trust rules) instead of "
+        "the bare report; without a screenshot the narration rests on numbers "
+        "alone."
     ),
 )
 async def brief_instrument(
     symbol: str,
     timeframe: str = "1d",
     limit: int = 300,
+    with_visual: bool = False,
 ) -> dict[str, Any]:
-    brief = await _ceo().brief(symbol, timeframe, limit=limit)
+    brief = await _ceo().brief(symbol, timeframe, limit=limit, with_visual=with_visual)
     return brief.to_dict()
 
 
@@ -988,6 +1578,34 @@ def _clean_key(instrument_key: str | None) -> str | None:
         return None
     cleaned = instrument_key.strip()
     return cleaned or None
+
+
+@tool(
+    category="trading.audit",
+    description=(
+        "List the settled paper-trade journal entries AetherOS has persisted -- "
+        "the durable trade trail, newest first, optionally filtered to one "
+        "instrument key (like 'AAPL:NASDAQ') and capped at 'limit'. Each entry "
+        "is one content-addressed round trip with its verbatim geometry (entry, "
+        "exit, stop, target, planned risk/reward), realised P/L and net P/L, and "
+        "its provenance. Unlike the within-session prediction trail, this one "
+        "survives a restart when the journal store is file-backed. It reports "
+        "what was recorded, never re-scored; an empty trail is an honest "
+        "'nothing journalled yet', not an error."
+    ),
+)
+async def list_journal(
+    instrument_key: str | None = None,
+    limit: int | None = None,
+) -> dict[str, Any]:
+    entries = await _journal_store().list_entries(
+        instrument_key=_clean_key(instrument_key),
+        limit=limit,
+    )
+    return {
+        "count": len(entries),
+        "entries": [entry.to_dict() for entry in entries],
+    }
 
 
 @tool(
@@ -1223,3 +1841,314 @@ async def recalibrate_probability(
         "applied": applied,
         "correction": correction.to_dict(),
     }
+
+
+# ==========================================================
+# Chart engine (Phase 3)
+# ==========================================================
+
+
+def _chart_service() -> ChartService:
+    return container.resolve(ChartService)
+
+
+def _chart_capture() -> ChartCaptureService | None:
+    from ..core.container import container as _container
+
+    if not _container.has(ChartCaptureService):
+        return None
+    return _container.resolve(ChartCaptureService)
+
+
+@tool(
+    category="trading.charts",
+    description=(
+        "Project an instrument's candle series into chart data: the "
+        "timeframe, the computed time and price ranges, data quality and "
+        "provenance, plus a small tail of recent (time, OHLCV) points. Use "
+        "this when the chart-level view of the series is needed rather than "
+        "indicator values."
+    ),
+)
+async def build_chart_data(
+    symbol: str,
+    timeframe: str = "1d",
+    limit: int = 300,
+) -> dict[str, Any]:
+    data = await _market_data().get_candles(symbol, timeframe, limit=limit)
+    chart = _chart_service().build_chart(data)
+    payload = chart.to_dict()
+    payload["quality"] = data.quality.to_dict()
+    return payload
+
+
+@tool(
+    category="trading.charts",
+    description=(
+        "Synchronize multiple charts onto their common time window: fetches "
+        "each symbol's candles at one timeframe and trims every series to "
+        "the shared range so comparisons are aligned. Symbols without "
+        "overlap are reported with a limitation instead of being silently "
+        "dropped or fabricated."
+    ),
+)
+async def synchronize_charts(
+    symbols: str | list[str],
+    timeframe: str = "1d",
+    limit: int = 300,
+) -> dict[str, Any]:
+    wanted = _split_symbols(symbols)
+    if not wanted:
+        return {"error": "No symbols supplied.", "charts": {}}
+    if len(wanted) > 8:
+        return {
+            "error": "Synchronize at most 8 symbols per call.",
+            "charts": {},
+        }
+
+    market_data = _market_data()
+    series: dict[str, Any] = {}
+    failures: list[dict[str, str]] = []
+    for symbol in wanted:
+        try:
+            data = await market_data.get_candles(symbol, timeframe, limit=limit)
+            series[symbol] = data
+        except TradingError as exc:
+            failures.append({"symbol": symbol, "error": exc.message})
+
+    synced = _chart_service().synchronize(series)
+    charts: dict[str, Any] = {}
+    for key, entry in synced.items():
+        chart = entry["chart"]
+        charts[key] = {
+            "synced": entry["synced"],
+            "limitation": entry.get("limitation"),
+            "window": entry.get("window"),
+            "chart": chart.to_dict() if chart is not None else None,
+        }
+    return {
+        "timeframe": timeframe,
+        "requested": len(wanted),
+        "aligned": sum(1 for c in charts.values() if c["synced"]),
+        "fetch_failures": failures,
+        "charts": charts,
+    }
+
+
+@tool(
+    category="trading.charts",
+    description=(
+        "Capture a screenshot of a chart from the screen -- the whole primary "
+        "monitor by default, or a region when left/top/width/height are all "
+        "given. Returns the image dimensions and capture metadata, not the "
+        "pixels. Requires the desktop screen-capture subsystem; on a headless "
+        "machine it fails with an explicit error instead of returning a fake "
+        "frame."
+    ),
+)
+async def capture_chart_screenshot(
+    left: int | None = None,
+    top: int | None = None,
+    width: int | None = None,
+    height: int | None = None,
+) -> dict[str, Any]:
+    capture = _chart_capture()
+    if capture is None:
+        return {
+            "error": (
+                "Screen capture is unavailable (headless machine or the "
+                "desktop subsystem is not registered); no screenshot was "
+                "taken."
+            ),
+        }
+    metadata = await capture.save_screenshot(
+        left=left, top=top, width=width, height=height
+    )
+    return metadata
+
+
+@tool(
+    category="trading.charts",
+    description=(
+        "Read a chart screenshot with vision and return the observations as "
+        "trading evidence with provenance: captures the screen (or region), "
+        "runs OCR text recognition and object detection over the frame, and "
+        "returns one observation per read (label, confidence, bounding box, "
+        "source, timestamp) plus VISUAL evidence for the strong reads. Visual "
+        "uncertainty stays visible -- every item keeps its backend confidence "
+        "verbatim, capped below API-derived numbers in fusion. Requires the "
+        "desktop screen-capture and vision subsystems; degrades honestly when "
+        "either is absent."
+    ),
+)
+async def observe_chart(
+    symbol: str,
+    timeframe: str = "1d",
+    limit: int = 200,
+    left: int | None = None,
+    top: int | None = None,
+    width: int | None = None,
+    height: int | None = None,
+) -> dict[str, Any]:
+    from ..vision.controller import VisionService
+
+    capture = _chart_capture()
+    if capture is None:
+        return {
+            "error": (
+                "Screen capture is unavailable (headless machine or the "
+                "desktop subsystem is not registered); no screenshot was "
+                "taken."
+            ),
+        }
+    if not container.has(VisionService):
+        return {
+            "error": (
+                "Vision is unavailable (the vision subsystem is not "
+                "registered); the screenshot was not taken."
+            ),
+        }
+    data = await _market_data().get_candles(symbol, timeframe, limit=limit)
+    image, shot = await capture.capture_chart(
+        left=left, top=top, width=width, height=height
+    )
+    vision: VisionService = container.resolve(VisionService)
+    service = _visual()
+    text_blocks: list = []
+    detections: list = []
+    if vision.has_ocr:
+        try:
+            text_blocks = await vision.read_text(image)
+        except Exception:
+            text_blocks = []
+    if vision.has_detector:
+        try:
+            detections = await vision.detect_objects(image)
+        except Exception:
+            detections = []
+    text_obs = service.observe_text(text_blocks, instrument_key=data.instrument.key)
+    object_obs = service.observe_objects(detections, instrument_key=data.instrument.key)
+    observations = text_obs + object_obs
+    evidence = service.to_evidence(observations, data)
+    return {
+        "symbol": data.instrument.key,
+        "timeframe": data.timeframe.value,
+        "screenshot": shot,
+        "capabilities": vision.capabilities(),
+        "observations": [obs.to_dict() for obs in observations],
+        "evidence": [item.to_dict() for item in evidence],
+    }
+
+
+@tool(
+    category="trading.analysis",
+    description=(
+        "Build the unified hybrid chart context for an instrument: the "
+        "deterministic numerical read (market state, chart projection, "
+        "technical state, news, fundamentals, decision metadata) side by side "
+        "with the visual read (chart screenshot metadata, vision capabilities, "
+        "observations, VISUAL evidence, and a visual-vs-numerical cross-check). "
+        "This is the single context the LLM reasons over when it must weigh "
+        "BOTH numbers and pictures. Provenance-weighted trust is embedded: "
+        "visual reads stay UNCERTAIN guesses with verbatim confidence and "
+        "capped weight, never equal to API-derived facts, and a conflict is "
+        "reported with the numerical read governing. By default the visual "
+        "sections degrade honestly when screen capture or vision is absent "
+        "(pass 'with_visual=False' to skip the screenshot attempt entirely). "
+        "This is analysis, not a guarantee."
+    ),
+)
+async def build_hybrid_context(
+    symbol: str,
+    timeframe: str = "1d",
+    limit: int = 300,
+    with_visual: bool = True,
+) -> dict[str, Any]:
+    context = await _hybrid().build(
+        symbol, timeframe, limit=limit, with_visual=with_visual
+    )
+    return context.to_dict()
+
+
+@tool(
+    category="trading.audit",
+    description=(
+        "List the trading alerts the alert engine has recently generated "
+        "(newest last, optionally capped by 'limit'). Alerts come from the "
+        "shared event stream -- a generated signal, a reliable news read, a "
+        "risk-limit breach, a regime change, an event-risk warning -- or from "
+        "an armed price watch. Each carries its kind, severity, instrument, "
+        "and whether its basis was reliable. Returns an empty list when nothing "
+        "has fired yet (honest, not an error). This reads what already fired; "
+        "it raises nothing."
+    ),
+)
+async def list_alerts(limit: int | None = None) -> dict[str, Any]:
+    alerts = _alerts().recent(limit=limit)
+    return {
+        "count": len(alerts),
+        "channels": [c.value for c in _alerts().router.channels],
+        "alerts": [alert.to_dict() for alert in alerts],
+    }
+
+
+@tool(
+    category="trading.audit",
+    description=(
+        "Arm a one-shot price watch: fetch the latest quote for an instrument "
+        "and, ONLY if the live price has crossed the given threshold (above when "
+        "'direction' is 'above', below when 'below'), raise a price alert and "
+        "route it to the configured channels. Returns whether the threshold was "
+        "crossed, the quote's price and provenance, and -- when it fired -- the "
+        "alert and its per-channel delivery results. A MOCK-tier or unreliable "
+        "quote never raises an alert (synthetic numbers do not page a desk); the "
+        "result says so. This is a notification, not an order, and reaches no "
+        "broker."
+    ),
+)
+async def watch_price(
+    symbol: str,
+    threshold: float,
+    direction: str = "above",
+) -> dict[str, Any]:
+    side = direction.strip().lower()
+    if side not in ("above", "below"):
+        raise TradingError(
+            f"Unknown direction '{direction}'. Use 'above' or 'below'.",
+            hint="direction is the side of the threshold to watch.",
+        )
+    quote = await _market_data().get_quote(symbol)
+    price = quote.price
+    crossed = price >= threshold if side == "above" else price <= threshold
+    result: dict[str, Any] = {
+        "symbol": quote.instrument.key,
+        "price": price,
+        "threshold": threshold,
+        "direction": side,
+        "crossed": crossed,
+        "provenance": quote.provenance.to_dict(),
+        "fired": False,
+        "reason": "",
+        "alert": None,
+        "deliveries": [],
+    }
+    if not crossed:
+        result["reason"] = "Price has not crossed the watched threshold."
+        return result
+    if quote.provenance.is_mock:
+        result["reason"] = (
+            "Quote is MOCK-tier; a synthetic price never raises a real alert."
+        )
+        return result
+    alert = price_alert(
+        instrument_key=quote.instrument.key,
+        price=price,
+        threshold=threshold,
+        direction=side,
+    )
+    deliveries = await _alerts().raise_alert(alert)
+    result["fired"] = True
+    result["reason"] = "Threshold crossed on a live quote; alert raised."
+    result["alert"] = alert.to_dict()
+    result["deliveries"] = [d.to_dict() for d in deliveries]
+    return result

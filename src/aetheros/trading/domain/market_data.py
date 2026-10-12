@@ -9,8 +9,9 @@ DataQuality so no downstream stage has to guess where the numbers came from.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import numpy as np
@@ -21,7 +22,7 @@ from .provenance import DataQuality, Provenance
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(frozen=True, slots=True)
@@ -34,6 +35,21 @@ class Candle:
     low: float
     close: float
     volume: float
+
+    def __post_init__(self) -> None:
+        if self.timestamp.tzinfo is None or self.timestamp.utcoffset() is None:
+            raise ValueError("Candle timestamp must be timezone-aware.")
+        object.__setattr__(self, "timestamp", self.timestamp.astimezone(UTC))
+
+        values = (self.open, self.high, self.low, self.close, self.volume)
+        if any(not math.isfinite(value) for value in values):
+            raise ValueError("Candle OHLCV values must be finite.")
+        if self.high < max(self.open, self.low, self.close):
+            raise ValueError("Candle high must be >= open, low, and close.")
+        if self.low > min(self.open, self.high, self.close):
+            raise ValueError("Candle low must be <= open, high, and close.")
+        if self.volume < 0:
+            raise ValueError("Candle volume must be non-negative.")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -58,6 +74,21 @@ class Quote:
     ask: float | None = None
     volume: float | None = None
     change_pct: float | None = None
+
+    def __post_init__(self) -> None:
+        if not math.isfinite(self.price) or self.price <= 0:
+            raise ValueError("Quote price must be a finite positive number.")
+        if self.timestamp.tzinfo is None or self.timestamp.utcoffset() is None:
+            raise ValueError("Quote timestamp must be timezone-aware.")
+        for value, name in ((self.bid, "bid"), (self.ask, "ask")):
+            if value is not None and (not math.isfinite(value) or value <= 0):
+                raise ValueError(f"Quote {name} must be a finite positive number.")
+        if self.volume is not None and (
+            not math.isfinite(self.volume) or self.volume < 0
+        ):
+            raise ValueError("Quote volume must be finite and non-negative.")
+        if self.change_pct is not None and not math.isfinite(self.change_pct):
+            raise ValueError("Quote change_pct must be finite.")
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -111,6 +142,35 @@ class MarketData:
     @property
     def last_timestamp(self) -> datetime | None:
         return self.candles[-1].timestamp if self.candles else None
+
+    def window(self, start: int, end: int | None = None) -> MarketData:
+        """
+        A sub-series ``[start, end)`` carrying this series' provenance and quality.
+
+        Half-open, like every other window in the trading core, and bounds-checked:
+        a slice that runs off the end of the series is a caller bug and fails
+        loudly here rather than quietly returning a shorter series to a
+        backtest. An empty result is allowed -- "no bars in this window" is a
+        real answer the callers already handle -- but an out-of-range one is not.
+
+        This is the slicing primitive the backtester and the walk-forward
+        splitter both use, so the past-only guarantee is defined in exactly one
+        place.
+        """
+        stop = len(self.candles) if end is None else end
+        if start < 0 or stop < start or stop > len(self.candles):
+            raise ValueError(
+                f"A window [{start}, {stop}) does not fit a series of "
+                f"{len(self.candles)} bars."
+            )
+        return MarketData(
+            instrument=self.instrument,
+            timeframe=self.timeframe,
+            candles=self.candles[start:stop],
+            provenance=self.provenance,
+            quality=self.quality,
+            retrieved_at=self.retrieved_at,
+        )
 
     def to_dict(self, *, include_candles: bool = False, tail: int = 20) -> dict[str, Any]:
         """

@@ -17,7 +17,7 @@ but never announced as an earned track record (sections 6, 28).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .outcome import PredictionOutcome
@@ -25,7 +25,7 @@ from .performance import PredictionPerformance
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(frozen=True, slots=True)

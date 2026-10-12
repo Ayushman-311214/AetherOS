@@ -18,7 +18,7 @@ no fabricated posture (sections 5, 28).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .enums import Confidence, Direction, MarketPosture, MarketRegime
@@ -28,7 +28,7 @@ from .provenance import DataQuality, Provenance
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(frozen=True, slots=True)

@@ -26,7 +26,6 @@ from ..domain.evidence import Evidence
 from ..domain.instrument import Instrument
 from ..domain.market_data import MarketData
 from ..domain.provenance import Provenance
-from ..errors import InsufficientDataError
 from ..events import AnalysisCompleted
 from .evidence_service import EvidenceService
 from .market_data_service import MarketDataService

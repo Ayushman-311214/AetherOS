@@ -161,3 +161,75 @@ async def test_respond_briefs_the_identified_instrument():
 async def test_respond_raises_when_no_instrument_identified():
     with pytest.raises(ValueError):
         await _service(llm=None).respond("should i buy the stock today")
+
+
+# ---- hybrid brief: the LLM receives numbers AND the visual read (Phase 19) ----
+
+
+def _hybrid_service(**kwargs):
+    from aetheros.trading.services.chart_service import ChartService
+    from aetheros.trading.services.hybrid_service import HybridContextService
+    from aetheros.trading.services.visual_service import VisualObservationService
+
+    settings = get_settings()
+    market_data = MarketDataService(MockMarketDataProvider(), settings)
+    analysis = AnalysisService(
+        market_data,
+        TechnicalAnalysisService(),
+        MarketStructureService(),
+        EvidenceService(),
+        settings,
+    )
+    orchestrator = OrchestrationService(
+        market_data,
+        analysis,
+        RiskService(settings),
+        BacktestService(settings),
+        CriticService(settings),
+        settings,
+    )
+    return HybridContextService(
+        orchestrator,
+        market_data,
+        ChartService(),
+        VisualObservationService(),
+        **kwargs,
+    )
+
+
+@pytest.mark.asyncio
+async def test_hybrid_brief_hands_the_llm_numbers_and_visual():
+    llm = _FakeLLM()
+    service = TradingCEOService(
+        _orchestrator(), get_settings(), llm=llm, hybrid=_hybrid_service()
+    )
+    brief = await service.brief("AAPL", "1d", limit=120, with_visual=True)
+
+    # The decision still comes off the deterministic report ...
+    assert brief.recommendation == "no_trade"
+    assert brief.is_actionable is False
+    # ... but the LLM was handed the unified hybrid context, not the bare
+    # report: visual sections and trust rules travel with the numbers.
+    assert llm.calls, "the LLM should have been called"
+    user_content = llm.calls[0][1]["content"]
+    assert "visual_state" in user_content
+    assert "trust_rules" in user_content
+    assert "technical_state" in user_content
+
+
+@pytest.mark.asyncio
+async def test_hybrid_brief_defaults_to_the_report_only_payload():
+    llm = _FakeLLM()
+    service = TradingCEOService(
+        _orchestrator(), get_settings(), llm=llm, hybrid=_hybrid_service()
+    )
+    await service.brief("AAPL", "1d", limit=120)
+    assert "visual_state" not in llm.calls[0][1]["content"]
+
+
+@pytest.mark.asyncio
+async def test_hybrid_brief_degrades_honestly_without_a_hybrid_service():
+    llm = _FakeLLM()
+    brief = await _service(llm).brief("AAPL", "1d", limit=120, with_visual=True)
+    assert brief.recommendation == "no_trade"
+    assert "visual_state" not in llm.calls[0][1]["content"]

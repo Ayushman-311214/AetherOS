@@ -19,3 +19,10 @@ __all__ = [
     "FundamentalsProvider",
     "MockFundamentalsProvider",
 ]
+
+
+def ccxt_provider_available() -> bool:
+    """Whether the optional ccxt dependency is importable (no import cost)."""
+    import importlib.util
+
+    return importlib.util.find_spec("ccxt") is not None

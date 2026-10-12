@@ -3,11 +3,12 @@ Knowledge-graph store over SQLite (spec Phase 6).
 
 Entities and relationships persist in their own tables (see schema.py); this
 class is the typed, deduplicating API over them, plus traversal. Graph
-*traversal* (paths, N-hop neighbourhoods) is done with :mod:`networkx`, built on
-demand from the currently-active relationships -- the spec explicitly says not
-to introduce a dedicated graph database "unless there is a demonstrated
-architectural need", and at an interactive agent's scale an in-memory networkx
-view rebuilt per traversal is simpler and fast enough.
+*traversal* (paths, N-hop neighbourhoods) is a bounded breadth-first walk done
+directly in SQL, one hop at a time over the currently-active edge set -- the
+spec explicitly says not to introduce a dedicated graph database "unless there
+is a demonstrated architectural need". Per-hop SQL (backed by the partial
+active-edge indexes in migration 2) keeps each walk bounded in depth, fan-out,
+result count and wall-clock time, and never materialises the whole graph.
 
 Two integrity rules the spec calls for (Phase 13):
 
@@ -21,17 +22,48 @@ from __future__ import annotations
 
 import asyncio
 import json
+import time
+from collections import deque
+from dataclasses import dataclass, replace
 from typing import Any
 
-import networkx as nx
-
+from ...core.errors.memory_error import MemoryValidationError
+from .._clock import utcnow_iso
 from ..domain.semantic import Entity, Relationship
 from ..storage.database import SQLiteDatabase
-from .._clock import utcnow, utcnow_iso
+
+
+@dataclass(frozen=True, slots=True)
+class TraversalBounds:
+    """Explicit limits for a graph walk (Phase 7).
+
+    Unbounded traversal of an evolving graph is a latency and memory hazard, so
+    every walk carries these. Defaults are sized for an interactive agent, not a
+    bulk analytics job.
+    """
+
+    max_hops: int = 2
+    max_fanout: int = 64
+    max_results: int = 256
+    time_limit_s: float = 1.0
+
+    def __post_init__(self) -> None:
+        if self.max_hops < 0:
+            raise ValueError("max_hops must be >= 0")
+        if self.max_fanout < 1:
+            raise ValueError("max_fanout must be >= 1")
+        if self.max_results < 1:
+            raise ValueError("max_results must be >= 1")
+        if self.time_limit_s <= 0:
+            raise ValueError("time_limit_s must be > 0")
+
+    def with_hops(self, max_hops: int) -> TraversalBounds:
+        """Return a copy with ``max_hops`` overridden (back-compat shim)."""
+        return replace(self, max_hops=max_hops)
 
 
 class KnowledgeGraph:
-    """Deduplicating entity/relationship store with networkx traversal."""
+    """Deduplicating entity/relationship store with bounded SQL traversal."""
 
     def __init__(self, db: SQLiteDatabase) -> None:
         self._db = db
@@ -177,6 +209,17 @@ class KnowledgeGraph:
         """
 
         def _run() -> Relationship:
+            # Invalid-reference guard (Phase 7): an edge may only join entities
+            # that actually exist, so traversal never dangles into a missing
+            # node. Checked inside the same thread as the write.
+            for role, node_id in (("source", rel.source_id), ("target", rel.target_id)):
+                if self._db.query_one(
+                    "SELECT 1 FROM entities WHERE id = ?", (node_id,)
+                ) is None:
+                    raise MemoryValidationError(
+                        f"Relationship {role} entity does not exist: {node_id}",
+                        hint="Upsert both endpoints before adding an edge.",
+                    )
             existing = self._db.query_one(
                 "SELECT * FROM relationships WHERE source_id=? AND target_id=? "
                 "AND relation=? AND valid_to IS NULL",
@@ -237,6 +280,39 @@ class KnowledgeGraph:
 
         await asyncio.to_thread(_run)
 
+    async def scrub_memory(self, memory_id: str) -> int:
+        """Remove one memory id from every edge's evidence list (Phase 15).
+
+        Coordinated hard-erasure support: the erased row's *content* must
+        not remain reachable through graph evidence pointers. Edges
+        themselves stay (graph topology is shared knowledge accumulated
+        from many memories, not the erased row's property); only the
+        pointer to the erased content is removed. Returns how many edges
+        were scrubbed.
+        """
+
+        def _run() -> int:
+            rows = self._db.query_all(
+                "SELECT id, evidence_memory_ids FROM relationships"
+            )
+            scrubbed = 0
+            for r in rows:
+                try:
+                    ids = json.loads(r["evidence_memory_ids"])
+                except (ValueError, TypeError):
+                    continue
+                if memory_id not in ids:
+                    continue
+                kept = [i for i in ids if i != memory_id]
+                self._db.execute(
+                    "UPDATE relationships SET evidence_memory_ids=? WHERE id=?",
+                    (json.dumps(kept), r["id"]),
+                )
+                scrubbed += 1
+            return scrubbed
+
+        return await asyncio.to_thread(_run)
+
     async def find_relationships(
         self,
         *,
@@ -282,42 +358,99 @@ class KnowledgeGraph:
         return out
 
     # ------------------------------------------------------------------
-    # Traversal (networkx over the active edge set)
+    # Traversal (bounded, per-hop over the active edge set)
     # ------------------------------------------------------------------
 
-    async def _active_graph(self) -> nx.DiGraph:
-        rels = await self.find_relationships(active_only=True)
+    def _active_neighbor_ids_sync(
+        self, node_id: str, relation: str | None
+    ) -> list[str]:
+        """One hop: ids of entities joined to ``node_id`` by an *active* edge
+        (either direction). Uses the partial active-edge indexes (migration 2)
+        so a hop is an index SEARCH, not a scan over superseded history."""
+        rel_clause = " AND relation = ?" if relation else ""
+        params: tuple[Any, ...] = (node_id,) if not relation else (node_id, relation)
+        out_rows = self._db.query_all(
+            "SELECT target_id AS other FROM relationships "
+            "WHERE source_id = ? AND valid_to IS NULL" + rel_clause,
+            params,
+        )
+        in_rows = self._db.query_all(
+            "SELECT source_id AS other FROM relationships "
+            "WHERE target_id = ? AND valid_to IS NULL" + rel_clause,
+            params,
+        )
+        # dict.fromkeys keeps first-seen order and drops duplicate/parallel edges.
+        return list(dict.fromkeys(r["other"] for r in (*out_rows, *in_rows)))
 
-        def _build() -> nx.DiGraph:
-            g = nx.DiGraph()
-            for rel in rels:
-                g.add_edge(
-                    rel.source_id,
-                    rel.target_id,
-                    relation=rel.relation,
-                    weight=rel.weight,
-                )
-            return g
+    def _bounded_bfs_sync(
+        self,
+        start_id: str,
+        bounds: TraversalBounds,
+        relation: str | None,
+        goal_id: str | None,
+    ) -> tuple[dict[str, int], dict[str, str]]:
+        """
+        Breadth-first walk of the active graph from ``start_id``, honouring every
+        bound. Returns ``(hops_by_id, parent_by_id)``.
 
-        return await asyncio.to_thread(_build)
+        Cycle-safe: a ``visited`` set means each node is expanded once. Bounded by
+        ``max_hops`` (depth), ``max_fanout`` (neighbours expanded per node),
+        ``max_results`` (total nodes discovered) and ``time_limit_s`` (wall clock,
+        checked each dequeue). Stops early if ``goal_id`` is reached.
+        """
+        deadline = time.monotonic() + bounds.time_limit_s
+        hops: dict[str, int] = {start_id: 0}
+        parent: dict[str, str] = {}
+        queue: deque[str] = deque([start_id])
+        while queue:
+            if time.monotonic() > deadline:
+                break
+            node = queue.popleft()
+            depth = hops[node]
+            if node == goal_id:
+                break
+            if depth >= bounds.max_hops:
+                continue
+            neighbours = self._active_neighbor_ids_sync(node, relation)
+            for other in neighbours[: bounds.max_fanout]:
+                if other in hops:
+                    continue
+                hops[other] = depth + 1
+                parent[other] = node
+                if other == goal_id:
+                    return hops, parent
+                # -1 for the start node, which is never a "result".
+                if len(hops) - 1 >= bounds.max_results:
+                    return hops, parent
+                queue.append(other)
+        return hops, parent
 
     async def find_related_entities(
-        self, name: str, *, entity_type: str = "concept", max_hops: int = 2
+        self,
+        name: str,
+        *,
+        entity_type: str = "concept",
+        max_hops: int = 2,
+        relation: str | None = None,
+        bounds: TraversalBounds | None = None,
     ) -> list[Entity]:
-        """Entities reachable from ``name`` within ``max_hops`` (undirected)."""
+        """Entities reachable from ``name`` within the bounds, nearest first.
+
+        ``max_hops`` is honoured for backwards compatibility; any explicit
+        ``bounds`` takes precedence for the remaining limits (fan-out, result
+        count, time)."""
         start = await self.find_entity(name, entity_type=entity_type)
         if start is None:
             return []
-        graph = (await self._active_graph()).to_undirected()
-        if start.id not in graph:
-            return []
-        reachable = nx.single_source_shortest_path_length(
-            graph, start.id, cutoff=max_hops
+        bounds = (bounds or TraversalBounds()).with_hops(max_hops)
+        hops, _ = await asyncio.to_thread(
+            self._bounded_bfs_sync, start.id, bounds, relation, None
+        )
+        ordered = sorted(
+            (nid for nid in hops if nid != start.id), key=lambda nid: hops[nid]
         )
         out: list[Entity] = []
-        for node_id, hops in sorted(reachable.items(), key=lambda kv: kv[1]):
-            if node_id == start.id:
-                continue
+        for node_id in ordered:
             ent = await self.get_entity(node_id)
             if ent is not None:
                 out.append(ent)
@@ -330,21 +463,32 @@ class KnowledgeGraph:
         *,
         source_type: str = "concept",
         target_type: str = "concept",
+        relation: str | None = None,
+        bounds: TraversalBounds | None = None,
     ) -> list[Entity]:
-        """Shortest path of entities between two names (undirected), or []."""
+        """Shortest active-edge path of entities between two names, or ``[]``.
+
+        Bounded BFS: a path longer than ``bounds.max_hops`` (or one the bounds
+        stop short of) returns ``[]`` rather than scanning the whole graph."""
         src = await self.find_entity(source_name, entity_type=source_type)
         dst = await self.find_entity(target_name, entity_type=target_type)
         if src is None or dst is None:
             return []
-        graph = (await self._active_graph()).to_undirected()
-        if src.id not in graph or dst.id not in graph:
+        if src.id == dst.id:
+            return [src]
+        bounds = bounds or TraversalBounds()
+        hops, parent = await asyncio.to_thread(
+            self._bounded_bfs_sync, src.id, bounds, relation, dst.id
+        )
+        if dst.id not in parent and dst.id != src.id:
             return []
-        try:
-            node_ids = nx.shortest_path(graph, src.id, dst.id)
-        except nx.NetworkXNoPath:
-            return []
+        # Reconstruct source -> target by walking parents back from the goal.
+        chain: list[str] = [dst.id]
+        while chain[-1] != src.id:
+            chain.append(parent[chain[-1]])
+        chain.reverse()
         path: list[Entity] = []
-        for node_id in node_ids:
+        for node_id in chain:
             ent = await self.get_entity(node_id)
             if ent is not None:
                 path.append(ent)

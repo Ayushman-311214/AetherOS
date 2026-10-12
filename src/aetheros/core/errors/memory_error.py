@@ -91,6 +91,26 @@ class MemoryValidationError(MemoryError):
         )
 
 
+class MemoryConflictError(MemoryError):
+    """An optimistic-concurrency update lost a race (stale expected version)."""
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        hint: str | None = None,
+        context: ErrorContext | None = None,
+        cause: Exception | None = None,
+    ) -> None:
+        super().__init__(
+            code="MEMORY_CONFLICT",
+            message=message,
+            hint=hint,
+            context=context,
+            cause=cause,
+        )
+
+
 class EmbeddingError(MemoryError):
     """An embedding provider failed to produce a vector."""
 

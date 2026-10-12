@@ -1,12 +1,19 @@
 """
-Episodic-memory value objects (spec Phase 9).
+Episodic-memory value objects (spec Phase 9, lifecycle Phase 10).
 
 An :class:`Episode` is a remembered experience: what happened, when, in what
-environment, which :class:`ActionRecord` steps were taken, and the
-:class:`Outcome`. Episodes are the raw material the consolidator mines into
-procedures (Phase 10) and failure patterns (Phase 11), so they record enough
-structure to replay and to learn from, while remaining a plain serialisable
-record.
+environment, which :class:`ActionRecord` steps were taken, which
+:class:`EpisodeObservation` notes were recorded, and the :class:`Outcome`.
+Episodes are the raw material the consolidator mines into procedures and
+failure patterns, so they record enough structure to replay and to learn from,
+while remaining a plain serialisable record.
+
+:class:`EpisodeObservation` is a point-in-time note (market state, screen
+state): unlike a working-memory current-observation it is historical record,
+so repeats accumulate rather than replace. ``relevant_memories`` names the
+memories the episode drew on (linked as ``references`` edges at start time);
+``provenance`` records the recording channel (agent run id, tool version)
+without ever carrying secrets -- those are redacted before persistence.
 """
 
 from __future__ import annotations
@@ -68,6 +75,37 @@ class ActionRecord:
 
 
 @dataclass(slots=True)
+class EpisodeObservation:
+    """One timestamped note recorded within an episode (Phase 10).
+
+    Unlike a working-memory current-observation (which a newer reading
+    replaces), an episode observation is historical record: repeats accumulate
+    in chronological order, and exact redeliveries (same key + timestamp) are
+    deduplicated by the recorder rather than stored twice.
+    """
+
+    key: str
+    content: str = ""
+    observed_at: datetime = field(default_factory=_utcnow)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "key": self.key,
+            "content": self.content,
+            "observed_at": self.observed_at.isoformat(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> EpisodeObservation:
+        observed = data.get("observed_at")
+        return cls(
+            key=data["key"],
+            content=data.get("content", ""),
+            observed_at=datetime.fromisoformat(observed) if observed else _utcnow(),
+        )
+
+
+@dataclass(slots=True)
 class Outcome:
     """The result of an episode or an action (spec Phase 9)."""
 
@@ -93,7 +131,7 @@ class Outcome:
 
 @dataclass(slots=True)
 class Episode:
-    """A remembered task execution (spec Phase 9)."""
+    """A remembered task execution (spec Phase 9, lifecycle Phase 10)."""
 
     goal: str
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
@@ -101,8 +139,11 @@ class Episode:
     session_id: str | None = None
     environment: dict[str, Any] = field(default_factory=dict)
     actions: list[ActionRecord] = field(default_factory=list)
+    observations: list[EpisodeObservation] = field(default_factory=list)
     outcome: Outcome = field(default_factory=Outcome)
     lessons: list[str] = field(default_factory=list)
+    relevant_memories: list[str] = field(default_factory=list)
+    provenance: dict[str, Any] = field(default_factory=dict)
     started_at: datetime = field(default_factory=_utcnow)
     ended_at: datetime | None = None
 
@@ -134,8 +175,11 @@ class Episode:
             "session_id": self.session_id,
             "environment": dict(self.environment),
             "actions": [a.to_dict() for a in self.actions],
+            "observations": [o.to_dict() for o in self.observations],
             "outcome": self.outcome.to_dict(),
             "lessons": list(self.lessons),
+            "relevant_memories": list(self.relevant_memories),
+            "provenance": dict(self.provenance),
             "started_at": self.started_at.isoformat(),
             "ended_at": self.ended_at.isoformat() if self.ended_at else None,
         }
@@ -151,8 +195,13 @@ class Episode:
             session_id=data.get("session_id"),
             environment=dict(data.get("environment", {})),
             actions=[ActionRecord.from_dict(a) for a in data.get("actions", [])],
+            observations=[
+                EpisodeObservation.from_dict(o) for o in data.get("observations", [])
+            ],
             outcome=Outcome.from_dict(data.get("outcome", {})),
             lessons=list(data.get("lessons", [])),
+            relevant_memories=list(data.get("relevant_memories", [])),
+            provenance=dict(data.get("provenance", {})),
             started_at=datetime.fromisoformat(started) if started else _utcnow(),
             ended_at=datetime.fromisoformat(ended) if ended else None,
         )
@@ -178,7 +227,10 @@ class Episode:
             source=MemorySource(
                 source_type=SourceType.AGENT,
                 origin="episodic_memory",
-                detail={"goal": self.goal},
+                detail={
+                    "goal": self.goal,
+                    **{k: v for k, v in self.provenance.items() if v is not None},
+                },
             ),
             confidence=0.9 if self.succeeded else 0.6,
             importance=importance,
@@ -187,6 +239,7 @@ class Episode:
             metadata={
                 k: v
                 for k, v in {
+                    "episode_id": self.id,
                     "task_id": self.task_id,
                     "session_id": self.session_id,
                     "application": self.environment.get("application"),

@@ -37,14 +37,41 @@ class EmbeddingProvider(ABC):
         """Embed one string. Returns a float32 array of length ``dimension``."""
         ...
 
-    async def embed_many(self, texts: list[str]) -> list[np.ndarray]:
+    async def embed_batch(self, texts: list[str]) -> list[np.ndarray]:
         """
-        Embed several strings.
+        Embed several strings, preserving input order and cardinality.
 
-        Default implementation calls :meth:`embed` per item; a batching provider
-        (a network embeddings API) overrides this to amortise the round trip.
+        The default implementation calls :meth:`embed` per item; a batching
+        provider (a network embeddings API) overrides this to amortise the round
+        trip. Implementations MUST return exactly ``len(texts)`` vectors in the
+        same order as ``texts`` -- callers key stored vectors on that ordering.
         """
         return [await self.embed(t) for t in texts]
+
+    async def embed_many(self, texts: list[str]) -> list[np.ndarray]:
+        """Backward-compatible alias of :meth:`embed_batch`."""
+        return await self.embed_batch(texts)
+
+    @staticmethod
+    def validate_vector(vector: np.ndarray, *, expected_dim: int) -> np.ndarray:
+        """
+        Guard a single embedding before it is trusted/stored.
+
+        Rejects wrong-dimension, empty, and non-finite (NaN/inf) vectors -- a
+        real provider can return any of these on a partial failure, and a bad
+        vector silently poisons cosine search. Returns the vector unchanged on
+        success so call sites can wrap inline.
+        """
+        if vector.ndim != 1 or int(vector.shape[0]) != int(expected_dim):
+            raise ValueError(
+                f"Embedding has shape {tuple(vector.shape)}, expected "
+                f"1-D of length {expected_dim}."
+            )
+        if vector.shape[0] == 0:
+            raise ValueError("Embedding is empty.")
+        if not bool(np.all(np.isfinite(vector))):
+            raise ValueError("Embedding contains non-finite values (NaN/inf).")
+        return vector
 
     @staticmethod
     def normalize(vector: np.ndarray) -> np.ndarray:

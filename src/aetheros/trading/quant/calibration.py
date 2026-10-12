@@ -54,7 +54,7 @@ class PlattScaler:
     def coefficients(self) -> tuple[float, float]:
         return (self._a, self._b)
 
-    def fit(self, scores: np.ndarray, y: np.ndarray) -> "PlattScaler":
+    def fit(self, scores: np.ndarray, y: np.ndarray) -> PlattScaler:
         s = np.asarray(scores, dtype=float).ravel()
         t = np.asarray(y, dtype=float).ravel()
         if s.shape != t.shape:
@@ -69,7 +69,6 @@ class PlattScaler:
         z = (s - mean) / std
 
         a, b = 0.0, 0.0
-        n = z.size
         for _ in range(self._iters):
             p = _sigmoid(a * z + b)
             err = p - t
@@ -181,7 +180,7 @@ class CalibrationReport:
     @classmethod
     def evaluate(
         cls, p: np.ndarray, y: np.ndarray, *, bins: int = 10
-    ) -> "CalibrationReport":
+    ) -> CalibrationReport:
         y_arr = np.asarray(y, dtype=float).ravel()
         return cls(
             brier=round(brier_score(p, y_arr), 6),

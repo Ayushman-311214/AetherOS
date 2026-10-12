@@ -28,7 +28,6 @@ from ...config.settings import Settings
 from ..domain.enums import Assertion, Confidence, Direction, EvidenceType
 from ..domain.evidence import Evidence
 from ..domain.market_data import MarketData
-from ..domain.provenance import DataQuality, Provenance
 from ..domain.relative_strength import RelativeStrengthAnalysis
 
 # Excess return over the window that maps to a full-strength (weight 1.0)

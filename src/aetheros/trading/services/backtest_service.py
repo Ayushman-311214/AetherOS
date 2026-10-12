@@ -21,11 +21,16 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Awaitable, Callable
-from typing import Union
 
 from ...config.settings import Settings
 from ...core.logging import get_logger
 from ...runtime.events.event_bus import EventBus
+from ..backtesting.metrics import (
+    directional_returns,
+    max_drawdown,
+    sharpe_ratio,
+    trade_statistics,
+)
 from ..domain.backtest import BacktestResult, TradeOutcome
 from ..domain.enums import Direction, SourceTier
 from ..domain.market_data import MarketData
@@ -36,7 +41,7 @@ logger = get_logger("trading.backtest")
 
 # A signal maps a data window to a directional call. It may be sync or async so
 # the deterministic AnalysisService (async) and trivial test signals both fit.
-SignalFn = Callable[[MarketData], Union[Direction, Awaitable[Direction]]]
+SignalFn = Callable[[MarketData], Direction | Awaitable[Direction]]
 
 # How many scored predictions to attach to the result for inspection.
 _SAMPLE_CAP = 10
@@ -150,14 +155,7 @@ class BacktestService:
     @staticmethod
     def _slice(data: MarketData, t: int) -> MarketData:
         """A window of exactly ``candles[: t + 1]`` -- the past, never the future."""
-        return MarketData(
-            instrument=data.instrument,
-            timeframe=data.timeframe,
-            candles=data.candles[: t + 1],
-            provenance=data.provenance,
-            quality=data.quality,
-            retrieved_at=data.retrieved_at,
-        )
+        return data.window(0, t + 1)
 
     @staticmethod
     async def _call(signal: SignalFn, window: MarketData) -> Direction:
@@ -198,16 +196,15 @@ class BacktestService:
         realized_up = sum(1 for o in outcomes if o.realized is Direction.UP)
 
         # Signed per-trade returns: long earns the forward return, short earns
-        # its negation. Only directional calls trade.
-        signed = [
-            o.forward_return if o.predicted is Direction.UP else -o.forward_return
-            for o in calls
-        ]
+        # its negation. Only directional calls trade. The definition lives in
+        # `backtesting.metrics` so this engine, the walk-forward pooling and the
+        # comparison all score a trade the same way.
+        signed = directional_returns(calls)
 
         cumulative = round(sum(signed), 8) if signed else None
         avg_return = round(sum(signed) / len(signed), 8) if signed else None
-        max_dd = self._max_drawdown(signed) if signed else None
-        sharpe = self._sharpe(signed)
+        max_dd = max_drawdown(signed) if signed else None
+        sharpe = sharpe_ratio(signed)
 
         if directional_calls == 0 and evaluated > 0:
             limitations.append(
@@ -254,6 +251,8 @@ class BacktestService:
             quality=data.quality,
             provenance=provenance,
             is_reliable=is_reliable,
+            statistics=trade_statistics(signed) if signed else None,
+            returns=tuple(signed),
             limitations=tuple(limitations),
             sample=sample,
         )
@@ -299,30 +298,6 @@ class BacktestService:
     @staticmethod
     def _ratio(num: int, den: int) -> float | None:
         return round(num / den, 6) if den > 0 else None
-
-    @staticmethod
-    def _max_drawdown(signed: list[float]) -> float:
-        """Largest peak-to-trough drop on the additive equity curve (>= 0)."""
-        equity = 0.0
-        peak = 0.0
-        worst = 0.0
-        for r in signed:
-            equity += r
-            peak = max(peak, equity)
-            worst = min(worst, equity - peak)
-        return round(-worst, 8)
-
-    @staticmethod
-    def _sharpe(signed: list[float]) -> float | None:
-        """Per-trade mean/std ratio. Not annualised; None when undefined."""
-        if len(signed) < 2:
-            return None
-        mean = sum(signed) / len(signed)
-        var = sum((r - mean) ** 2 for r in signed) / len(signed)
-        std = var**0.5
-        if std == 0:
-            return None
-        return round(mean / std, 6)
 
     async def _emit(self, result: BacktestResult) -> None:
         if self._event_bus is None:

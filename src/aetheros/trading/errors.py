@@ -80,6 +80,44 @@ class AnalysisError(TradingError):
     default_code = "TRADING_AN_001"
 
 
+class StrategyError(TradingError):
+    """A strategy could not be evaluated, compared, or optimized."""
+
+    default_code = "TRADING_ST_001"
+
+
+class SignalError(TradingError):
+    """A trading signal could not be produced from the given inputs."""
+
+    default_code = "TRADING_SG_001"
+
+
+class ExecutionError(TradingError):
+    """An order could not be validated, submitted, or managed."""
+
+    default_code = "TRADING_EX_001"
+
+
+class BrokerError(TradingError):
+    """A broker venue failed, timed out, or returned an unusable response."""
+
+    default_code = "TRADING_BR_001"
+
+
+class PolicyError(TradingError):
+    """
+    An execution request was refused by the execution-policy gate (Phase 26).
+
+    Raised only when a caller demands execution the policy forbids (e.g.
+    submitting in analysis-only mode, or a live order without confirmation).
+    The refusal is deterministic and carries the violated rule's reason so the
+    block can be audited; a policy violation is never silently downgraded into
+    a fabricated fill.
+    """
+
+    default_code = "TRADING_PO_001"
+
+
 class RiskError(TradingError):
     """A risk assessment could not be computed from the given inputs."""
 
@@ -126,3 +164,9 @@ class FundamentalsError(TradingError):
     """A fundamental analysis could not be produced from the given inputs."""
 
     default_code = "TRADING_FN_001"
+
+
+class LiquidityError(TradingError):
+    """A liquidity-observation, zone or microstructure operation failed."""
+
+    default_code = "TRADING_LQ_001"

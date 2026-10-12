@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from .core import (
+    VolumeProfileResult,
     adx,
     atr,
     bollinger,
@@ -12,14 +13,17 @@ from .core import (
     returns,
     rsi,
     sma,
+    supertrend,
     true_range,
     volatility,
     volume_ma,
+    volume_profile,
     vwap,
     zscore,
 )
 
 __all__ = [
+    "VolumeProfileResult",
     "adx",
     "atr",
     "bollinger",
@@ -29,9 +33,11 @@ __all__ = [
     "returns",
     "rsi",
     "sma",
+    "supertrend",
     "true_range",
     "volatility",
     "volume_ma",
+    "volume_profile",
     "vwap",
     "zscore",
 ]

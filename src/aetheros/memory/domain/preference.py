@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import uuid
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .enums import (
@@ -27,7 +27,7 @@ from .memory import Memory, MemorySource
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(slots=True)
@@ -100,8 +100,48 @@ class Preference:
 
 
 @dataclass(slots=True)
+class RecoveryAttempt:
+    """One recorded recovery try against a failure (Phase 11).
+
+    An attempt is observed fact: the action taken, when, and whether it
+    worked. A *reason* for the failure is never stored here -- suspected
+    causes live on :class:`FailureRecord` under quarantine until confirmed.
+    """
+
+    action: str
+    status: OutcomeStatus = OutcomeStatus.UNKNOWN
+    detail: str = ""
+    attempted_at: datetime = field(default_factory=_utcnow)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "action": self.action,
+            "status": self.status.value,
+            "detail": self.detail,
+            "attempted_at": self.attempted_at.isoformat(),
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> RecoveryAttempt:
+        attempted = data.get("attempted_at")
+        return cls(
+            action=data["action"],
+            status=OutcomeStatus(data.get("status", OutcomeStatus.UNKNOWN.value)),
+            detail=data.get("detail", ""),
+            attempted_at=datetime.fromisoformat(attempted) if attempted else _utcnow(),
+        )
+
+
+@dataclass(slots=True)
 class FailureRecord:
-    """A remembered failure and its recovery (spec Phase 11)."""
+    """A remembered failure and its recovery (spec Phase 11).
+
+    Epistemic discipline: ``observed_symptoms`` are facts (what was seen);
+    ``suspected_cause`` is an unverified hypothesis and is quarantined --
+    excluded from the searchable summary until ``cause_confirmed`` is set by
+    an explicit confirmation call. A suspected cause must never read as a
+    confirmed fact in retrieval.
+    """
 
     failure_type: str
     error: str
@@ -109,10 +149,16 @@ class FailureRecord:
     action: str = ""
     context: dict[str, Any] = field(default_factory=dict)
     environment: dict[str, Any] = field(default_factory=dict)
+    observed_symptoms: list[str] = field(default_factory=list)
+    suspected_cause: str = ""
+    cause_confirmed: bool = False
+    attempts: list[RecoveryAttempt] = field(default_factory=list)
     attempted_recovery: str = ""
     successful_recovery: str = ""
     recovery_status: OutcomeStatus = OutcomeStatus.UNKNOWN
     frequency: int = 1
+    episode_id: str | None = None
+    procedure_id: str | None = None
     created_at: datetime = field(default_factory=_utcnow)
 
     @property
@@ -127,12 +173,45 @@ class FailureRecord:
             "action": self.action,
             "context": dict(self.context),
             "environment": dict(self.environment),
+            "observed_symptoms": list(self.observed_symptoms),
+            "suspected_cause": self.suspected_cause,
+            "cause_confirmed": self.cause_confirmed,
+            "attempts": [a.to_dict() for a in self.attempts],
             "attempted_recovery": self.attempted_recovery,
             "successful_recovery": self.successful_recovery,
             "recovery_status": self.recovery_status.value,
             "frequency": self.frequency,
+            "episode_id": self.episode_id,
+            "procedure_id": self.procedure_id,
             "created_at": self.created_at.isoformat(),
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> FailureRecord:
+        created = data.get("created_at")
+        return cls(
+            id=data.get("id", uuid.uuid4().hex),
+            failure_type=data["failure_type"],
+            error=data.get("error", ""),
+            action=data.get("action", ""),
+            context=dict(data.get("context", {})),
+            environment=dict(data.get("environment", {})),
+            observed_symptoms=list(data.get("observed_symptoms", [])),
+            suspected_cause=data.get("suspected_cause", ""),
+            cause_confirmed=bool(data.get("cause_confirmed", False)),
+            attempts=[
+                RecoveryAttempt.from_dict(a) for a in data.get("attempts", [])
+            ],
+            attempted_recovery=data.get("attempted_recovery", ""),
+            successful_recovery=data.get("successful_recovery", ""),
+            recovery_status=OutcomeStatus(
+                data.get("recovery_status", OutcomeStatus.UNKNOWN.value)
+            ),
+            frequency=int(data.get("frequency", 1)),
+            episode_id=data.get("episode_id"),
+            procedure_id=data.get("procedure_id"),
+            created_at=datetime.fromisoformat(created) if created else _utcnow(),
+        )
 
     def to_memory(self) -> Memory:
         recovery = (
@@ -140,11 +219,19 @@ class FailureRecord:
             if self.recovered
             else " No successful recovery recorded."
         )
+        # Quarantine: a suspected cause is NEVER part of the searchable
+        # summary until explicitly confirmed. Unverified suspicion must not
+        # read as fact in retrieval.
+        cause_note = (
+            f" Confirmed cause: {self.suspected_cause}."
+            if self.cause_confirmed and self.suspected_cause
+            else ""
+        )
         return Memory(
             id=self.id,
             content=(
                 f"Action '{self.action or self.failure_type}' failed: "
-                f"{self.error}.{recovery}"
+                f"{self.error}.{recovery}{cause_note}"
             ),
             memory_type=MemoryType.FAILURE,
             veracity=Veracity.OBSERVATION,
@@ -156,4 +243,13 @@ class FailureRecord:
             importance=MemoryImportance.HIGH if self.recovered else MemoryImportance.NORMAL,
             evidence_count=self.frequency,
             tags=["failure", self.failure_type, "recovered" if self.recovered else "open"],
+            metadata={
+                k: v
+                for k, v in {
+                    "episode_id": self.episode_id,
+                    "task_id": self.context.get("task_id"),
+                    "session_id": self.context.get("session_id"),
+                }.items()
+                if v is not None
+            },
         )

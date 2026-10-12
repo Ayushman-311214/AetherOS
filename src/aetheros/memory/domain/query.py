@@ -47,9 +47,24 @@ class MemoryQuery:
     # Candidate pool size before scoring/ranking trims to ``limit``.
     candidate_limit: int = 50
 
+    # Context-assembly budget (spec Phase 8). All default to 0 == unbounded, so
+    # an existing caller that sets none of them keeps the prior behaviour (only
+    # ``limit`` and ``min_confidence`` bind). ``max_age_days`` is a validity
+    # cutoff: memories created longer ago than this are excluded from every
+    # candidate source. Token counting against ``max_tokens`` is *conservative*
+    # (a character/word heuristic, not a model tokenizer) -- see the retriever.
+    max_tokens: int = 0
+    max_chars: int = 0
+    max_per_type: int = 0
+    max_age_days: float = 0.0
+
     def __post_init__(self) -> None:
         self.limit = max(1, int(self.limit))
         self.candidate_limit = max(self.limit, int(self.candidate_limit))
+        self.max_tokens = max(0, int(self.max_tokens))
+        self.max_chars = max(0, int(self.max_chars))
+        self.max_per_type = max(0, int(self.max_per_type))
+        self.max_age_days = max(0.0, float(self.max_age_days))
 
 
 @dataclass(slots=True)
@@ -73,6 +88,10 @@ class RetrievalExplanation:
     source_reliability: float = 0.0
     graph_boost: float = 0.0
     reasons: list[str] = field(default_factory=list)
+    # Provenance (spec Phase 8): which candidate source(s) surfaced this memory
+    # -- e.g. {"structured", "vector", "graph_entity", "graph_link"}. Lets a
+    # caller see *how* a memory was found, not just how it scored.
+    sources: list[str] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -87,6 +106,7 @@ class RetrievalExplanation:
             "source_reliability": round(self.source_reliability, 4),
             "graph_boost": round(self.graph_boost, 4),
             "reasons": list(self.reasons),
+            "sources": list(self.sources),
         }
 
 
@@ -105,4 +125,42 @@ class MemoryResult:
         return {
             "memory": self.memory.to_dict(),
             "explanation": self.explanation.to_dict(),
+        }
+
+
+@dataclass(slots=True)
+class RetrievalReport:
+    """
+    The full, honest outcome of one retrieval (spec Phase 8).
+
+    ``results`` is the ranked, budgeted context. The remaining fields disclose
+    *how healthy* the retrieval was so a caller never mistakes a degraded recall
+    for a complete one: ``degraded_sources`` names any candidate source that
+    failed and was skipped (e.g. the vector index was unreachable), and the
+    counters explain why candidates were dropped by the context budget. Optional
+    recall degrades safely -- a failed source lowers quality, it does not raise.
+    """
+
+    results: list[MemoryResult] = field(default_factory=list)
+    degraded_sources: list[str] = field(default_factory=list)
+    candidates_considered: int = 0
+    dropped_by_filter: int = 0
+    dropped_by_threshold: int = 0
+    dropped_by_budget: int = 0
+    token_count_exact: bool = False
+
+    @property
+    def degraded(self) -> bool:
+        return bool(self.degraded_sources)
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "results": [r.to_dict() for r in self.results],
+            "degraded": self.degraded,
+            "degraded_sources": list(self.degraded_sources),
+            "candidates_considered": self.candidates_considered,
+            "dropped_by_filter": self.dropped_by_filter,
+            "dropped_by_threshold": self.dropped_by_threshold,
+            "dropped_by_budget": self.dropped_by_budget,
+            "token_count_exact": self.token_count_exact,
         }

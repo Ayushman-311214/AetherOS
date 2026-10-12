@@ -26,6 +26,8 @@ class MemoryConfig:
     vector_provider: str
     embedding_model: str
     embedding_dim: int
+    embedding_base_url: str
+    embedding_fallback_to_hashing: bool
     retrieval_limit: int
     similarity_threshold: float
     decay_enabled: bool
@@ -33,6 +35,8 @@ class MemoryConfig:
     consolidation_enabled: bool
     dedup_threshold: float
     max_working_context: int
+    working_ttl_seconds: float
+    episode_max_actions: int
     auto_remember: bool
     agent_recall_limit: int
     agent_recall_min_score: float
@@ -48,6 +52,8 @@ class MemoryConfig:
             vector_provider=settings.MEMORY_VECTOR_PROVIDER.strip().lower(),
             embedding_model=settings.MEMORY_EMBEDDING_MODEL,
             embedding_dim=int(settings.MEMORY_EMBEDDING_DIM),
+            embedding_base_url=settings.MEMORY_EMBEDDING_BASE_URL.strip(),
+            embedding_fallback_to_hashing=bool(settings.MEMORY_EMBEDDING_FALLBACK),
             retrieval_limit=int(settings.MEMORY_RETRIEVAL_LIMIT),
             similarity_threshold=float(settings.MEMORY_SIMILARITY_THRESHOLD),
             decay_enabled=bool(settings.MEMORY_DECAY_ENABLED),
@@ -55,6 +61,8 @@ class MemoryConfig:
             consolidation_enabled=bool(settings.MEMORY_CONSOLIDATION_ENABLED),
             dedup_threshold=float(settings.MEMORY_DEDUP_THRESHOLD),
             max_working_context=int(settings.MEMORY_MAX_WORKING_CONTEXT),
+            working_ttl_seconds=float(settings.MEMORY_WORKING_TTL_SECONDS),
+            episode_max_actions=int(settings.MEMORY_EPISODE_MAX_ACTIONS),
             auto_remember=bool(settings.MEMORY_AUTO_REMEMBER),
             agent_recall_limit=int(settings.MEMORY_AGENT_RECALL_LIMIT),
             agent_recall_min_score=float(settings.MEMORY_AGENT_RECALL_MIN_SCORE),
@@ -74,6 +82,8 @@ class MemoryConfig:
             vector_provider="hashing",
             embedding_model="",
             embedding_dim=embedding_dim,
+            embedding_base_url="",
+            embedding_fallback_to_hashing=False,
             retrieval_limit=5,
             similarity_threshold=0.0,
             decay_enabled=True,
@@ -81,6 +91,8 @@ class MemoryConfig:
             consolidation_enabled=True,
             dedup_threshold=0.95,
             max_working_context=50,
+            working_ttl_seconds=0.0,
+            episode_max_actions=200,
             auto_remember=True,
             agent_recall_limit=5,
             agent_recall_min_score=0.0,

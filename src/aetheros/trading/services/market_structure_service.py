@@ -39,6 +39,17 @@ class MarketStructureService:
         self._tol = level_tolerance_pct / 100.0
         self._min_bars = min_bars
 
+    @property
+    def pivot_window(self) -> int:
+        """
+        Bars either side of a candidate pivot, and therefore the confirmation
+        lag: a swing at index ``i`` is only knowable from ``i + pivot_window``.
+
+        Exposed so consumers that must not look ahead (the SMC layer) can
+        honour the same confirmation delay instead of re-deriving it.
+        """
+        return self._k
+
     def analyze(self, data: MarketData) -> MarketStructure:
         candles = data.candles
         if len(candles) < self._min_bars:

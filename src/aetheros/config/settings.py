@@ -337,7 +337,7 @@ class Settings(BaseSettings):
     ENABLE_VISION: bool = True
     ENABLE_MEMORY: bool = True
     ENABLE_BROWSER: bool = True
-    ENABLE_VOICE: bool = True
+    ENABLE_VOICE: bool = False
 
 
     # ╔══════════════════════════════════════════╗
@@ -427,6 +427,41 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Bounded retry policy for transient provider failures (HTTP 429/5xx,
+    # transport errors). Retries use exponential backoff starting at the
+    # backoff value. 0 retries = fail fast on the first error.
+    TRADING_PROVIDER_MAX_RETRIES: int = Field(
+        default=2,
+        ge=0,
+        le=10,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_PROVIDER_MAX_RETRIES", "TRADING_PROVIDER_MAX_RETRIES"
+        ),
+    )
+
+    # Base delay (seconds) for the exponential backoff between provider
+    # retries. Doubles on each attempt: 1.0 -> 1s, 2s, 4s...
+    TRADING_PROVIDER_RETRY_BACKOFF_SECONDS: float = Field(
+        default=1.0,
+        gt=0.0,
+        le=60.0,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_PROVIDER_RETRY_BACKOFF_SECONDS",
+            "TRADING_PROVIDER_RETRY_BACKOFF_SECONDS",
+        ),
+    )
+
+    # CCXT market-data provider: which exchange to route crypto/forex
+    # instruments through (e.g. "binance", "kraken"). The provider is only
+    # used when MARKET_DATA_PROVIDER=ccxt and the ccxt package is installed.
+    TRADING_CCXT_EXCHANGE: str = Field(
+        default="binance",
+        min_length=1,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_CCXT_EXCHANGE", "TRADING_CCXT_EXCHANGE"
+        ),
+    )
+
     # Risk engine. All deterministic knobs for the trade-plan geometry.
     #
     # Stop distance = this multiple of ATR. 1.5x is a common volatility stop:
@@ -460,6 +495,103 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Daily loss limit as a fraction of account equity (0.03 == 3%): once the
+    # day's realised PnL is at or below -this fraction, the account-level
+    # admission gate stops new trading for the rest of the day. Fail-closed --
+    # an unknown realised PnL breaches rather than passes.
+    TRADING_RISK_DAILY_LOSS_PCT: float = Field(
+        default=0.03,
+        gt=0.0,
+        le=1.0,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_RISK_DAILY_LOSS_PCT", "TRADING_RISK_DAILY_LOSS_PCT"
+        ),
+    )
+
+    # Maximum open notional exposure as a fraction of account equity (1.0 ==
+    # the open book may not exceed equity). The admission gate checks the
+    # account as it stands before any new position is opened.
+    TRADING_RISK_MAX_EXPOSURE_PCT: float = Field(
+        default=1.0,
+        gt=0.0,
+        le=10.0,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_RISK_MAX_EXPOSURE_PCT",
+            "TRADING_RISK_MAX_EXPOSURE_PCT",
+        ),
+    )
+
+    # ───────────────────────────────────────────────
+    #        Execution policy (spec Phase 26)
+    # ───────────────────────────────────────────────
+    #
+    # The policy gate sits between the decision/signal layer and the execution
+    # engine: it decides whether a fully-formed request is *permitted* to move
+    # at all, before the engine re-checks account-level risk. Every knob here is
+    # a boundary, and the defaults are the safe ones -- paper-only trading, with
+    # a live order an explicit opt-in that also requires confirmation.
+    #
+    # Trading mode: "analysis_only" blocks every submission, "paper" permits
+    # only paper venues (real prices, virtual money), "live" permits live
+    # venues subject to the remaining checks. Default "paper".
+    TRADING_MODE: str = Field(
+        default="paper",
+        validation_alias=AliasChoices("AETHEROS_TRADING_MODE", "TRADING_MODE"),
+    )
+
+    # Hard cap on the risk of a single trade, as a *percent* of account equity
+    # (2.0 == 2%), matching the unit of ``RiskAssessment.risk_pct`` /
+    # ``ExecutionRequest.risk_pct`` so the comparison is direct. A request whose
+    # risk_pct exceeds this is refused by policy, independent of the sizing
+    # default used to build it. 0 disables the check.
+    TRADING_POLICY_MAX_RISK_PER_TRADE_PCT: float = Field(
+        default=2.0,
+        ge=0.0,
+        le=100.0,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_POLICY_MAX_RISK_PER_TRADE_PCT",
+            "TRADING_POLICY_MAX_RISK_PER_TRADE_PCT",
+        ),
+    )
+
+    # Whether a LIVE-mode submission must carry an explicit confirmation flag.
+    # On by default: no live order moves merely because the pipeline produced
+    # one -- a human (or an explicitly authorised caller) must confirm it.
+    TRADING_POLICY_REQUIRE_LIVE_CONFIRMATION: bool = Field(
+        default=True,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_POLICY_REQUIRE_LIVE_CONFIRMATION",
+            "TRADING_POLICY_REQUIRE_LIVE_CONFIRMATION",
+        ),
+    )
+
+    # Allow-lists, as comma-separated strings (empty == "allow all"). A request
+    # whose broker/instrument/strategy is outside a non-empty list is refused.
+    # Matching is case-insensitive; whitespace around items is ignored.
+    TRADING_POLICY_ALLOWED_BROKERS: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_POLICY_ALLOWED_BROKERS",
+            "TRADING_POLICY_ALLOWED_BROKERS",
+        ),
+    )
+
+    TRADING_POLICY_ALLOWED_INSTRUMENTS: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_POLICY_ALLOWED_INSTRUMENTS",
+            "TRADING_POLICY_ALLOWED_INSTRUMENTS",
+        ),
+    )
+
+    TRADING_POLICY_ALLOWED_STRATEGIES: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_POLICY_ALLOWED_STRATEGIES",
+            "TRADING_POLICY_ALLOWED_STRATEGIES",
+        ),
+    )
+
     # Backtesting: walk-forward evaluation of a directional signal. The horizon
     # is how many bars ahead the realised move is scored over; warmup is the
     # minimum history a signal needs before its first (indicator-dependent) call
@@ -489,6 +621,41 @@ class Settings(BaseSettings):
         le=100000,
         validation_alias=AliasChoices(
             "AETHEROS_TRADING_BACKTEST_MIN_SAMPLE", "TRADING_BACKTEST_MIN_SAMPLE"
+        ),
+    )
+
+    # Walk-forward testing: how the series is split into successive train/test
+    # folds, in bars. Train-bars is the training window a configuration is chosen
+    # on, test-bars the window it is then measured on. The embargo between the
+    # two defaults to the backtest horizon rather than being configured here,
+    # because a training bar's label reaches exactly that many bars forward --
+    # the correct value is a property of the label, not a policy choice.
+    # Min-folds is the fewest measured folds below which a walk-forward run is
+    # not evidence of generalisation.
+    TRADING_WF_TRAIN_BARS: int = Field(
+        default=250,
+        ge=2,
+        le=100000,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_WF_TRAIN_BARS", "TRADING_WF_TRAIN_BARS"
+        ),
+    )
+
+    TRADING_WF_TEST_BARS: int = Field(
+        default=50,
+        ge=2,
+        le=100000,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_WF_TEST_BARS", "TRADING_WF_TEST_BARS"
+        ),
+    )
+
+    TRADING_WF_MIN_FOLDS: int = Field(
+        default=2,
+        ge=1,
+        le=1000,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_WF_MIN_FOLDS", "TRADING_WF_MIN_FOLDS"
         ),
     )
 
@@ -895,6 +1062,55 @@ class Settings(BaseSettings):
         ),
     )
 
+    # Starting virtual balance for a paper-trading simulation run (spec Phase 14).
+    # This is the simulated account's own money, not a real one, and it is
+    # reported in every simulation report so a result can be read in scale.
+    TRADING_SIM_INITIAL_BALANCE: float = Field(
+        default=100000.0,
+        gt=0.0,
+        le=1_000_000_000.0,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_SIM_INITIAL_BALANCE", "TRADING_SIM_INITIAL_BALANCE"
+        ),
+    )
+
+    # Commission per leg of a simulated round trip, in basis points of notional.
+    # Defaults to zero -- and a zero is *named* in every report's assumptions
+    # rather than left implicit, because a simulation that quietly assumes free
+    # trading overstates every result it produces (CLAUDE.md section 7).
+    TRADING_SIM_COMMISSION_BPS: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1000.0,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_SIM_COMMISSION_BPS", "TRADING_SIM_COMMISSION_BPS"
+        ),
+    )
+
+    # Adverse price movement applied to every simulated fill, in basis points.
+    # Always against the order: a simulated buyer pays more and a seller
+    # receives less. Zero by default, and likewise named in the assumptions.
+    TRADING_SIM_SLIPPAGE_BPS: float = Field(
+        default=0.0,
+        ge=0.0,
+        le=1000.0,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_SIM_SLIPPAGE_BPS", "TRADING_SIM_SLIPPAGE_BPS"
+        ),
+    )
+
+    # Closed trades below which a simulation is reported as unreliable. A
+    # handful of round trips cannot distinguish a strategy from a coin, so the
+    # report says so rather than presenting a thin sample as a result.
+    TRADING_SIM_MIN_TRADES: int = Field(
+        default=30,
+        ge=1,
+        le=100000,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_SIM_MIN_TRADES", "TRADING_SIM_MIN_TRADES"
+        ),
+    )
+
     # Fraction of the accumulated outcome history held out (most-recent, time-
     # ordered) to validate a proposed recalibration correction out-of-sample
     # before it is trusted. A correction that does not improve holdout Brier is
@@ -912,9 +1128,10 @@ class Settings(BaseSettings):
     # The autonomous monitoring loop is OFF by default (spec section 29 -- autonomy
     # bounded and opt-in). When enabled, a scheduler runs one bounded monitoring
     # sweep every TRADING_MONITOR_INTERVAL_SECONDS; it never runs unless this is
-    # explicitly turned on.
+    # explicitly turned on. The default is off -- the loop is opt-in, never an
+    # ambient background job started by accident (§29).
     TRADING_MONITOR_ENABLED: bool = Field(
-        default=True,
+        default=False,
         validation_alias=AliasChoices(
             "AETHEROS_TRADING_MONITOR_ENABLED", "TRADING_MONITOR_ENABLED"
         ),
@@ -996,6 +1213,29 @@ class Settings(BaseSettings):
         min_length=1,
         validation_alias=AliasChoices(
             "AETHEROS_TRADING_PREDICTION_STORE_PATH", "TRADING_PREDICTION_STORE_PATH"
+        ),
+    )
+
+    # Trading-journal store backend. "memory" (default) keeps the within-session
+    # trail; "file"/"jsonl" persists every journal entry to JSON Lines so the
+    # journal survives restarts and accumulates across runs. Both sit behind the
+    # same JournalStore port, so callers are unchanged either way (spec sections
+    # 15, 28, 23).
+    JOURNAL_STORE_BACKEND: str = Field(
+        default="memory",
+        validation_alias=AliasChoices(
+            "AETHEROS_JOURNAL_STORE_BACKEND", "JOURNAL_STORE_BACKEND"
+        ),
+    )
+
+    # Path the durable (file) journal store writes to. Relative paths resolve
+    # under DATA_DIR; the default is DATA_DIR/journal.jsonl. Only used when
+    # JOURNAL_STORE_BACKEND selects the file backend.
+    TRADING_JOURNAL_STORE_PATH: str = Field(
+        default="journal.jsonl",
+        min_length=1,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_JOURNAL_STORE_PATH", "TRADING_JOURNAL_STORE_PATH"
         ),
     )
 
@@ -1088,6 +1328,20 @@ class Settings(BaseSettings):
         ),
     )
 
+    # The exchange-local timezone the session/time layer resolves trading
+    # sessions and kill zones in. ICT's sessions are wall-clock conventions in
+    # the exchange's own time, so this must name a real IANA zone (daylight
+    # saving is applied from the zone database, not assumed). Defaults to New
+    # York, where the conventional kill-zone times are quoted.
+    TRADING_ICT_EXCHANGE_TIMEZONE: str = Field(
+        default="America/New_York",
+        min_length=1,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_ICT_EXCHANGE_TIMEZONE",
+            "TRADING_ICT_EXCHANGE_TIMEZONE",
+        ),
+    )
+
     # Realised move (as a fraction of the entry price) within +/- this band is
     # scored SIDEWAYS when resolving a past prediction against later data, so a
     # near-flat move is not credited as a directional hit or miss. It grades the
@@ -1151,6 +1405,26 @@ class Settings(BaseSettings):
         default="",
         validation_alias=AliasChoices(
             "AETHEROS_MEMORY_EMBEDDING_MODEL", "MEMORY_EMBEDDING_MODEL"
+        ),
+    )
+
+    # Base URL of the embeddings backend (used when MEMORY_VECTOR_PROVIDER=ollama).
+    # Empty means the provider default (http://127.0.0.1:11434 for Ollama).
+    MEMORY_EMBEDDING_BASE_URL: str = Field(
+        default="",
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_EMBEDDING_BASE_URL", "MEMORY_EMBEDDING_BASE_URL"
+        ),
+    )
+
+    # Opt-in loud degrade: if a real/unknown embedding provider name is
+    # configured but cannot be built, fall back to the hashing embedder instead
+    # of failing. Off by default so an explicitly requested real provider is
+    # never silently swapped for lexical-grade retrieval (CLAUDE.md §10).
+    MEMORY_EMBEDDING_FALLBACK: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_EMBEDDING_FALLBACK", "MEMORY_EMBEDDING_FALLBACK"
         ),
     )
 
@@ -1231,6 +1505,29 @@ class Settings(BaseSettings):
         le=1000,
         validation_alias=AliasChoices(
             "AETHEROS_MEMORY_MAX_WORKING_CONTEXT", "MEMORY_MAX_WORKING_CONTEXT"
+        ),
+    )
+
+    # Default time-to-live (seconds) for working-memory items. 0 == no expiry
+    # (items live until evicted by capacity or purged on session/task cleanup).
+    # Working memory is ephemeral regardless -- a TTL only trims idle live
+    # context sooner (spec Phase 9).
+    MEMORY_WORKING_TTL_SECONDS: float = Field(
+        default=0.0,
+        ge=0.0,
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_WORKING_TTL_SECONDS", "MEMORY_WORKING_TTL_SECONDS"
+        ),
+    )
+
+    # Maximum tool-call/action steps retained per episode before the oldest
+    # are dropped (counted in row metadata, never silently) (spec Phase 10).
+    MEMORY_EPISODE_MAX_ACTIONS: int = Field(
+        default=200,
+        ge=1,
+        le=10000,
+        validation_alias=AliasChoices(
+            "AETHEROS_MEMORY_EPISODE_MAX_ACTIONS", "MEMORY_EPISODE_MAX_ACTIONS"
         ),
     )
 

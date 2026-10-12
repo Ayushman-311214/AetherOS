@@ -99,5 +99,5 @@ class MonitoringScheduler:
                 logger.exception("Monitoring sweep failed; continuing the loop")
             try:
                 await asyncio.wait_for(self._stop.wait(), timeout=interval)
-            except asyncio.TimeoutError:
+            except TimeoutError:
                 continue

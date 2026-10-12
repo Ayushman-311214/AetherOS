@@ -26,7 +26,7 @@ Honesty guarantees (spec sections 9, 15, 20, 28, 61):
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -148,7 +148,7 @@ class YahooNewsProvider(NewsProvider):
         if isinstance(raw, bool) or not isinstance(raw, (int, float)):
             return None
         try:
-            return datetime.fromtimestamp(int(raw), tz=timezone.utc)
+            return datetime.fromtimestamp(int(raw), tz=UTC)
         except (OverflowError, OSError, ValueError):
             return None
 
@@ -210,7 +210,7 @@ class YahooNewsProvider(NewsProvider):
 
         # Most-recent first; items without a timestamp sort last (stable).
         items.sort(
-            key=lambda it: it.published_at or datetime.min.replace(tzinfo=timezone.utc),
+            key=lambda it: it.published_at or datetime.min.replace(tzinfo=UTC),
             reverse=True,
         )
         return tuple(items[:limit])

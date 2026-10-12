@@ -20,7 +20,6 @@ from ..domain.analysis import VolumeAnalysis
 from ..domain.enums import Assertion, Confidence, Direction, EvidenceType
 from ..domain.evidence import Evidence
 from ..domain.market_data import MarketData
-from ..domain.provenance import DataQuality, Provenance
 from ..domain.structure import MarketStructure
 from ..domain.technical import TechnicalSnapshot
 

@@ -9,14 +9,14 @@ the whole pipeline (spec sections 12, 24, 47).
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .enums import DataQualityStatus, SourceTier
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +39,27 @@ class Provenance:
             "retrieved_at": self.retrieved_at.isoformat(),
             "detail": self.detail,
         }
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> Provenance:
+        """
+        Rebuild a provenance record from its :meth:`to_dict` form.
+
+        The inverse of :meth:`to_dict`, so a record that carries provenance
+        (a journal entry, say) round-trips through a durable store without
+        losing where it came from or how good the source was.
+        """
+        retrieved_at = data["retrieved_at"]
+        return cls(
+            source=data["source"],
+            tier=SourceTier(data["tier"]),
+            retrieved_at=(
+                retrieved_at
+                if isinstance(retrieved_at, datetime)
+                else datetime.fromisoformat(retrieved_at)
+            ),
+            detail=data.get("detail"),
+        )
 
 
 @dataclass(frozen=True, slots=True)

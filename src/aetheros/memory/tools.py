@@ -100,14 +100,22 @@ async def recall(query: str, limit: int = 5) -> dict[str, Any]:
 
 
 @tool(category="memory", description="Fetch one memory by its id.")
-async def get_memory(memory_id: str) -> dict[str, Any]:
+async def get_memory(
+    memory_id: str,
+    user_id: str | None = None,
+    session_id: str | None = None,
+) -> dict[str, Any]:
     mgr = _manager()
     if mgr is None:
         return _disabled()
-    memory = await mgr.get(memory_id)
-    if memory is None:
-        return {"ok": False, "error": "NOT_FOUND", "memory_id": memory_id}
-    return {"ok": True, "memory": memory.to_dict()}
+    try:
+        memory = await mgr.controls.inspect(
+            memory_id, user_id=user_id, session_id=session_id
+        )
+    except Exception as exc:
+        return {"ok": False, "error": "NOT_FOUND", "memory_id": memory_id,
+                "detail": str(exc)}
+    return {"ok": True, "memory": memory}
 
 
 @tool(category="memory", description="Update a stored memory's content or confidence.")
@@ -115,13 +123,26 @@ async def update_memory(
     memory_id: str,
     content: str | None = None,
     confidence: float | None = None,
+    user_id: str | None = None,
+    session_id: str | None = None,
 ) -> dict[str, Any]:
     mgr = _manager()
     if mgr is None:
         return _disabled()
-    changes: dict[str, Any] = {}
+    # Content edits go through the user-controls correction path (scope
+    # ownership + revision history + immutable-history refusals); raw
+    # confidence edits keep the legacy direct path.
     if content is not None:
-        changes["content"] = content
+        try:
+            return {
+                "ok": True,
+                **await mgr.controls.correct(
+                    memory_id, content, user_id=user_id, session_id=session_id
+                ),
+            }
+        except Exception as exc:
+            return {"ok": False, "error": "UPDATE_FAILED", "detail": str(exc)}
+    changes: dict[str, Any] = {}
     if confidence is not None:
         changes["confidence"] = confidence
     if not changes:
@@ -133,33 +154,112 @@ async def update_memory(
     return {"ok": True, "memory_id": memory.id, "version": memory.version}
 
 
-@tool(category="memory", description="Forget a memory. Soft by default; hard=true deletes it permanently.")
-async def forget_memory(memory_id: str, hard: bool = False) -> dict[str, Any]:
+@tool(category="memory", description="Correct a user fact or preference (revision history kept).")
+async def correct_memory(
+    memory_id: str,
+    content: str,
+    user_id: str | None = None,
+    session_id: str | None = None,
+) -> dict[str, Any]:
     mgr = _manager()
     if mgr is None:
         return _disabled()
-    ok = await mgr.forget(memory_id, hard=hard)
-    return {"ok": ok, "memory_id": memory_id, "hard": hard}
+    try:
+        return {
+            "ok": True,
+            **await mgr.controls.correct(
+                memory_id, content, user_id=user_id, session_id=session_id
+            ),
+        }
+    except Exception as exc:
+        return {"ok": False, "error": "CORRECT_FAILED", "detail": str(exc)}
+
+
+@tool(category="memory", description="Export memories in scope as full-fidelity dicts (no vectors/internals).")
+async def export_memories(
+    user_id: str | None = None,
+    session_id: str | None = None,
+    limit: int = 200,
+) -> dict[str, Any]:
+    mgr = _manager()
+    if mgr is None:
+        return _disabled()
+    try:
+        return {
+            "ok": True,
+            **await mgr.controls.export_scope(
+                user_id=user_id, session_id=session_id, limit=limit
+            ),
+        }
+    except Exception as exc:
+        return {"ok": False, "error": "EXPORT_FAILED", "detail": str(exc)}
+
+
+@tool(category="memory", description="Forget a memory. Soft by default; hard=true deletes it permanently.")
+async def forget_memory(
+    memory_id: str,
+    hard: bool = False,
+    user_id: str | None = None,
+    session_id: str | None = None,
+    allow_history: bool = False,
+) -> dict[str, Any]:
+    mgr = _manager()
+    if mgr is None:
+        return _disabled()
+    try:
+        if hard:
+            return {
+                "ok": True,
+                **await mgr.controls.erase(
+                    memory_id, user_id=user_id, session_id=session_id,
+                    allow_history=allow_history,
+                ),
+            }
+        return {
+            "ok": True,
+            **await mgr.controls.forget(
+                memory_id, user_id=user_id, session_id=session_id,
+                allow_history=allow_history,
+            ),
+        }
+    except Exception as exc:
+        return {"ok": False, "error": "FORGET_FAILED", "memory_id": memory_id,
+                "detail": str(exc)}
 
 
 @tool(category="memory", description="List stored memories, optionally filtered by type.")
-async def list_memories(memory_type: str | None = None, limit: int = 20) -> dict[str, Any]:
+async def list_memories(
+    memory_type: str | None = None,
+    limit: int = 20,
+    user_id: str | None = None,
+    session_id: str | None = None,
+) -> dict[str, Any]:
     mgr = _manager()
     if mgr is None:
         return _disabled()
-    memories = await mgr._repo.list_by(memory_type=memory_type, limit=limit)
+    from .domain.enums import MemoryType as MT
+
+    mtype = None
+    if memory_type:
+        try:
+            mtype = MT(memory_type.lower())
+        except ValueError:
+            mtype = None
+    rows = await mgr.controls.list_scope(
+        user_id=user_id, session_id=session_id, memory_type=mtype, limit=limit
+    )
     return {
         "ok": True,
-        "count": len(memories),
+        "count": len(rows),
         "memories": [
             {
-                "id": m.id,
-                "type": m.memory_type.value,
-                "content": m.content,
-                "confidence": round(m.confidence, 3),
-                "status": m.status.value,
+                "id": m["id"],
+                "type": m["memory_type"],
+                "content": m["content"],
+                "confidence": round(m["confidence"], 3),
+                "status": m["status"],
             }
-            for m in memories
+            for m in rows
         ],
     }
 

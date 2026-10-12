@@ -28,12 +28,22 @@ from .schema import MIGRATIONS
 
 logger = get_logger("memory.storage")
 
+# Bounded wait for a contended write lock before SQLite raises "database is
+# locked" (spec Phase 2 -- "bounded lock/busy handling"). With WAL this only
+# bites when a *second* connection to the same file is mid-write; a single
+# shared connection is already serialised by ``self._lock``. 5s is long enough
+# to absorb the brief interactive-agent write bursts without hanging a caller.
+DEFAULT_BUSY_TIMEOUT_MS = 5000
+
 
 class SQLiteDatabase:
     """Owns the SQLite connection and keeps the schema migrated."""
 
-    def __init__(self, path: str | Path) -> None:
+    def __init__(
+        self, path: str | Path, *, busy_timeout_ms: int = DEFAULT_BUSY_TIMEOUT_MS
+    ) -> None:
         self._path = path
+        self._busy_timeout_ms = max(0, int(busy_timeout_ms))
         self._lock = threading.RLock()
         self._conn: sqlite3.Connection | None = None
 
@@ -60,6 +70,8 @@ class SQLiteDatabase:
                 conn = sqlite3.connect(path, check_same_thread=False)
                 conn.row_factory = sqlite3.Row
                 conn.execute("PRAGMA foreign_keys = ON")
+                # Bounded wait on a contended lock instead of failing instantly.
+                conn.execute(f"PRAGMA busy_timeout = {self._busy_timeout_ms}")
                 # WAL is a file-only feature; harmless to skip for :memory:.
                 if not is_memory:
                     conn.execute("PRAGMA journal_mode = WAL")
@@ -151,6 +163,23 @@ class SQLiteDatabase:
                 conn.rollback()
                 raise MemoryStorageError("Memory write failed.", cause=exc) from exc
 
+    def execute_write(self, sql: str, params: Sequence[Any] = ()) -> int:
+        """Like :meth:`execute` but returns the number of affected rows.
+
+        Used by conditional writes (optimistic-version guards) where ``0`` rows
+        affected means the precondition did not match and the caller must treat
+        the write as a lost race, not a success.
+        """
+        with self._lock:
+            conn = self._require()
+            try:
+                cur = conn.execute(sql, params)
+                conn.commit()
+                return cur.rowcount
+            except sqlite3.Error as exc:
+                conn.rollback()
+                raise MemoryStorageError("Memory write failed.", cause=exc) from exc
+
     def execute_many(self, sql: str, rows: Iterable[Sequence[Any]]) -> None:
         with self._lock:
             conn = self._require()
@@ -188,3 +217,42 @@ class SQLiteDatabase:
                 return list(conn.execute(sql, params).fetchall())
             except sqlite3.Error as exc:
                 raise MemoryStorageError("Memory read failed.", cause=exc) from exc
+
+    # ------------------------------------------------------------------
+    # Backup / recovery (spec Phase 2 -- durable backup procedure)
+    # ------------------------------------------------------------------
+
+    def backup(self, destination: str | Path) -> Path:
+        """
+        Take a consistent online backup via SQLite's native backup API.
+
+        Works while the connection is open and WAL writes are in flight -- the
+        backup is a transactionally-consistent snapshot, not a raw file copy
+        (which could capture a torn WAL state). The destination directory is
+        created if needed. Returns the destination path.
+
+        Recovery is the inverse: close the manager, replace the live database
+        file with the backup, and reopen -- documented in ``docs/memory.md``.
+        """
+        if str(destination) == ":memory:":
+            raise MemoryStorageError(
+                "Cannot back up to an in-memory database.",
+                hint="Pass a file path as the backup destination.",
+            )
+        with self._lock:
+            conn = self._require()
+            dest_path = Path(destination)
+            dest_path.parent.mkdir(parents=True, exist_ok=True)
+            try:
+                dest = sqlite3.connect(str(dest_path))
+                try:
+                    conn.backup(dest)
+                finally:
+                    dest.close()
+            except sqlite3.Error as exc:
+                raise MemoryStorageError(
+                    f"Memory backup to {dest_path!r} failed.",
+                    hint="Check the destination is writable.",
+                    cause=exc,
+                ) from exc
+            return dest_path

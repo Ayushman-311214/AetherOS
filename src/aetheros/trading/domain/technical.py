@@ -10,7 +10,7 @@ LLM context builder consume, so it is deliberately compact.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .enums import Timeframe
@@ -18,7 +18,7 @@ from .provenance import Provenance
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(frozen=True, slots=True)
@@ -53,6 +53,40 @@ class BollingerReading:
 
 
 @dataclass(frozen=True, slots=True)
+class SuperTrendReading:
+    """Latest SuperTrend state: trend side, trend line and flip level."""
+
+    direction: str  # "up" | "down"
+    line: float
+    stop: float  # the band a close beyond would flip the trend
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "direction": self.direction,
+            "line": self.line,
+            "stop": self.stop,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class VolumeProfileReading:
+    """Latest volume-at-price read: POC and the 70% value area."""
+
+    poc: float
+    value_area_low: float
+    value_area_high: float
+    total_volume: float
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "poc": self.poc,
+            "value_area_low": self.value_area_low,
+            "value_area_high": self.value_area_high,
+            "total_volume": self.total_volume,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class TechnicalSnapshot:
     """Latest values of the computed indicators for one timeframe."""
 
@@ -75,6 +109,8 @@ class TechnicalSnapshot:
     volume_ma: float | None = None
     return_pct: float | None = None
     volatility: float | None = None
+    supertrend: SuperTrendReading | None = None
+    volume_profile: VolumeProfileReading | None = None
 
     # Parameters actually used, so a reading is reproducible.
     params: dict[str, Any] = field(default_factory=dict)
@@ -98,6 +134,10 @@ class TechnicalSnapshot:
             "volume_ma": self.volume_ma,
             "return_pct": self.return_pct,
             "volatility": self.volatility,
+            "supertrend": self.supertrend.to_dict() if self.supertrend else None,
+            "volume_profile": (
+                self.volume_profile.to_dict() if self.volume_profile else None
+            ),
             "params": self.params,
             "provenance": self.provenance.to_dict(),
         }

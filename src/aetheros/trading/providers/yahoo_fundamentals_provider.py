@@ -27,7 +27,7 @@ Honesty guarantees (spec sections 9, 20, 28, 61):
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
 
@@ -192,7 +192,7 @@ class YahooFundamentalsProvider(FundamentalsProvider):
         mrq = self._raw(key_stats, "mostRecentQuarter")
         if mrq is not None:
             try:
-                as_of = datetime.fromtimestamp(int(mrq), tz=timezone.utc)
+                as_of = datetime.fromtimestamp(int(mrq), tz=UTC)
             except (OverflowError, OSError, ValueError):
                 as_of = None
 

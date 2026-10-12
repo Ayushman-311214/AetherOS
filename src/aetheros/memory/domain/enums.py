@@ -70,14 +70,35 @@ class SourceType(str, Enum):
 
 
 class MemoryStatus(str, Enum):
-    """Lifecycle state of a memory (spec Phase 14)."""
+    """Lifecycle state of a memory (spec Phase 14).
+
+    The neglect chain is ACTIVE -> STALE -> DECAYED -> ARCHIVED (see
+    ``MemoryLifecycle`` for the recency thresholds); LOW_CONFIDENCE is a
+    parallel confidence-driven flag, EXPIRED is TTL-driven, and DELETED is
+    user action only (``forget``) -- decay never deletes.
+    """
 
     ACTIVE = "active"
     LOW_CONFIDENCE = "low_confidence"
     STALE = "stale"
+    DECAYED = "decayed"
     ARCHIVED = "archived"
     EXPIRED = "expired"
     DELETED = "deleted"
+
+
+# Rows that recall may serve. ARCHIVED/EXPIRED need include_archived;
+# DELETED is never served. Shared by the lifecycle, the retriever's
+# predicate, the repository's SQL filter and the projection checks so all
+# four agree on what "recallable" means (spec Phase 14).
+RECALLABLE_STATUSES = frozenset(
+    {
+        MemoryStatus.ACTIVE,
+        MemoryStatus.LOW_CONFIDENCE,
+        MemoryStatus.STALE,
+        MemoryStatus.DECAYED,
+    }
+)
 
 
 class MemoryImportance(int, Enum):

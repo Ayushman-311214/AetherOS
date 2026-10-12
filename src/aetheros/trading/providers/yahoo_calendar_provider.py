@@ -26,7 +26,7 @@ Honesty guarantees (spec sections 5, 9, 20, 28, 61):
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 import httpx
 
@@ -158,7 +158,7 @@ class YahooCalendarProvider(CalendarProvider):
             if isinstance(raw, bool) or not isinstance(raw, (int, float)):
                 continue
             try:
-                out.append(datetime.fromtimestamp(int(raw), tz=timezone.utc))
+                out.append(datetime.fromtimestamp(int(raw), tz=UTC))
             except (OverflowError, OSError, ValueError):
                 continue
         return out
@@ -181,7 +181,7 @@ class YahooCalendarProvider(CalendarProvider):
         calendar = result.get("calendarEvents") or {}
         earnings = calendar.get("earnings") or {}
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         cutoff = now + timedelta(days=horizon_days)
         provenance = Provenance(
             source=self.name,

@@ -25,7 +25,7 @@ from __future__ import annotations
 
 import hashlib
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
@@ -34,7 +34,7 @@ from .provenance import DataQuality, Provenance
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 class EventType(str, Enum):
@@ -59,6 +59,36 @@ class EventImpact(str, Enum):
     UNKNOWN = "unknown"
 
 
+class MacroEventKind(str, Enum):
+    """
+    Which macro release an ``EventType.ECONOMIC`` event is, by name.
+
+    ``EventType.ECONOMIC`` says only "a macro release"; the spec's economic
+    calendar tracks six *specific* ones, so this is the vocabulary that makes
+    "tracks CPI / FOMC / NFP / interest rates / GDP / employment data" a
+    structural fact rather than a free-text title. It is a label for the release
+    -- never an impact, never a probability, never a claim about price.
+
+    ``UNKNOWN`` is the honest answer for a release we can see is a release but
+    cannot name (a retail-sales print, a PMI), exactly as ``Direction.UNKNOWN``
+    and ``EventType.UNKNOWN`` are elsewhere -- never a guess at the nearest kind.
+
+    Not to be confused with :class:`~.macro.MacroContext`, which is a read of the
+    market's *risk posture* (risk-on / risk-off). This names a release on a
+    calendar; that describes the tape.
+
+    Inherits ``str`` for JSON output, like every other enum here.
+    """
+
+    CPI = "cpi"  # consumer/producer price inflation
+    FOMC = "fomc"  # the Fed's rate decision and its statement/minutes
+    NFP = "nfp"  # non-farm payrolls
+    INTEREST_RATE = "interest_rate"  # rate decisions outside the FOMC
+    GDP = "gdp"  # gross domestic product
+    EMPLOYMENT = "employment"  # unemployment, jobless claims, the jobs report
+    UNKNOWN = "unknown"  # a macro release this taxonomy does not name
+
+
 def _stable_id(
     *, instrument_key: str, event_type: str, title: str, scheduled_at: datetime
 ) -> str:
@@ -79,7 +109,16 @@ def _stable_id(
 
 @dataclass(frozen=True, slots=True)
 class MarketEvent:
-    """A single scheduled event as a provider reported it (no interpretation)."""
+    """
+    A single scheduled event as a provider reported it.
+
+    The provider owns what the event *is* -- its type, title, date and impact --
+    and nothing here reinterprets or contradicts that. The one derived field is
+    :attr:`macro_kind`, a deterministic classification of a macro release's
+    *title* (``None`` for every non-``ECONOMIC`` event, because an earnings date
+    or a dividend already is its own type and needs no second label). It names
+    the release; it never restates the impact, and it is not a claim about price.
+    """
 
     instrument_key: str
     event_type: EventType
@@ -89,6 +128,7 @@ class MarketEvent:
     provenance: Provenance
     detail: str = ""
     id: str = ""
+    macro_kind: MacroEventKind | None = None
 
     def __post_init__(self) -> None:
         if not self.id:
@@ -120,6 +160,7 @@ class MarketEvent:
             "scheduled_at": self.scheduled_at.isoformat(),
             "impact": self.impact.value,
             "detail": self.detail,
+            "macro_kind": self.macro_kind.value if self.macro_kind else None,
             "provenance": self.provenance.to_dict(),
         }
 
@@ -147,6 +188,19 @@ class EventCalendar:
     def next_event(self) -> MarketEvent | None:
         """The soonest scheduled event in the horizon, if any."""
         return self.events[0] if self.events else None
+
+    @property
+    def next_high_impact(self) -> MarketEvent | None:
+        """
+        The soonest *high-impact* event in the horizon, if any.
+
+        Distinct from :attr:`next_event` on purpose: the soonest event of any
+        impact is routinely not the one that carries the risk. A calendar with a
+        low-impact dividend on day 1 and a high-impact CPI on day 3 has
+        ``next_event`` = the dividend, so anything warning about the risk must
+        name this one instead or it names the wrong event.
+        """
+        return next((e for e in self.events if e.is_high_impact), None)
 
     def to_dict(self) -> dict[str, Any]:
         ref = self.reference_time

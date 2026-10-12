@@ -26,7 +26,7 @@ from ..domain.instrument import Instrument
 from ..domain.market_data import MarketData
 from ..domain.prediction import PredictionRecord
 from ..domain.provenance import Provenance
-from ..domain.report import PIPELINE_VERSION, TradingReport, _PROBABILITY_LIMITATION
+from ..domain.report import _PROBABILITY_LIMITATION, PIPELINE_VERSION, TradingReport
 from ..errors import (
     AnalysisError,
     CalendarError,
@@ -36,20 +36,20 @@ from ..errors import (
 )
 from ..events import PredictionCreated, TradingReportGenerated
 from .analysis_service import AnalysisService
+from .anomaly_service import AnomalyService
 from .backtest_service import BacktestService
 from .breakout_service import BreakoutService
 from .calendar_service import EventCalendarService
 from .critic_service import CriticService
 from .divergence_service import DivergenceService
 from .fundamental_service import FundamentalAnalysisService
+from .historical_analogue_service import HistoricalAnalogueService
+from .macro_service import MacroContextService
 from .market_data_service import MarketDataService
+from .multi_timeframe_service import MultiTimeframeService
 from .news_service import NewsSentimentService
 from .prediction_store import PredictionStore
 from .probability_service import ProbabilityService
-from .anomaly_service import AnomalyService
-from .historical_analogue_service import HistoricalAnalogueService
-from .macro_service import MacroContextService
-from .multi_timeframe_service import MultiTimeframeService
 from .regime_service import RegimeService
 from .relative_strength_service import RelativeStrengthService
 from .risk_service import RiskService

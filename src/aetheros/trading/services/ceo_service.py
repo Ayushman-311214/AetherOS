@@ -29,6 +29,7 @@ from __future__ import annotations
 
 import json
 import re
+from typing import TYPE_CHECKING, Any
 
 from ...config.settings import Settings
 from ...core.interfaces.llm_provider import LLMProvider
@@ -37,6 +38,9 @@ from ..domain.ceo_brief import CEOBrief
 from ..domain.instrument import Instrument
 from ..domain.report import TradingReport
 from .orchestration_service import OrchestrationService
+
+if TYPE_CHECKING:
+    from .hybrid_service import HybridContextService
 
 logger = get_logger("trading.ceo")
 
@@ -83,6 +87,11 @@ _SYSTEM_PROMPT = (
     "that this is analysis, not advice.\n"
     "4. If the report is based on MOCK or unreliable data, state that the read "
     "is not reliable.\n"
+    "5. The payload may include a hybrid visual read (what vision saw on the "
+    "chart screenshot, with verbatim confidence). Those are UNCERTAIN guesses, "
+    "never equal to the report's measured numbers; when they conflict with the "
+    "report, the report governs, and when no screenshot was captured, say the "
+    "read rests on numbers alone.\n"
     "Be concise: a short paragraph on the recommendation and the main evidence, "
     "then the key risks/limitations."
 )
@@ -97,10 +106,12 @@ class TradingCEOService:
         settings: Settings,
         *,
         llm: LLMProvider | None = None,
+        hybrid: HybridContextService | None = None,
     ) -> None:
         self._orchestration = orchestration
         self._settings = settings
         self._llm = llm
+        self._hybrid = hybrid
 
     async def brief(
         self,
@@ -108,11 +119,33 @@ class TradingCEOService:
         timeframe: str | None = None,
         *,
         limit: int | None = None,
+        with_visual: bool = False,
     ) -> CEOBrief:
+        """
+        Brief the instrument over the deterministic report, narrated by the LLM.
+
+        With ``with_visual=True`` and a hybrid service wired, the LLM is handed
+        the unified hybrid context (report numbers plus the vision read and
+        the trust rules) instead of the bare report -- the Phase 19 surface.
+        The narration gains a visual read; the decision never changes: every
+        field the brief copies still comes off the deterministic report, and
+        with no hybrid service (or a visual failure) the brief degrades to the
+        report-only payload rather than failing.
+        """
         report = await self._orchestration.generate_report(
             symbol, timeframe, limit=limit
         )
-        payload = report.to_dict()
+        payload: dict[str, Any] = report.to_dict()
+        if with_visual and self._hybrid is not None:
+            try:
+                hybrid = await self._hybrid.build(
+                    symbol, timeframe, limit=limit, report=report
+                )
+                payload = hybrid.to_dict()
+            except Exception:
+                logger.exception(
+                    "Hybrid context failed; the brief narrates the report alone"
+                )
 
         narrative, narrated_by = await self._narrate(report, payload)
 

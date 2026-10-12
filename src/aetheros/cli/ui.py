@@ -148,6 +148,10 @@ class CLIUI:
                 "Recorded predictions + how they scored (track-record [SYMBOL:EXCHANGE] [limit])",
             ),
             (
+                "workspace",
+                "Live multi-panel TUI workspace (workspace [symbol] [timeframe])",
+            ),
+            (
                 "memory",
                 "Inspect/manage memory (memory [stats|search <q>|show <id>|list|forget <id>])",
             ),

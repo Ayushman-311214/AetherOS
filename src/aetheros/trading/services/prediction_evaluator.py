@@ -35,7 +35,7 @@ of the return -- exactly the label the probability model was trained against.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ...config.settings import Settings
 from ...core.logging import get_logger
@@ -54,8 +54,8 @@ logger = get_logger("trading.evaluator")
 def _ensure_utc(dt: datetime) -> datetime:
     """Treat a naive timestamp as UTC so comparisons never raise or mislead."""
     if dt.tzinfo is None:
-        return dt.replace(tzinfo=timezone.utc)
-    return dt.astimezone(timezone.utc)
+        return dt.replace(tzinfo=UTC)
+    return dt.astimezone(UTC)
 
 
 class PredictionEvaluator:

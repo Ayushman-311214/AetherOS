@@ -21,9 +21,13 @@ class Timeframe(str, Enum):
     H4 = "4h"
     D1 = "1d"
     W1 = "1w"
+    MN = "1M"
 
     @property
     def seconds(self) -> int:
+        # The monthly bar uses a fixed 30-day convention: real months vary in
+        # length, but staleness math needs one deterministic number, and 30
+        # days is the standard approximation.
         return {
             "1m": 60,
             "5m": 300,
@@ -33,14 +37,39 @@ class Timeframe(str, Enum):
             "4h": 14400,
             "1d": 86400,
             "1w": 604800,
+            "1M": 30 * 86400,
         }[self.value]
 
+    @property
+    def label(self) -> str:
+        return {
+            Timeframe.M1: "1 Minute",
+            Timeframe.M5: "5 Minutes",
+            Timeframe.M15: "15 Minutes",
+            Timeframe.M30: "30 Minutes",
+            Timeframe.H1: "1 Hour",
+            Timeframe.H4: "4 Hours",
+            Timeframe.D1: "1 Day",
+            Timeframe.W1: "1 Week",
+            Timeframe.MN: "1 Month",
+        }[self]
+
     @classmethod
-    def parse(cls, value: str) -> "Timeframe":
-        """Resolve a user/tool string to a Timeframe, raising ValueError if unknown."""
-        normalised = value.strip().lower()
+    def parse(cls, value: str) -> Timeframe:
+        """
+        Resolve a user/tool string to a Timeframe, raising ValueError if unknown.
+
+        Exact match first, then case-insensitive: the monthly bar is "1M" and
+        the one-minute bar is "1m", so folding case before matching would make
+        "1M" silently mean minutes.
+        """
+        raw = value.strip()
         for member in cls:
-            if member.value == normalised:
+            if member.value == raw:
+                return member
+        lowered = raw.lower()
+        for member in cls:
+            if member.value.lower() == lowered:
                 return member
         raise ValueError(
             f"Unknown timeframe '{value}'. "
@@ -88,7 +117,7 @@ class MarketRegime(str, Enum):
         return self in (MarketRegime.TRENDING_UP, MarketRegime.TRENDING_DOWN)
 
     @property
-    def direction(self) -> "Direction":
+    def direction(self) -> Direction:
         """The directional bias implied by the regime -- never a probability."""
         if self is MarketRegime.TRENDING_UP:
             return Direction.UP
@@ -118,7 +147,7 @@ class MarketPosture(str, Enum):
     UNKNOWN = "unknown"
 
     @property
-    def direction(self) -> "Direction":
+    def direction(self) -> Direction:
         """The directional bias implied by the posture -- never a probability."""
         if self is MarketPosture.RISK_ON:
             return Direction.UP
@@ -129,7 +158,7 @@ class MarketPosture(str, Enum):
         return Direction.UNKNOWN
 
     @classmethod
-    def from_regime(cls, regime: "MarketRegime") -> "MarketPosture":
+    def from_regime(cls, regime: MarketRegime) -> MarketPosture:
         """Map a benchmark's regime to a broad-market risk posture.
 
         A trending-up market is risk-on and a trending-down market is risk-off;
@@ -171,7 +200,7 @@ class Confidence(str, Enum):
     HIGH = "high"
 
     @classmethod
-    def from_score(cls, score: float) -> "Confidence":
+    def from_score(cls, score: float) -> Confidence:
         """Map a 0..1 score to a band. This is a label, not a calibrated probability."""
         if score >= 0.70:
             return cls.HIGH
@@ -208,6 +237,7 @@ class EvidenceType(str, Enum):
     VISUAL = "visual"
     CHART = "chart"
     MACRO = "macro"
+    ICT = "ict"
 
 
 class SourceTier(str, Enum):
@@ -242,6 +272,36 @@ class StructureSignalType(str, Enum):
     NONE = "none"
 
 
+class StructureBreakType(str, Enum):
+    """
+    The two ways price can close through a confirmed swing point (spec Phase 5).
+
+    BOS (break of structure) continues the prevailing structure; CHoCH (change
+    of character) is the first break *against* it, and is what flips the
+    running trend. Both are only ever detected on a **close** beyond the swing
+    level -- a wick that pierces without closing beyond is a liquidity sweep
+    (``LiquidityEventKind.SWEEP``), not a break.
+    """
+
+    BOS = "bos"
+    CHOCH = "choch"
+
+
+class SMCZoneKind(str, Enum):
+    """A price zone derived from candle geometry (spec Phase 5)."""
+
+    ORDER_BLOCK = "order_block"
+    FAIR_VALUE_GAP = "fair_value_gap"
+
+
+class LiquidityEventKind(str, Enum):
+    """A liquidity phenomenon resting at, or taken from, a price level."""
+
+    SWEEP = "sweep"
+    EQUAL_HIGHS = "equal_highs"
+    EQUAL_LOWS = "equal_lows"
+
+
 class Assertion(str, Enum):
     """
     Epistemic status of a value in user-facing output (spec section 56).
@@ -270,7 +330,7 @@ class RiskBand(str, Enum):
     UNKNOWN = "unknown"
 
     @classmethod
-    def from_atr_pct(cls, atr_pct: float | None) -> "RiskBand":
+    def from_atr_pct(cls, atr_pct: float | None) -> RiskBand:
         """Map ATR-as-fraction-of-price to a volatility band (deterministic)."""
         if atr_pct is None:
             return cls.UNKNOWN
@@ -280,7 +340,7 @@ class RiskBand(str, Enum):
             return cls.MEDIUM
         return cls.HIGH
 
-    def escalate(self) -> "RiskBand":
+    def escalate(self) -> RiskBand:
         """Bump one level toward HIGH; UNKNOWN becomes MEDIUM, HIGH is capped."""
         return {
             RiskBand.UNKNOWN: RiskBand.MEDIUM,
@@ -336,12 +396,78 @@ class ReportRecommendation(str, Enum):
     NO_TRADE = "no_trade"
 
     @classmethod
-    def from_verdict(cls, verdict: "CriticVerdict") -> "ReportRecommendation":
+    def from_verdict(cls, verdict: CriticVerdict) -> ReportRecommendation:
         if verdict is CriticVerdict.APPROVE:
             return cls.APPROVED
         if verdict is CriticVerdict.REJECT:
             return cls.REJECTED
         return cls.NO_TRADE
+
+
+class TradeAction(str, Enum):
+    """A requested action on a position or instrument."""
+
+    BUY = "buy"
+    SELL = "sell"
+    EXIT = "exit"
+    PARTIAL_EXIT = "partial_exit"
+    UPDATE_STOP_LOSS = "update_stop_loss"
+
+
+class TradingMode(str, Enum):
+    """
+    How far an execution request is allowed to travel (spec Phase 26).
+
+    The mode is the first policy gate and the one with the widest blast radius:
+
+    - ``ANALYSIS_ONLY`` -- the system analyses and decides but submits nothing.
+      Every execution request is blocked, whatever the venue.
+    - ``PAPER`` -- orders may reach a paper venue (real prices, virtual money)
+      only. A non-paper venue is blocked, so no live capital can move even if a
+      live connector is wired.
+    - ``LIVE`` -- live venues are permitted, subject to every other policy check
+      and an explicit confirmation. Paper venues remain allowed in this mode too.
+
+    The default throughout AetherOS is ``PAPER``: the safe setting that lets the
+    paper and simulation paths work while making a live order an explicit,
+    deliberate opt-in rather than an accident.
+    """
+
+    ANALYSIS_ONLY = "analysis_only"
+    PAPER = "paper"
+    LIVE = "live"
+
+
+class OrderType(str, Enum):
+    MARKET = "market"
+    LIMIT = "limit"
+    STOP = "stop"
+    STOP_LIMIT = "stop_limit"
+
+
+class OrderStatus(str, Enum):
+    PENDING = "pending"
+    SUBMITTED = "submitted"
+    PARTIALLY_FILLED = "partially_filled"
+    FILLED = "filled"
+    CANCELLED = "cancelled"
+    REJECTED = "rejected"
+
+
+class PositionStatus(str, Enum):
+    OPEN = "open"
+    CLOSED = "closed"
+
+
+class StrategyCategory(str, Enum):
+    SCALPING = "scalping"
+    SWING = "swing"
+    TREND_FOLLOWING = "trend_following"
+    MEAN_REVERSION = "mean_reversion"
+    ICT = "ict"
+    SMC = "smc"
+    BREAKOUT = "breakout"
+    CUSTOM = "custom"
 
 
 class PredictionOutcomeStatus(str, Enum):
@@ -360,3 +486,114 @@ class PredictionOutcomeStatus(str, Enum):
     PENDING = "pending"
     RESOLVED = "resolved"
     UNRESOLVABLE = "unresolvable"
+
+
+class SessionName(str, Enum):
+    """
+    The three FX trading sessions, as used by ICT (spec Phase 6).
+
+    Sessions are identified by the *city whose desks are active*, and their
+    windows are expressed in an exchange-local timezone by the catalogue that
+    defines them. Unlike a partition of the clock they legitimately **overlap**
+    -- the London/New York overlap is the most liquid part of the day -- so a
+    timestamp can belong to more than one session and lookups return tuples.
+    """
+
+    ASIA = "asia"
+    LONDON = "london"
+    NEW_YORK = "new_york"
+
+
+class KillZoneName(str, Enum):
+    """
+    Named kill zones: the narrow windows in which ICT expects the session's
+    directional move to originate.
+
+    Kill zones are sub-windows of a session and, like sessions, may overlap
+    (the New York AM and London Close zones share 10:00-11:00 exchange-local),
+    so lookups return tuples rather than one zone.
+    """
+
+    ASIA = "asia"
+    LONDON_OPEN = "london_open"
+    NY_AM = "ny_am"
+    LONDON_CLOSE = "london_close"
+    NY_PM = "ny_pm"
+
+
+class ICTConcept(str, Enum):
+    """
+    The eight ICT concepts the engine detects, used to tag each detection so
+    downstream evidence fusion can attribute it (spec Phase 6).
+    """
+
+    DAILY_BIAS = "daily_bias"
+    MARKET_STRUCTURE_SHIFT = "market_structure_shift"
+    KILL_ZONE = "kill_zone"
+    OTE = "ote"
+    LIQUIDITY_POOL = "liquidity_pool"
+    JUDAS_SWING = "judas_swing"
+    POWER_OF_THREE = "power_of_three"
+    SESSION_MODEL = "session_model"
+
+
+class AMDPhase(str, Enum):
+    """
+    The three phases of ICT's Power of Three (accumulation, manipulation,
+    distribution) that a session is decomposed into.
+    """
+
+    ACCUMULATION = "accumulation"
+    MANIPULATION = "manipulation"
+    DISTRIBUTION = "distribution"
+
+
+class SessionModelKind(str, Enum):
+    """
+    How one session behaved relative to the session before it.
+
+    UNDEFINED is first-class: a session with no predecessor in the data, or one
+    with too few bars to characterise, is reported as undefined rather than
+    forced into a pattern (spec section 28).
+    """
+
+    CONTINUATION = "continuation"
+    REVERSAL = "reversal"
+    SWEEP_AND_REVERSE = "sweep_and_reverse"
+    CONSOLIDATION = "consolidation"
+    EXPANSION = "expansion"
+    UNDEFINED = "undefined"
+
+
+class LiquidityPoolKind(str, Enum):
+    """
+    Where a resting liquidity pool comes from.
+
+    Equal highs/lows are clusters of confirmed swings (reused from the SMC
+    layer); the session and prior-day variants are the extremes that price most
+    obviously rests orders behind.
+    """
+
+    EQUAL_HIGHS = "equal_highs"
+    EQUAL_LOWS = "equal_lows"
+    SESSION_HIGH = "session_high"
+    SESSION_LOW = "session_low"
+    PRIOR_DAY_HIGH = "prior_day_high"
+    PRIOR_DAY_LOW = "prior_day_low"
+
+
+class OptimizationObjective(str, Enum):
+    """
+    What a strategy parameter search is maximising (spec Phase 7).
+
+    An explicit objective is required because "best parameters" is meaningless
+    without one: ranking on directional hit-rate and ranking on realised return
+    select different parameter sets, and a search that did not state its
+    objective would be silently choosing for the user. Every objective here is
+    measured by the existing walk-forward backtester, on out-of-sample data
+    only, so none of them can be met by fitting the sample.
+    """
+
+    DIRECTIONAL_ACCURACY = "directional_accuracy"
+    CUMULATIVE_RETURN = "cumulative_return"
+    SHARPE = "sharpe"

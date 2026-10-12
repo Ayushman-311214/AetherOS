@@ -29,8 +29,10 @@ silently resampled.
 
 from __future__ import annotations
 
+import asyncio
 import time
-from datetime import datetime, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime
 
 import httpx
 
@@ -62,6 +64,7 @@ _YAHOO_INTERVAL: dict[Timeframe, str] = {
     Timeframe.H1: "1h",
     Timeframe.D1: "1d",
     Timeframe.W1: "1wk",
+    Timeframe.MN: "1mo",
 }
 
 # Extra lookback factor when requesting `period1..period2`, to cover non-trading
@@ -95,11 +98,72 @@ _EXCHANGE_SUFFIX: dict[str, str] = {
 }
 
 
+def yahoo_symbol(instrument: Instrument) -> str:
+    """
+    Map an Instrument to Yahoo's quote conventions (pure, unit-testable).
+
+    * equities/indices: ticker + exchange suffix (``RELIANCE`` + NSE ->
+      ``RELIANCE.NS``; unknown exchange falls back to the bare ticker)
+    * forex: six-letter currency pair -> ``EURUSD=X``; three-letter codes are
+      expanded to the standard USD quote (``EUR`` -> ``EURUSD=X``)
+    * crypto: symbol treated as the base against USD -> ``BTC-USD``
+    * commodity: futures root -> ``GC=F``; an already-suffixed symbol
+      (``GC=F``) passes through unchanged
+    """
+    if instrument.asset_class == "forex":
+        raw = instrument.symbol.upper()
+        if len(raw) == 6:
+            return f"{raw}=X"
+        if len(raw) == 3:
+            return f"{raw}USD=X"
+        return f"{raw}=X"
+    if instrument.asset_class == "crypto":
+        base = instrument.symbol.upper()
+        if "/" in base:
+            # Already a pair (BTC/USD) -- ccxt-style, convert to Yahoo's dash.
+            base_quote = base.split("/", 1)
+            return f"{base_quote[0]}-{base_quote[1]}"
+        return f"{base}-USD"
+    if instrument.asset_class == "commodity":
+        raw = instrument.symbol.upper()
+        if raw.endswith("=F"):
+            return raw
+        return f"{raw}=F"
+    suffix = ""
+    if instrument.exchange:
+        suffix = _EXCHANGE_SUFFIX.get(instrument.exchange, "")
+    return f"{instrument.symbol}{suffix}"
+
+
+# HTTP status codes worth retrying: rate limiting and transient server faults.
+# Client errors (404 unknown symbol, 400 bad request) are permanent for the
+# same arguments, so retrying them would only burn the rate budget.
+_RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504})
+
+
+class _Transient(ProviderError):
+    """A provider failure that may succeed on retry (rate limit, 5xx, transport).
+
+    Subclasses ProviderError so any caller already catching the public error
+    type sees identical behaviour when retries are exhausted.
+    """
+
+    default_code = "TRADING_MD_005"
+
+
 class YahooMarketDataProvider(MarketDataProvider):
     """Real OHLCV candles and quotes from Yahoo's public chart endpoint."""
 
     name = "yahoo"
     tier = SourceTier.SECONDARY
+
+    #: Yahoo serves equities, indices, forex pairs, crypto/USD pairs and
+    #: commodity futures (GC=F style).
+    asset_classes = ("equity", "index", "forex", "crypto", "commodity")
+
+    #: The public chart endpoint exposes neither books nor executed trades.
+    supports_order_book = False
+    supports_trades = False
 
     def __init__(
         self,
@@ -107,6 +171,9 @@ class YahooMarketDataProvider(MarketDataProvider):
         client: httpx.AsyncClient | None = None,
         base_url: str = _DEFAULT_BASE_URL,
         timeout: float = 15.0,
+        max_retries: int = 0,
+        retry_backoff_seconds: float = 1.0,
+        sleeper: Callable[[float], object] = asyncio.sleep,
     ) -> None:
         # An injected client (owned by the caller) makes this provider testable
         # with httpx.MockTransport and lets a host share one connection pool. If
@@ -114,6 +181,9 @@ class YahooMarketDataProvider(MarketDataProvider):
         self._client = client
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout
+        self._max_retries = max(0, max_retries)
+        self._retry_backoff_seconds = retry_backoff_seconds
+        self._sleeper = sleeper
 
     # ------------------------------------------------------------------
     # Symbol / timeframe mapping
@@ -121,10 +191,7 @@ class YahooMarketDataProvider(MarketDataProvider):
 
     @staticmethod
     def _yahoo_symbol(instrument: Instrument) -> str:
-        suffix = ""
-        if instrument.exchange:
-            suffix = _EXCHANGE_SUFFIX.get(instrument.exchange, "")
-        return f"{instrument.symbol}{suffix}"
+        return yahoo_symbol(instrument)
 
     @classmethod
     def _interval(cls, timeframe: Timeframe) -> str:
@@ -143,12 +210,38 @@ class YahooMarketDataProvider(MarketDataProvider):
     # ------------------------------------------------------------------
 
     async def _fetch_chart(self, symbol: str, params: dict[str, object]) -> dict:
+        """
+        Fetch one chart payload, retrying transient failures.
+
+        Transient (retryable) failures: transport errors and HTTP 429/5xx.
+        Permanent ones -- 4xx, error payloads, empty results -- raise
+        immediately: retrying the same bad request would only burn the rate
+        budget without ever succeeding.
+        """
         url = f"{self._base_url}/v8/finance/chart/{symbol}"
+        attempts = self._max_retries + 1
+        last_exc: ProviderError | None = None
+        for attempt in range(attempts):
+            if attempt > 0:
+                # Exponential backoff: base * 2^(attempt-1). The sleeper is
+                # injected so tests run instantly and deterministically.
+                await self._sleeper(self._retry_backoff_seconds * (2 ** (attempt - 1)))
+            try:
+                return await self._fetch_chart_once(symbol, url, params)
+            except _Transient as exc:
+                last_exc = exc
+                continue
+        assert last_exc is not None  # only reachable after >= 1 transient raise
+        raise last_exc
+
+    async def _fetch_chart_once(
+        self, symbol: str, url: str, params: dict[str, object]
+    ) -> dict:
         client = self._client or httpx.AsyncClient(timeout=self._timeout)
         try:
             resp = await client.get(url, params=params, headers=_HEADERS)
         except httpx.HTTPError as exc:
-            raise ProviderError(
+            raise _Transient(
                 f"Yahoo request failed for '{symbol}': {exc}",
                 context={"symbol": symbol},
                 cause=exc,
@@ -157,6 +250,11 @@ class YahooMarketDataProvider(MarketDataProvider):
             if self._client is None:
                 await client.aclose()
 
+        if resp.status_code in _RETRYABLE_STATUS:
+            raise _Transient(
+                f"Yahoo returned HTTP {resp.status_code} for '{symbol}'.",
+                context={"symbol": symbol, "status": resp.status_code},
+            )
         if resp.status_code != 200:
             raise ProviderError(
                 f"Yahoo returned HTTP {resp.status_code} for '{symbol}'.",
@@ -190,7 +288,6 @@ class YahooMarketDataProvider(MarketDataProvider):
                 f"Yahoo returned no chart data for '{symbol}'.",
                 context={"symbol": symbol},
             )
-        print("Yahoo chart result for -----------> ", symbol, ":", results[0])
         return results[0]
 
     # ------------------------------------------------------------------
@@ -216,18 +313,18 @@ class YahooMarketDataProvider(MarketDataProvider):
         candles: list[Candle] = []
         for i, ts in enumerate(timestamps):
             try:
-                o, h, l, c = opens[i], highs[i], lows[i], closes[i]
+                o, h, lo, c = opens[i], highs[i], lows[i], closes[i]
             except IndexError:
                 break
-            if None in (o, h, l, c) or ts is None:
+            if None in (o, h, lo, c) or ts is None:
                 continue
             v = volumes[i] if i < len(volumes) and volumes[i] is not None else 0.0
             candles.append(
                 Candle(
-                    timestamp=datetime.fromtimestamp(int(ts), tz=timezone.utc),
+                    timestamp=datetime.fromtimestamp(int(ts), tz=UTC),
                     open=float(o),
                     high=float(h),
-                    low=float(l),
+                    low=float(lo),
                     close=float(c),
                     volume=float(v),
                 )

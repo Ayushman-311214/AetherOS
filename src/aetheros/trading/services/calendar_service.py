@@ -16,13 +16,20 @@ legitimate "no scheduled event risk" result, distinct from a failure.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from dataclasses import replace
+from datetime import UTC, datetime
 
 from ...config.settings import Settings
 from ...core.logging import get_logger
 from ...runtime.events.event_bus import EventBus
+from ..calendar.macro import classify
 from ..domain.enums import DataQualityStatus
-from ..domain.event_calendar import EventCalendar, MarketEvent
+from ..domain.event_calendar import (
+    EventCalendar,
+    EventType,
+    MacroEventKind,
+    MarketEvent,
+)
 from ..domain.instrument import Instrument
 from ..domain.provenance import DataQuality, Provenance
 from ..errors import CalendarError
@@ -36,6 +43,19 @@ _MOCK_LIMITATION = (
     "real earnings/economic calendar. The events are illustrative only and are "
     "not reliable."
 )
+
+
+def _release_label(event: MarketEvent) -> str:
+    """
+    How to name ``event`` inside a warning: ``"CPI release"``, else ``"event"``.
+
+    An unnamed macro release (``UNKNOWN``) deliberately falls back to the generic
+    word rather than dressing a non-answer up as a name.
+    """
+    kind = event.macro_kind
+    if kind is not None and kind is not MacroEventKind.UNKNOWN:
+        return f"{kind.value.replace('_', ' ').upper()} release"
+    return "event"
 
 
 class EventCalendarService:
@@ -97,13 +117,22 @@ class EventCalendarService:
         events: tuple[MarketEvent, ...],
         horizon: int,
     ) -> EventCalendar:
-        reference = datetime.now(timezone.utc)
+        reference = datetime.now(UTC)
         is_mock = self._provider.is_mock
         tier = self._provider.tier
 
         # Defensive: keep events soonest-first regardless of provider ordering.
-        ordered = tuple(sorted(events, key=lambda e: e.scheduled_at))
-        has_high_impact = any(e.is_high_impact for e in ordered)
+        # Classification happens here rather than in a provider so that *every*
+        # provider is named for free -- the mock today, and a real macro feed the
+        # day one lands behind the same CalendarProvider ABC.
+        ordered = tuple(
+            sorted(
+                (self._classify(event) for event in events),
+                key=lambda e: e.scheduled_at,
+            )
+        )
+        next_high_impact = next((e for e in ordered if e.is_high_impact), None)
+        has_high_impact = next_high_impact is not None
 
         provenance = Provenance(
             source=self._provider.name,
@@ -123,7 +152,9 @@ class EventCalendarService:
 
         is_reliable = quality.usable and not is_mock
         limitations = self._build_limitations(
-            is_mock=is_mock, count=len(ordered), has_high_impact=has_high_impact
+            is_mock=is_mock,
+            count=len(ordered),
+            next_high_impact=next_high_impact,
         )
 
         return EventCalendar(
@@ -139,8 +170,27 @@ class EventCalendarService:
         )
 
     @staticmethod
+    def _classify(event: MarketEvent) -> MarketEvent:
+        """
+        Name the macro release an ``ECONOMIC`` event refers to.
+
+        Only ``ECONOMIC`` events are classified: an earnings date or a dividend
+        already *is* its type and gains nothing from a second label. The impact
+        the provider reported is deliberately left untouched -- this taxonomy
+        names a release, and filling in a canonical impact where the source said
+        ``UNKNOWN`` would be inventing sourced data rather than labelling it.
+        """
+        if event.event_type is not EventType.ECONOMIC:
+            return event
+        read = classify(f"{event.title} {event.detail}".strip())
+        return replace(event, macro_kind=read.kind)
+
+    @staticmethod
     def _build_limitations(
-        *, is_mock: bool, count: int, has_high_impact: bool
+        *,
+        is_mock: bool,
+        count: int,
+        next_high_impact: MarketEvent | None,
     ) -> tuple[str, ...]:
         limitations: list[str] = []
         if is_mock:
@@ -150,10 +200,13 @@ class EventCalendarService:
                 "No scheduled events were found in the horizon; event risk "
                 "appears low, but a gap in coverage cannot be ruled out."
             )
-        if has_high_impact and not is_mock:
+        if next_high_impact is not None and not is_mock:
+            # Name the release that actually carries the risk. ``next_event``
+            # would be the wrong one whenever a softer event sits sooner.
             limitations.append(
-                "A high-impact event falls within the prediction horizon; a "
-                "price-derived signal may be invalidated by its outcome."
+                f"A high-impact {_release_label(next_high_impact)} falls within "
+                "the prediction horizon; a price-derived signal may be "
+                "invalidated by its outcome."
             )
         return tuple(limitations)
 
@@ -185,6 +238,8 @@ class EventCalendarService:
         if self._event_bus is None:
             return
         nxt = calendar.next_event
+        risk = calendar.next_high_impact
+        kind = risk.macro_kind if risk is not None else None
         try:
             await self._event_bus.publish(
                 MarketEventsDetected(
@@ -195,6 +250,11 @@ class EventCalendarService:
                     next_event_type=(nxt.event_type.value if nxt else ""),
                     next_event_days=(
                         nxt.days_until(calendar.reference_time) if nxt else None
+                    ),
+                    next_high_impact_kind=(
+                        kind.value
+                        if kind is not None and kind is not MacroEventKind.UNKNOWN
+                        else ""
                     ),
                     is_reliable=calendar.is_reliable,
                     source_tier=calendar.provenance.tier.value,

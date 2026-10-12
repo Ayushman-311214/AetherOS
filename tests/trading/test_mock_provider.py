@@ -13,6 +13,7 @@ import pytest
 
 from aetheros.trading.domain.enums import SourceTier, Timeframe
 from aetheros.trading.domain.instrument import Instrument
+from aetheros.trading.errors import ProviderError
 from aetheros.trading.providers.mock_provider import MockMarketDataProvider
 
 
@@ -81,3 +82,16 @@ async def test_zero_limit_rejected():
     provider = MockMarketDataProvider()
     with pytest.raises(ValueError):
         await provider.get_candles(Instrument.parse("AAPL"), Timeframe.D1, limit=0)
+
+
+@pytest.mark.asyncio
+async def test_order_book_and_trades_refused_honestly():
+    # The mock serves neither books nor ticks; it must refuse with a typed
+    # error rather than fabricating levels or prints.
+    provider = MockMarketDataProvider()
+    assert provider.supports_order_book is False
+    assert provider.supports_trades is False
+    with pytest.raises(ProviderError, match="does not provide order-book"):
+        await provider.get_order_book(Instrument.parse("AAPL"))
+    with pytest.raises(ProviderError, match="does not provide trade-tick"):
+        await provider.get_recent_trades(Instrument.parse("AAPL"))

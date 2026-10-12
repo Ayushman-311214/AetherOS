@@ -3,14 +3,12 @@ from __future__ import annotations
 import importlib.util
 import os
 
-from ..tools.discovery import tool_discovery
 from ..core.container import container
-
-from ..core.logging.logging import(
+from ..core.logging.logging import (
     get_logger,
-    setup_logging,
 )
 from ..tools.registry import tool_registry
+
 
 class Bootstrapper:
     """
@@ -671,15 +669,19 @@ class Bootstrapper:
         # module. An absolute `import src.aetheros...` would build a second copy
         # of the package whenever the app is loaded as `aetheros.*`, giving the
         # tools their own tool_registry and container that nothing else can see.
-        from ..desktop.mouse import tools as mouse_tools  # noqa: F401
-        from ..desktop.keyboard import tools as keyboard_tools  # noqa: F401
-        from ..desktop.clipboard import tools as clipboard_tools  # noqa: F401
-        from ..desktop.screen import tools as screen_tools  # noqa: F401
-        from ..desktop.window import tools as window_tools  # noqa: F401
-        from ..desktop.process import tools as process_tools  # noqa: F401
+        # Importing this costs nothing when Playwright is absent: the tools
+        # reference BrowserService only through the container, and
+        # browser/controller.py imports the provider *interface*, not Playwright.
+        # Registering them unconditionally is what lets an agent be told the
+        # capability exists and get BROWSER_UNAVAILABLE rather than silence.
+        from ..browser import tools as browser_tools  # noqa: F401
         from ..desktop.application import tools as application_tools  # noqa: F401
-        from ..vision import tools as vision_tools  # noqa: F401
-        from ..vision.grounding import tools as grounding_tools  # noqa: F401
+        from ..desktop.automation import tools as automation_tools  # noqa: F401
+        from ..desktop.clipboard import tools as clipboard_tools  # noqa: F401
+        from ..desktop.keyboard import tools as keyboard_tools  # noqa: F401
+        from ..desktop.mouse import tools as mouse_tools  # noqa: F401
+        from ..desktop.process import tools as process_tools  # noqa: F401
+        from ..desktop.screen import tools as screen_tools  # noqa: F401
 
         # verify_action and the workflow tools. Registered after the action tools
         # on purpose: the automation tools build their descriptions from the live
@@ -688,14 +690,9 @@ class Bootstrapper:
         # this before mouse/keyboard registration would report every strategy
         # unavailable and quietly mislead the model.
         from ..desktop.verification import tools as verification_tools  # noqa: F401
-        from ..desktop.automation import tools as automation_tools  # noqa: F401
-
-        # Importing this costs nothing when Playwright is absent: the tools
-        # reference BrowserService only through the container, and
-        # browser/controller.py imports the provider *interface*, not Playwright.
-        # Registering them unconditionally is what lets an agent be told the
-        # capability exists and get BROWSER_UNAVAILABLE rather than silence.
-        from ..browser import tools as browser_tools  # noqa: F401
+        from ..desktop.window import tools as window_tools  # noqa: F401
+        from ..vision import tools as vision_tools  # noqa: F401
+        from ..vision.grounding import tools as grounding_tools  # noqa: F401
 
         # Trading Intelligence tools. Registered only when the subsystem is
         # enabled; importing the module is what registers the @tool functions,
@@ -784,7 +781,13 @@ class Bootstrapper:
             )
             return
 
+        from ..core.interfaces.llm_provider import LLMProvider
         from ..runtime.events.event_bus import EventBus
+        from ..trading.backtest.pipeline import BacktestPipeline
+        from ..trading.heatmap.service import HeatmapService
+        from ..trading.liquidity.service import LiquidityIntelligenceService
+        from ..trading.liquidity.sources import ProviderSource
+        from ..trading.market_intel.service import MarketIntelService
         from ..trading.providers.base import MarketDataProvider
         from ..trading.providers.calendar_base import CalendarProvider
         from ..trading.providers.fundamentals_base import FundamentalsProvider
@@ -796,64 +799,66 @@ class Bootstrapper:
         from ..trading.providers.mock_provider import MockMarketDataProvider
         from ..trading.providers.news_base import NewsProvider
         from ..trading.services.analysis_service import AnalysisService
+        from ..trading.services.anomaly_service import AnomalyService
         from ..trading.services.backtest_service import BacktestService
         from ..trading.services.breakout_service import BreakoutService
         from ..trading.services.calendar_service import EventCalendarService
-        from ..trading.services.divergence_service import DivergenceService
+        from ..trading.services.calibration_history_service import (
+            CalibrationHistoryService,
+        )
+        from ..trading.services.ceo_agent_service import CEOAgentService
+        from ..trading.services.ceo_service import TradingCEOService
         from ..trading.services.critic_service import CriticService
+        from ..trading.services.divergence_service import DivergenceService
         from ..trading.services.evidence_service import EvidenceService
         from ..trading.services.explanation_service import ExplanationService
         from ..trading.services.fundamental_service import (
             FundamentalAnalysisService,
         )
+        from ..trading.services.historical_analogue_service import (
+            HistoricalAnalogueService,
+        )
+        from ..trading.services.hybrid_service import HybridContextService
+        from ..trading.services.macro_service import MacroContextService
         from ..trading.services.market_data_service import MarketDataService
         from ..trading.services.market_structure_service import (
             MarketStructureService,
         )
+        from ..trading.services.microstructure_service import MicrostructureService
+        from ..trading.services.monitoring_scheduler import MonitoringScheduler
+        from ..trading.services.monitoring_service import MonitoringService
+        from ..trading.services.multi_timeframe_service import MultiTimeframeService
         from ..trading.services.news_service import NewsSentimentService
         from ..trading.services.orchestration_service import OrchestrationService
-        from ..trading.services.portfolio_service import PortfolioRiskService
-        from ..trading.services.prediction_evaluator import PredictionEvaluator
-        from ..trading.services.performance_service import (
-            PredictionPerformanceService,
-        )
-        from ..trading.services.prediction_store import (
-            FilePredictionStore,
-            InMemoryPredictionStore,
-            PredictionStore,
-        )
-        from ..trading.services.anomaly_service import AnomalyService
-        from ..trading.services.historical_analogue_service import (
-            HistoricalAnalogueService,
-        )
-        from ..trading.services.macro_service import MacroContextService
-        from ..trading.services.multi_timeframe_service import MultiTimeframeService
-        from ..trading.services.probability_service import ProbabilityService
-        from ..trading.services.calibration_history_service import (
-            CalibrationHistoryService,
-        )
-        from ..trading.services.ceo_service import TradingCEOService
-        from ..trading.services.ceo_agent_service import CEOAgentService
-        from ..core.interfaces.llm_provider import LLMProvider
-        from ..trading.services.monitoring_service import MonitoringService
-        from ..trading.services.monitoring_scheduler import MonitoringScheduler
         from ..trading.services.outcome_store import (
             FileOutcomeStore,
             InMemoryOutcomeStore,
             OutcomeStore,
         )
-        from ..trading.services.scan_service import WatchlistScanService
+        from ..trading.services.performance_service import (
+            PredictionPerformanceService,
+        )
+        from ..trading.services.portfolio_service import PortfolioRiskService
+        from ..trading.services.prediction_evaluator import PredictionEvaluator
+        from ..trading.services.prediction_store import (
+            FilePredictionStore,
+            InMemoryPredictionStore,
+            PredictionStore,
+        )
+        from ..trading.services.probability_service import ProbabilityService
         from ..trading.services.regime_service import RegimeService
         from ..trading.services.relative_strength_service import (
             RelativeStrengthService,
         )
         from ..trading.services.risk_service import RiskService
-        from ..trading.services.track_record_service import (
-            PredictionTrackRecordService,
-        )
+        from ..trading.services.scan_service import WatchlistScanService
         from ..trading.services.technical_analysis_service import (
             TechnicalAnalysisService,
         )
+        from ..trading.services.track_record_service import (
+            PredictionTrackRecordService,
+        )
+        from ..trading.signal_engine.service import SignalEngineService
 
         # ------------------------------------------------------
         # Provider
@@ -865,15 +870,66 @@ class Bootstrapper:
         elif provider_name in ("yahoo", "yfinance"):
             from ..trading.providers.yahoo_provider import YahooMarketDataProvider
 
-            provider = YahooMarketDataProvider(timeout=settings.TRADING_HTTP_TIMEOUT)
+            provider = YahooMarketDataProvider(
+                timeout=settings.TRADING_HTTP_TIMEOUT,
+                max_retries=settings.TRADING_PROVIDER_MAX_RETRIES,
+                retry_backoff_seconds=settings.TRADING_PROVIDER_RETRY_BACKOFF_SECONDS,
+            )
             self._logger.info(
                 "Using the Yahoo market-data provider (SourceTier.SECONDARY -- "
                 "real, aggregated, possibly-delayed data)."
             )
+        elif provider_name == "ccxt":
+            # Optional extra (pip install aetheros[market]). Guarded with
+            # find_spec exactly like Playwright: a machine without ccxt must
+            # still start, so the loud mock fallback keeps the system honest.
+            import importlib.util
+
+            if importlib.util.find_spec("ccxt") is None:
+                self._logger.warning(
+                    "MARKET_DATA_PROVIDER=ccxt but the ccxt package is not "
+                    "installed; falling back to the MOCK provider. Install "
+                    "with: pip install aetheros[market]. Results will be "
+                    "synthetic."
+                )
+                provider = MockMarketDataProvider()
+            else:
+                from ..trading.providers.ccxt_provider import (
+                    CcxtMarketDataProvider,
+                )
+
+                # ccxt.async_support is imported lazily inside the factory so
+                # the (heavy) import happens only when the provider is
+                # actually resolved, never at startup.
+                def _build_ccxt() -> MarketDataProvider:
+                    import ccxt.async_support as ccxt_async
+
+                    exchange = getattr(
+                        ccxt_async, settings.TRADING_CCXT_EXCHANGE.strip().lower()
+                    )({
+                        "timeout": int(settings.TRADING_HTTP_TIMEOUT * 1000),
+                        "enableRateLimit": True,
+                    })
+                    return CcxtMarketDataProvider(
+                        exchange,
+                        timeout=settings.TRADING_HTTP_TIMEOUT,
+                        max_retries=settings.TRADING_PROVIDER_MAX_RETRIES,
+                        retry_backoff_seconds=(
+                            settings.TRADING_PROVIDER_RETRY_BACKOFF_SECONDS
+                        ),
+                    )
+
+                provider = _build_ccxt()
+                self._logger.info(
+                    "Using the ccxt market-data provider on '%s' "
+                    "(SourceTier.SECONDARY -- real exchange data with order "
+                    "books and trades).",
+                    settings.TRADING_CCXT_EXCHANGE,
+                )
         else:
-            # Only mock + yahoo ship today. Rather than fail startup, fall back
-            # loudly so the system still runs, and never pretends an unavailable
-            # real feed is present.
+            # Only mock + yahoo + ccxt ship today. Rather than fail startup,
+            # fall back loudly so the system still runs, and never pretends an
+            # unavailable real feed is present.
             self._logger.warning(
                 "Market-data provider '%s' is not available; falling back to "
                 "the MOCK provider. Results will be synthetic.",
@@ -997,6 +1053,78 @@ class Bootstrapper:
                 self._container.resolve(MarketDataProvider),
                 get_settings(),
                 event_bus=self._container.resolve(EventBus),
+            ),
+        )
+
+        self._container.register_singleton(
+            MicrostructureService,
+            lambda: MicrostructureService(
+                self._container.resolve(MarketDataProvider),
+                event_bus=self._container.resolve(EventBus),
+            ),
+        )
+
+        # Order-book / tape liquidity intelligence (Phase 2). The provider is
+        # adapted to the source interfaces; a provider that cannot serve books
+        # or trades degrades honestly inside the service (typed refusal / no
+        # flow), never a fabricated wall.
+        self._container.register_singleton(
+            LiquidityIntelligenceService,
+            lambda: LiquidityIntelligenceService(
+                ProviderSource(self._container.resolve(MarketDataProvider)),
+                ProviderSource(self._container.resolve(MarketDataProvider)),
+                event_bus=self._container.resolve(EventBus),
+            ),
+        )
+
+        # Read-only market-heatmap visualisation (Phase 3): an observation layer
+        # over the liquidity engine, never a decision source.
+        self._container.register_singleton(
+            HeatmapService,
+            lambda: HeatmapService(),
+        )
+
+        # Non-liquidity market intelligence (Phase 4): composes structure /
+        # technical / price-action / volume / regime into MarketFeatures and
+        # tracks the 6-state regime across reads (MarketRegimeChanged on a real
+        # transition). Composes the already-registered services, computing
+        # nothing itself.
+        self._container.register_singleton(
+            MarketIntelService,
+            lambda: MarketIntelService(
+                settings=get_settings(),
+                event_bus=self._container.resolve(EventBus),
+                structure=self._container.resolve(MarketStructureService),
+                technical=self._container.resolve(TechnicalAnalysisService),
+                regime=self._container.resolve(RegimeService),
+            ),
+        )
+
+        # Evidence-based signal engine (Phase 5): aggregates evidence + feature
+        # vectors into an explainable SignalAssessment with honestly-separated
+        # raw/model/probability/confidence and explicit missing-data accounting.
+        self._container.register_singleton(
+            SignalEngineService,
+            lambda: SignalEngineService(get_settings()),
+        )
+
+        # Backtest pipeline (Phase 6): replays a candle series through the SAME
+        # production components the live path uses (AnalysisService -> SignalEngineService)
+        # over past-only windows, then measures the forward outcome. Registered as a
+        # factory the caller drives per run; the assess_fn is the real production
+        # chain, never a fake analysis implementation.
+        async def _backtest_assess(window):
+            analysis = await self._container.resolve(AnalysisService).analyze_data(
+                window, emit=False
+            )
+            return self._container.resolve(SignalEngineService).assess(analysis)
+
+        self._container.register_singleton(
+            BacktestPipeline,
+            lambda: BacktestPipeline(
+                _backtest_assess,
+                horizon=get_settings().TRADING_BACKTEST_HORIZON,
+                warmup=get_settings().TRADING_BACKTEST_WARMUP,
             ),
         )
 
@@ -1238,6 +1366,360 @@ class Bootstrapper:
             lambda: PortfolioRiskService(get_settings()),
         )
 
+        # Chart engine (spec section: charts). The pure projection service is
+        # registered unconditionally; the capture service only when the desktop
+        # screen subsystem actually came up (the same guard the screen tools
+        # rely on), so a headless machine keeps the honest "unavailable" error
+        # instead of a half-wired capture path.
+        from ..desktop.screen.controller import ScreenService
+        from ..trading.services.chart_service import (
+            ChartCaptureService,
+            ChartService,
+        )
+
+        self._container.register_singleton(
+            ChartService,
+            lambda: ChartService(),
+        )
+
+        if self._container.has(ScreenService):
+            self._container.register_singleton(
+                ChartCaptureService,
+                lambda: ChartCaptureService(
+                    self._container.resolve(ScreenService)
+                ),
+            )
+
+        # Visual observations (spec Phase 17 -- vision reads as evidence with
+        # provenance). Pure translation of the vision subsystem's own reads
+        # (TextBlock/Detection) into trading-side observations and VISUAL
+        # evidence; it runs no models and owns no pixels. Registered
+        # unconditionally -- the tool degrades honestly when VisionService is
+        # absent. It backs the observe_chart tool.
+        from ..trading.services.visual_service import VisualObservationService
+
+        self._container.register_singleton(
+            VisualObservationService,
+            lambda: VisualObservationService(),
+        )
+
+        # Hybrid numerical + visual context assembly (spec Phase 19 -- one
+        # unified context so the LLM reasons over numbers and pictures side
+        # by side, with provenance-weighted trust). Composes the orchestrator,
+        # market data, chart and visual services; capture is passed only when
+        # the screen subsystem came up, and vision is a lazy thunk so merely
+        # building this service never loads an OCR model. Backs the
+        # build_hybrid_context tool.
+
+        def _build_hybrid() -> HybridContextService:
+            capture = (
+                self._container.resolve(ChartCaptureService)
+                if self._container.has(ChartCaptureService)
+                else None
+            )
+
+            def _vision_factory():  # lazy: no model load until a visual attempt
+                from ..vision.controller import VisionService
+
+                if not self._container.has(VisionService):
+                    return None
+                return self._container.resolve(VisionService)
+
+            return HybridContextService(
+                self._container.resolve(OrchestrationService),
+                self._container.resolve(MarketDataService),
+                self._container.resolve(ChartService),
+                self._container.resolve(VisualObservationService),
+                capture=capture,
+                vision_factory=_vision_factory,
+            )
+
+        self._container.register_singleton(
+            HybridContextService,
+            _build_hybrid,
+        )
+
+        # Deterministic liquidity analysis (spec section 5 -- the analysis
+        # layer's volume/liquidity read). Pure composition of the existing
+        # indicator primitives (relative volume, volume profile, ATR spread
+        # proxy): no I/O, no new indicator implementations. It backs the
+        # analyze_liquidity tool.
+        from ..trading.services.liquidity_service import LiquidityService
+
+        self._container.register_singleton(
+            LiquidityService,
+            lambda: LiquidityService(),
+        )
+
+        # Deterministic Smart Money Concepts detection (spec Phase 5 -- BOS,
+        # CHoCH, order blocks, fair value gaps, liquidity sweeps, equal
+        # highs/lows, premium/discount). Reuses the registered structure
+        # service for swing/pivot detection rather than reimplementing it, so
+        # the SMC layer honours the same no-look-ahead confirmation delay.
+        # It backs the analyze_smc tool.
+        from ..trading.services.smc_service import SMCService
+
+        self._container.register_singleton(
+            SMCService,
+            lambda: SMCService(self._container.resolve(MarketStructureService)),
+        )
+
+        # Deterministic ICT detection (spec Phase 6 -- daily bias, market
+        # structure shift, kill zones, OTE, liquidity pools, Judas swing,
+        # Power of Three, session models). The session/time layer is new; every
+        # structural input is reused from the registered structure and SMC
+        # services rather than recomputed, so the ICT read cannot drift from
+        # the SMC read it is layered on. Reference timezone is exchange-local
+        # and therefore configurable. It backs the analyze_ict tool.
+        from ..trading.services.ict_service import ICTService
+
+        self._container.register_singleton(
+            ICTService,
+            lambda: ICTService(
+                self._container.resolve(MarketStructureService),
+                self._container.resolve(SMCService),
+                exchange_timezone=settings.TRADING_ICT_EXCHANGE_TIMEZONE,
+            ),
+        )
+
+        # Deterministic strategy engine (spec Phase 7 -- build, load, compare,
+        # optimize). A strategy interprets reads that already exist and places
+        # no stop, target or size; this service is what assembles those reads
+        # once per instrument/timeframe so a panel of strategies all interpret
+        # the *same* numbers. Every dependency is resolved from the container
+        # rather than rebuilt, so the structure, SMC and ICT reads a strategy
+        # sees are the very ones the rest of the system produces. The
+        # backtester is injected so parameter optimization is scored by the
+        # existing walk-forward engine. It backs the list_strategies,
+        # evaluate_strategies and optimize_strategy tools.
+        from ..trading.services.strategy_service import StrategyService
+
+        self._container.register_singleton(
+            StrategyService,
+            lambda: StrategyService(
+                self._container.resolve(AnalysisService),
+                self._container.resolve(MarketStructureService),
+                self._container.resolve(SMCService),
+                self._container.resolve(ICTService),
+                self._container.resolve(BreakoutService),
+                backtest=self._container.resolve(BacktestService),
+            ),
+        )
+
+        # Deterministic Signal Engine (spec Phase 8 -- BUY/SELL proposals with
+        # confidence, risk, reasoning and evidence). Composes the strategy
+        # panel's setups with the risk engine's geometry and the critic's
+        # verdict through a fixed gate sequence; only fully-judged candidates
+        # become TradeSignals, and rejected ones carry the gates they failed.
+        # Every dependency is resolved from the container -- the signal layer
+        # computes nothing of its own. It backs the generate_signals tool.
+        from ..trading.services.signal_service import SignalService
+
+        self._container.register_singleton(
+            SignalService,
+            lambda: SignalService(
+                self._container.resolve(StrategyService),
+                self._container.resolve(RiskService),
+                self._container.resolve(CriticService),
+                self._container.resolve(MarketDataService),
+                get_settings(),
+                event_bus=self._container.resolve(EventBus),
+            ),
+        )
+
+        # Account-level risk limits (spec Phase 9 -- daily loss and maximum
+        # exposure). The per-trade geometry already lives in RiskService and
+        # the basket cap in PortfolioRiskService; this is the *admission* gate
+        # that answers "may this account open anything else right now?". It is
+        # fail-closed: an unmeasurable input breaches rather than passes, and a
+        # breach publishes RiskLimitReached.
+        from ..trading.risk.limits_service import RiskLimitsService
+
+        self._container.register_singleton(
+            RiskLimitsService,
+            lambda: RiskLimitsService(
+                get_settings(),
+                event_bus=self._container.resolve(EventBus),
+            ),
+        )
+
+        # Paper-trading venue (spec Phase 9). Real market prices from the
+        # configured provider against virtual money -- the spec's definition of
+        # paper trading. It re-validates the §9 execution record at the venue
+        # boundary, so an under-specified or incoherent order cannot be filled
+        # even if it somehow bypassed the engine.
+        from ..trading.brokers.paper_provider import PaperTradingProvider
+
+        self._container.register_singleton(
+            PaperTradingProvider,
+            lambda: PaperTradingProvider(
+                self._container.resolve(MarketDataService),
+            ),
+        )
+
+        # Execution policy gate (spec Phase 26). The first admission check on
+        # the §9 path -- Decision → Policy → Risk → Execution → Broker. It
+        # judges mode (default PAPER), the per-trade risk cap, venue/instrument
+        # /strategy allow-lists and live confirmation, and is fail-closed: an
+        # unparseable mode or an unknown per-trade risk is refused. Deterministic
+        # and LLM-free.
+        from ..trading.policy.policy_service import ExecutionPolicyService
+
+        self._container.register_singleton(
+            ExecutionPolicyService,
+            lambda: ExecutionPolicyService(get_settings()),
+        )
+
+        # Execution engine (spec Phase 9 + 26). The last steps of the §9 path --
+        # policy admission, execution validation, then the broker. Its only
+        # input is a fully populated ExecutionRequest built from a fired
+        # TradeSignal, so no LLM output and no partial order can reach a venue
+        # through it; submission retries only transport faults, never a venue's
+        # rejection.
+        from ..trading.execution.engine import ExecutionEngine
+
+        self._container.register_singleton(
+            ExecutionEngine,
+            lambda: ExecutionEngine(
+                self._container.resolve(PaperTradingProvider),
+                self._container.resolve(RiskLimitsService),
+                get_settings(),
+                policy=self._container.resolve(ExecutionPolicyService),
+                event_bus=self._container.resolve(EventBus),
+            ),
+        )
+
+        # Paper-trading simulation (spec Phase 14 -- virtual account, live
+        # market simulation, strategy testing, no financial risk). Replays a
+        # historical series bar by bar through the *real* §9 chain -- signal
+        # engine, portfolio sizing, execution validation, paper venue -- with
+        # the venue's price source pointed at the replay cursor instead of the
+        # live tape. It builds no analytical logic of its own: every step is a
+        # service already registered above, which is why a simulated run cannot
+        # behave differently from a live one. The venue is built per run from
+        # the replay cursor, so no shared venue price is mutated and no order
+        # this service makes can reach a live venue; it is given no event bus,
+        # because a replayed fill is history re-read, not a state change. It
+        # backs the simulate_strategy tool.
+        from ..trading.services.simulation_service import SimulationService
+
+        self._container.register_singleton(
+            SimulationService,
+            lambda: SimulationService(
+                self._container.resolve(SignalService),
+                self._container.resolve(PortfolioRiskService),
+                self._container.resolve(RiskLimitsService),
+                get_settings(),
+            ),
+        )
+
+        # Trading journal (spec Phase 21 -- one traceable entry per paper
+        # trade). Pure and stateless: it reads the simulation report's settled
+        # trades and arranges them into JournalEntry records, inventing
+        # nothing. Backs the journal section of the simulate_strategy tool.
+        from ..trading.services.journal_service import JournalService
+
+        self._container.register_singleton(
+            JournalService,
+            lambda: JournalService(),
+        )
+
+        # Trading-journal store (spec Phase 27 -- the journal's durability). Two
+        # backends sit behind the one JournalStore port, selected by
+        # JOURNAL_STORE_BACKEND: the default in-process InMemoryJournalStore (a
+        # within-session trail), or a durable FileJournalStore that appends every
+        # entry to a JSON Lines file so the journal survives restarts and
+        # accumulates across runs. Both honour the same interface, so callers are
+        # untouched by the choice (spec sections 15, 23, 28). The store upserts on
+        # the content-addressed entry_id, so an entry maturing from open to closed
+        # overwrites in place rather than duplicating.
+        from ..trading.services.journal_store import (
+            FileJournalStore,
+            InMemoryJournalStore,
+            JournalStore,
+        )
+
+        def _build_journal_store() -> JournalStore:
+            from pathlib import Path
+
+            settings = get_settings()
+            backend = settings.JOURNAL_STORE_BACKEND.strip().lower()
+            if backend in ("file", "jsonl", "durable"):
+                raw = Path(settings.TRADING_JOURNAL_STORE_PATH)
+                path = raw if raw.is_absolute() else settings.DATA_DIR / raw
+                self._logger.info("Journal store: durable file backend at %s", path)
+                return FileJournalStore(path)
+            self._logger.info("Journal store: in-memory backend (non-durable)")
+            return InMemoryJournalStore()
+
+        self._container.register_singleton(JournalStore, _build_journal_store)
+
+        # Trading analytics (spec Phase 22 -- performance measured from actual
+        # journal entries). Pure and stateless: it reads the net P/L, planned
+        # risk/reward and recorded month each entry already carries and
+        # aggregates them with the shared trade_statistics arithmetic, flagging
+        # thin, mock or open books rather than dressing them up. Backs the
+        # journal_performance tool.
+        from ..trading.analytics import JournalAnalyticsService
+
+        self._container.register_singleton(
+            JournalAnalyticsService,
+            lambda: JournalAnalyticsService(settings),
+        )
+
+        # Trading alerts (spec Phase 23 -- Alert -> AlertRouter ->
+        # DeliveryProvider). The router fans a finished alert out to the
+        # providers for the channels it names; the service subscribes to the
+        # shared EventBus and turns trading events into alerts through pure
+        # rules. Trading services import none of this -- they publish the same
+        # events they always did -- so alert generation and delivery stay
+        # decoupled from the logic that triggers them. Only the dependency-free
+        # log provider is wired by default (DESKTOP channel); network channels
+        # (email/mobile/discord/telegram) are named but deferred until a
+        # credentialled integration exists, so an unroutable channel is
+        # reported, never silently dropped.
+        from ..trading.alerts import (
+            AlertRouter,
+            AlertService,
+            DeliveryChannel,
+            LogDeliveryProvider,
+        )
+
+        def build_alert_router() -> AlertRouter:
+            router = AlertRouter(default_channel=DeliveryChannel.DESKTOP)
+            router.register(LogDeliveryProvider())
+            return router
+
+        self._container.register_singleton(AlertRouter, build_alert_router)
+        self._container.register_singleton(
+            AlertService,
+            lambda: AlertService(
+                self._container.resolve(AlertRouter),
+                settings,
+                event_bus=self._container.resolve(EventBus),
+            ),
+        )
+        await self._container.resolve(AlertService).start()
+
+        # Walk-forward testing (spec Phase 13 -- "walk-forward testing" and
+        # "strategy comparison"). Re-chooses a strategy's parameters on each
+        # training window and measures the choices only on the test window that
+        # follows, so the pooled out-of-sample figures are the evidence and the
+        # in-sample ones are recorded beside them as the fitting artefact they
+        # are. It owns no arithmetic of its own: the optimizer chooses, the
+        # backtester measures, and `trading/backtesting` defines the metrics. It
+        # backs the walk_forward_backtest and compare_strategy_backtests tools.
+        from ..trading.services.walk_forward_service import WalkForwardService
+
+        self._container.register_singleton(
+            WalkForwardService,
+            lambda: WalkForwardService(
+                self._container.resolve(BacktestService),
+                self._container.resolve(StrategyService),
+                get_settings(),
+            ),
+        )
+
         # Deterministic prediction-outcome resolution (spec sections 6, 16, 29).
         # The scoring half of the autonomous loop's "Observe Result -> Evaluate"
         # step: given a stored PredictionRecord and the candles that unfolded
@@ -1343,23 +1825,48 @@ class Bootstrapper:
             lambda: ExplanationService(get_settings()),
         )
 
+        # Structured trading decisions (spec Phase 20 -- market view, setup,
+        # direction, confidence, both evidence sides, geometry, reasoning,
+        # uncertainty, provenance). Pure assembly over the orchestrator's
+        # report, the strategy panel and the explanation ledger; it computes
+        # nothing and can never reach a broker. Backs the decide tool.
+        from ..trading.services.decision_service import DecisionService
+
+        self._container.register_singleton(
+            DecisionService,
+            lambda: DecisionService(
+                self._container.resolve(OrchestrationService),
+                self._container.resolve(MarketDataService),
+                self._container.resolve(StrategyService),
+                self._container.resolve(ExplanationService),
+            ),
+        )
+
         # The Trading CEO narration layer (spec sections 4, 5, 10): it runs the
         # deterministic report and has an LLMProvider narrate it. The LLM only
         # explains -- the deterministic core decides -- and it is optional: when no
         # provider is wired the brief falls back to a deterministic summary, so the
         # core still works without an LLM (sections 1, 10). The provider is passed
         # only if one is registered, keeping the trading core decoupled from any
-        # concrete provider.
+        # concrete provider. The hybrid context service is passed the same way so
+        # the Phase 19 "brief with visual" surface is available without making
+        # the CEO depend on it.
         def _build_ceo() -> TradingCEOService:
             llm = (
                 self._container.resolve(LLMProvider)
                 if self._container.has(LLMProvider)
                 else None
             )
+            hybrid = (
+                self._container.resolve(HybridContextService)
+                if self._container.has(HybridContextService)
+                else None
+            )
             return TradingCEOService(
                 self._container.resolve(OrchestrationService),
                 get_settings(),
                 llm=llm,
+                hybrid=hybrid,
             )
 
         self._container.register_singleton(TradingCEOService, _build_ceo)
@@ -1468,6 +1975,38 @@ class Bootstrapper:
             ),
         )
 
+        # The Trading API facade (spec Phase 24, docs/modules/trading.md
+        # "Trading API"): the single public surface higher-level modules
+        # (Planner, Reasoning, Automation, CLI, agents) depend on, so the
+        # module's internal composition stays free to change behind one typed
+        # boundary. It holds no analytical logic -- each method delegates to a
+        # service resolved from this container and returns that service's own
+        # domain object. ``execute`` routes an already-formed ExecutionRequest
+        # through the ExecutionEngine, which re-validates risk limits before the
+        # broker; the facade never builds a trade from a model instruction, so
+        # the required strategy/decision -> risk -> execution -> broker path
+        # stays intact.
+        from ..trading.api import TradingAPI
+
+        self._container.register_singleton(
+            TradingAPI,
+            lambda: TradingAPI(
+                orchestration=self._container.resolve(OrchestrationService),
+                scan=self._container.resolve(WatchlistScanService),
+                signals=self._container.resolve(SignalService),
+                backtest=self._container.resolve(BacktestService),
+                simulation=self._container.resolve(SimulationService),
+                journal=self._container.resolve(JournalService),
+                execution=self._container.resolve(ExecutionEngine),
+                portfolio=self._container.resolve(PortfolioRiskService),
+                market_data=self._container.resolve(MarketDataService),
+                analysis=self._container.resolve(AnalysisService),
+                risk=self._container.resolve(RiskService),
+                strategy=self._container.resolve(StrategyService),
+                journal_store=self._container.resolve(JournalStore),
+            ),
+        )
+
         self._logger.bind(
             provider=provider.name,
             source_tier=provider.tier.value,
@@ -1484,11 +2023,11 @@ class Bootstrapper:
         # ║              Task Agent                  ║
         # ╚══════════════════════════════════════════╝
 
-        from ..agents.tasks.manager import TaskManager
         from ..agents.agent import Agent
         from ..agents.context import ContextBuilder
         from ..agents.execution import ToolExecutionCoordinator
         from ..agents.planner import AgentPlanner, PlannerConfig
+        from ..agents.tasks.manager import TaskManager
         from ..config.config_loader import get_settings
 
         max_tool_calls = get_settings().MAX_TOOL_CALLS
@@ -1613,6 +2152,11 @@ class Bootstrapper:
             "Initializing LLM providers..."
         )
 
+        from ..agents.core import AgentCore
+        from ..agents.execution import ToolExecutionCoordinator
+        from ..agents.planner import PlannerConfig
+        from ..agents.policy import PolicyConfig, PolicyEngine
+        from ..config.config_loader import get_settings
         from ..llm.agent_loop import AgentLoopConfig, LLMToolLoop
         from ..llm.config import LLMConfig
         from ..llm.engine import LLMEngine
@@ -1621,11 +2165,6 @@ class Bootstrapper:
             OpenAICompatibleProvider,
         )
         from ..llm.tool_schema import get_llm_tools
-        from ..agents.core import AgentCore
-        from ..agents.execution import ToolExecutionCoordinator
-        from ..agents.planner import PlannerConfig
-        from ..agents.policy import PolicyConfig, PolicyEngine
-        from ..config.config_loader import get_settings
         from ..tools.executor import ToolExecutor
 
         # ----------------------------------------------------------

@@ -23,24 +23,24 @@ Two honesty rules are structural here, not optional:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .analysis import TradingAnalysis
+from .anomaly import AnomalyAnalysis
 from .backtest import BacktestResult
+from .breakout import BreakoutAnalysis
 from .critique import CriticReport
+from .divergence import DivergenceAnalysis
 from .enums import Confidence, Direction, ReportRecommendation, TrendState
 from .event_calendar import EventCalendar
 from .fundamentals import FundamentalAnalysis
-from .instrument import Instrument
-from .news import NewsAnalysis
-from .probability import ProbabilityEstimate
-from .anomaly import AnomalyAnalysis
-from .breakout import BreakoutAnalysis
-from .divergence import DivergenceAnalysis
 from .historical_analogue import HistoricalAnalogueAnalysis
+from .instrument import Instrument
 from .macro import MacroContext
 from .multi_timeframe import MultiTimeframeAnalysis
+from .news import NewsAnalysis
+from .probability import ProbabilityEstimate
 from .provenance import DataQuality, Provenance
 from .regime import RegimeAnalysis
 from .relative_strength import RelativeStrengthAnalysis
@@ -56,7 +56,7 @@ _PROBABILITY_LIMITATION = (
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(frozen=True, slots=True)

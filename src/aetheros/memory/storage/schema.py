@@ -157,6 +157,21 @@ MIGRATIONS: list[tuple[int, tuple[str, ...]]] = [
             "CREATE INDEX IF NOT EXISTS ix_access_memory ON memory_access(memory_id)",
         ),
     ),
+    (
+        2,
+        (
+            # Graph traversal (Phase 7) walks the *active* edge set one hop at a
+            # time, always filtering ``valid_to IS NULL``. These partial indexes
+            # cover exactly that predicate so a hop is an index SEARCH on the
+            # live edges rather than a scan that also reads superseded history.
+            # EXPLAIN QUERY PLAN confirms both are selected for the per-hop
+            # neighbour queries (see docs/memory/phase-reports/phase-07.md).
+            "CREATE INDEX IF NOT EXISTS ix_rel_active_source "
+            "ON relationships(source_id) WHERE valid_to IS NULL",
+            "CREATE INDEX IF NOT EXISTS ix_rel_active_target "
+            "ON relationships(target_id) WHERE valid_to IS NULL",
+        ),
+    ),
 ]
 
 

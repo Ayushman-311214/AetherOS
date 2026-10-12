@@ -22,7 +22,7 @@ services' job.
 from __future__ import annotations
 
 import math
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from ...config.settings import Settings
 from ...core.logging import get_logger
@@ -33,7 +33,7 @@ from ..domain.instrument import Instrument
 from ..domain.market_data import MarketData, Quote
 from ..domain.provenance import DataQuality
 from ..errors import InsufficientDataError, InvalidSymbolError, MarketDataError
-from ..events import MarketDataUpdated
+from ..events import CandleClosed, MarketDataReceived, MarketDataUpdated
 from ..providers.base import MarketDataProvider
 
 logger = get_logger("trading.market_data")
@@ -201,8 +201,8 @@ class MarketDataService:
     @staticmethod
     def _freshness_seconds(tf: Timeframe, last_ts: datetime) -> float | None:
         if last_ts.tzinfo is None:
-            last_ts = last_ts.replace(tzinfo=timezone.utc)
-        return max(0.0, (datetime.now(timezone.utc) - last_ts).total_seconds())
+            last_ts = last_ts.replace(tzinfo=UTC)
+        return max(0.0, (datetime.now(UTC) - last_ts).total_seconds())
 
     @staticmethod
     def _with_quality(
@@ -264,6 +264,35 @@ class MarketDataService:
     async def _emit_updated(self, data: MarketData) -> None:
         if self._event_bus is None:
             return
+        # Announce the arrival of the validated snapshot first, then replay each
+        # delivered bar as a CandleClosed. Both are best-effort: a publish failure
+        # is logged and swallowed so event delivery never breaks data retrieval.
+        try:
+            await self._event_bus.publish(
+                MarketDataReceived(
+                    instrument_key=data.instrument.key,
+                    timeframe=data.timeframe.value,
+                    candle_count=data.count,
+                    last_price=data.last_price,
+                    first_bar_timestamp=(
+                        data.candles[0].timestamp.isoformat() if data.candles else ""
+                    ),
+                    last_bar_timestamp=(
+                        data.last_timestamp.isoformat()
+                        if data.last_timestamp
+                        else ""
+                    ),
+                    source_tier=data.provenance.tier.value,
+                    quality_status=data.quality.status.value,
+                    is_mock=data.provenance.is_mock,
+                )
+            )
+        except Exception:
+            logger.exception("Failed to publish MarketDataReceived")
+        try:
+            await self._emit_candle_closes(data)
+        except Exception:
+            logger.exception("Failed to publish CandleClosed events")
         try:
             await self._event_bus.publish(
                 MarketDataUpdated(
@@ -277,3 +306,37 @@ class MarketDataService:
             )
         except Exception:  # event delivery must never break data retrieval
             logger.exception("Failed to publish MarketDataUpdated")
+
+    async def _emit_candle_closes(self, data: MarketData) -> None:
+        """
+        Announce the most recently closed bar.
+
+        AetherOS is pull-based, so "a bar closed" can only mean "a closed bar was
+        delivered in the snapshot." Every delivered candle is by definition
+        closed; the meaningful, non-redundant signal for a live consumer is the
+        *newest* close, so exactly one ``CandleClosed`` is emitted -- for the
+        final bar, flagged ``is_final_bar``. Emitting one event per delivered bar
+        would replay hundreds of stale closes on every fetch and drown the
+        genuinely new one, so this stays a single announcement. A cache hit emits
+        nothing -- this method only runs on a freshly fetched series.
+        """
+        if not data.candles:
+            return
+        index = data.count - 1
+        candle = data.candles[index]
+        await self._event_bus.publish(
+            CandleClosed(
+                instrument_key=data.instrument.key,
+                timeframe=data.timeframe.value,
+                index=index,
+                is_final_bar=True,
+                bar_timestamp=candle.timestamp.isoformat(),
+                open=candle.open,
+                high=candle.high,
+                low=candle.low,
+                close=candle.close,
+                volume=candle.volume,
+                source_tier=data.provenance.tier.value,
+                quality_status=data.quality.status.value,
+            )
+        )

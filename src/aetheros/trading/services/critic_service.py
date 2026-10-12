@@ -45,10 +45,11 @@ from ...config.settings import Settings
 from ...core.logging import get_logger
 from ...runtime.events.event_bus import EventBus
 from ..domain.analysis import TradingAnalysis
+from ..domain.anomaly import AnomalyAnalysis
 from ..domain.backtest import BacktestResult
 from ..domain.breakout import BreakoutAnalysis
-from ..domain.divergence import DivergenceAnalysis
 from ..domain.critique import CriticCheck, CriticReport
+from ..domain.divergence import DivergenceAnalysis
 from ..domain.enums import (
     CheckStatus,
     CriticVerdict,
@@ -57,22 +58,37 @@ from ..domain.enums import (
     SourceTier,
     TimeframeAlignment,
 )
-from ..domain.event_calendar import EventCalendar
+from ..domain.event_calendar import EventCalendar, MacroEventKind, MarketEvent
 from ..domain.evidence import Evidence
 from ..domain.fundamentals import FundamentalAnalysis
-from ..domain.news import NewsAnalysis
-from ..domain.probability import ProbabilityEstimate
-from ..domain.provenance import Provenance
-from ..domain.anomaly import AnomalyAnalysis
 from ..domain.historical_analogue import HistoricalAnalogueAnalysis
 from ..domain.macro import MacroContext
 from ..domain.multi_timeframe import MultiTimeframeAnalysis
+from ..domain.news import NewsAnalysis
+from ..domain.probability import ProbabilityEstimate
+from ..domain.provenance import Provenance
 from ..domain.regime import RegimeAnalysis
 from ..domain.relative_strength import RelativeStrengthAnalysis
 from ..domain.risk import RiskAssessment
 from ..events import SignalCritiqued
 
 logger = get_logger("trading.critic")
+
+
+def _event_label(event: MarketEvent) -> str:
+    """
+    How to name ``event`` inside a veto reason.
+
+    A *named* macro release is reported by its release (``"cpi"``), which is the
+    whole point of the taxonomy -- an unclassified one would read as the opaque
+    ``"economic"``. Everything else keeps its own event type (``"earnings"``),
+    and an unnamed macro release falls back to that too rather than dressing a
+    non-answer up as a name.
+    """
+    kind = event.macro_kind
+    if kind is not None and kind is not MacroEventKind.UNKNOWN:
+        return kind.value
+    return event.event_type.value
 
 
 class CriticService:
@@ -1332,10 +1348,16 @@ class CriticService:
                 ),
             )
         if calendar.has_high_impact:
-            nxt = calendar.next_event
+            # The event that *carries the risk*, not merely the soonest one: a
+            # softer event sitting sooner must not be named as the reason for a
+            # veto it did not cause. A named macro release is reported by its
+            # release -- "(cpi in ~2.0d)" instead of the opaque "(economic in
+            # ~2.0d)" -- which is exactly what the macro taxonomy is for.
+            risk = calendar.next_high_impact
             when = (
-                f" ({nxt.event_type.value} in ~{nxt.days_until(calendar.reference_time):.1f}d)"
-                if nxt is not None
+                f" ({_event_label(risk)} in "
+                f"~{risk.days_until(calendar.reference_time):.1f}d)"
+                if risk is not None
                 else ""
             )
             return CriticCheck(

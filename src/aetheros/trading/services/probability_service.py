@@ -31,7 +31,7 @@ from ..domain.market_data import MarketData
 from ..domain.probability import CalibrationMetrics, ProbabilityEstimate
 from ..domain.provenance import Provenance
 from ..errors import ProbabilityError
-from ..events import ProbabilityEstimated
+from ..events import FeatureUpdated, ProbabilityEstimated
 from ..quant.calibration import CalibrationReport, PlattScaler, brier_score
 from ..quant.features import build_features
 from ..quant.model import LogisticRegression
@@ -63,6 +63,7 @@ class ProbabilityService:
         h = horizon if horizon is not None else s.TRADING_PROB_HORIZON
 
         estimate = self._estimate(data, h)
+        await self._emit_features(estimate)
         await self._emit(estimate)
         return estimate
 
@@ -247,6 +248,36 @@ class ProbabilityService:
             sample_size=report.sample_size,
             reliability_bins=report.bins,
         )
+
+    async def _emit_features(self, estimate: ProbabilityEstimate) -> None:
+        """
+        Announce that this estimate's feature vector was recomputed.
+
+        The feature matrix itself is large and fully reproducible from the
+        candles, so the event carries only its shape and provenance: which model
+        consumed it, how many causal features, and whether the producing
+        estimate passed its own honesty gate. A live (unlabelled) scoring row
+        exists exactly when the estimate carries a real probability rather than
+        the neutralised fallback -- ``raw_p_up == 0.5`` with an unreliable flag is
+        the too-thin case, so ``has_live_row`` is reported conservatively.
+        """
+        if self._event_bus is None:
+            return
+        try:
+            await self._event_bus.publish(
+                FeatureUpdated(
+                    instrument_key=estimate.instrument.key,
+                    timeframe=estimate.timeframe_value,
+                    horizon_bars=estimate.horizon,
+                    feature_names=tuple(estimate.feature_names),
+                    has_live_row=estimate.is_reliable,
+                    model=f"{estimate.model_name}/{estimate.model_version}",
+                    is_reliable=estimate.is_reliable,
+                    source_tier=estimate.provenance.tier.value,
+                )
+            )
+        except Exception:
+            logger.exception("Failed to publish FeatureUpdated")
 
     async def _emit(self, estimate: ProbabilityEstimate) -> None:
         if self._event_bus is None:

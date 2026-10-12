@@ -15,7 +15,7 @@ consume. Nothing here requires an LLM.
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from .enums import Confidence, Direction
@@ -27,7 +27,7 @@ from .technical import TechnicalSnapshot
 
 
 def _utcnow() -> datetime:
-    return datetime.now(timezone.utc)
+    return datetime.now(UTC)
 
 
 @dataclass(frozen=True, slots=True)

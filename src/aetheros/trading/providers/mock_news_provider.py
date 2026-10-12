@@ -18,7 +18,7 @@ Honesty guarantees:
 from __future__ import annotations
 
 import hashlib
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 
 from ..domain.enums import SourceTier
 from ..domain.instrument import Instrument
@@ -72,7 +72,7 @@ class MockNewsProvider(NewsProvider):
         offset = seed % len(_CATALOG)
         count = min(limit, len(_CATALOG))
 
-        now = datetime.now(timezone.utc).replace(microsecond=0)
+        now = datetime.now(UTC).replace(microsecond=0)
         provenance = Provenance(
             source=_MOCK_SOURCE,
             tier=SourceTier.MOCK,

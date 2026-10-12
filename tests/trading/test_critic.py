@@ -49,6 +49,7 @@ from aetheros.trading.domain.event_calendar import (
     EventCalendar,
     EventImpact,
     EventType,
+    MacroEventKind,
     MarketEvent,
 )
 from aetheros.trading.domain.fundamentals import (
@@ -316,6 +317,54 @@ def _calendar(
         quality=_quality(),
         is_reliable=is_reliable,
         limitations=limitations,
+    )
+
+
+def _macro_calendar(
+    *,
+    days: float = 3.0,
+    sooner_soft_days: float | None = None,
+) -> EventCalendar:
+    """
+    A reliable calendar whose high-impact event is a *named* macro release.
+
+    ``sooner_soft_days`` puts a low-impact dividend that many days *before* the
+    CPI, which is the case the veto reason used to name wrongly: the soonest
+    event is the dividend, but the risk is the CPI.
+    """
+    ref = datetime.now(timezone.utc)
+    events: list[MarketEvent] = []
+    if sooner_soft_days is not None:
+        events.append(
+            MarketEvent(
+                instrument_key=_INSTR.key,
+                event_type=EventType.DIVIDEND,
+                title="TEST ex-dividend",
+                scheduled_at=ref + timedelta(days=sooner_soft_days),
+                impact=EventImpact.LOW,
+                provenance=_prov(SourceTier.SECONDARY),
+            )
+        )
+    events.append(
+        MarketEvent(
+            instrument_key=_INSTR.key,
+            event_type=EventType.ECONOMIC,
+            title="US CPI y/y",
+            scheduled_at=ref + timedelta(days=days),
+            impact=EventImpact.HIGH,
+            provenance=_prov(SourceTier.SECONDARY),
+            macro_kind=MacroEventKind.CPI,
+        )
+    )
+    return EventCalendar(
+        instrument=_INSTR,
+        events=tuple(sorted(events, key=lambda e: e.scheduled_at)),
+        horizon_days=7,
+        reference_time=ref,
+        has_high_impact=True,
+        provenance=_prov(SourceTier.SECONDARY),
+        quality=_quality(),
+        is_reliable=True,
     )
 
 
@@ -876,6 +925,37 @@ async def test_reliable_high_impact_calendar_rejects():
     assert _status(report, "event_risk") is CheckStatus.FAIL
     assert report.verdict is CriticVerdict.REJECT
     assert any("event_risk" in r for r in report.reasons)
+
+
+@pytest.mark.asyncio
+async def test_event_risk_reason_names_the_macro_release():
+    # A macro release is reported by its release, not the opaque "economic": the
+    # whole point of the taxonomy is that a reader can tell a CPI print from a
+    # PMI in the reason a signal was vetoed.
+    analysis = _analysis(Direction.UP, _sound_up_evidence())
+    report = await _svc().critique(
+        analysis,
+        risk=_risk(2.0),
+        calendar=_macro_calendar(),
+    )
+    assert report.verdict is CriticVerdict.REJECT
+    assert any("(cpi in ~3.0d)" in r for r in report.reasons)
+
+
+@pytest.mark.asyncio
+async def test_event_risk_reason_names_the_high_impact_event_not_the_soonest():
+    # The soonest event is a low-impact ex-dividend on day 1; the risk is the CPI
+    # on day 3. Naming next_event would blame the dividend for a veto it did not
+    # cause, so the reason must name the release that actually carries the risk.
+    analysis = _analysis(Direction.UP, _sound_up_evidence())
+    report = await _svc().critique(
+        analysis,
+        risk=_risk(2.0),
+        calendar=_macro_calendar(days=3.0, sooner_soft_days=1.0),
+    )
+    assert report.verdict is CriticVerdict.REJECT
+    assert any("(cpi in ~3.0d)" in r for r in report.reasons)
+    assert not any("dividend" in r for r in report.reasons)
 
 
 @pytest.mark.asyncio

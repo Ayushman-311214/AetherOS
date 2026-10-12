@@ -120,7 +120,7 @@ class PredictionRecord:
         return self.is_mock
 
     @classmethod
-    def from_report(cls, report: "TradingReport") -> "PredictionRecord":
+    def from_report(cls, report: TradingReport) -> PredictionRecord:
         """
         Flatten a composed :class:`TradingReport` into its section-8 contract.
 
@@ -214,7 +214,7 @@ class PredictionRecord:
         }
 
     @classmethod
-    def from_dict(cls, data: dict[str, Any]) -> "PredictionRecord":
+    def from_dict(cls, data: dict[str, Any]) -> PredictionRecord:
         """
         Rebuild a record from its ``to_dict`` form (audit read-back).
 
