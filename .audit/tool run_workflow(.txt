@@ -1,0 +1,65 @@
+tool run_workflow(
+    name="play_youtube_song",
+    description="Open Brave, open YouTube, search for a song, and play it.",
+    stop_on_failure=True,
+    rollback_on_failure=False,
+    dry_run=False,
+    steps=[
+        {
+            "name": "open_brave",
+            "tool": "open_application",
+            "arguments": {
+                "application": "brave"
+            },
+            "wait_after": 2
+        },
+        {
+            "name": "open_youtube",
+            "tool": "hotkey",
+            "arguments": {
+                "keys": ["ctrl", "l"]
+            },
+            "wait_after": 0.5
+        },
+        {
+            "name": "navigate_youtube",
+            "tool": "type_text",
+            "arguments": {
+                "text": "https://www.youtube.com"
+            },
+            "wait_after": 0.5
+        },
+        {
+            "name": "load_youtube",
+            "tool": "press_key",
+            "arguments": {
+                "key": "enter"
+            },
+            "wait_after": 4
+        },
+        {
+            "name": "search_song",
+            "tool": "hotkey",
+            "arguments": {
+                "keys": ["/"]
+            },
+            "wait_after": 0.5
+        },
+        {
+            "name": "type_song",
+            "tool": "type_text",
+            "arguments": {
+                "text": "Arijit Singh songs"
+            },
+            "wait_after": 0.5
+        },
+        {
+            "name": "submit_search",
+            "tool": "press_key",
+            "arguments": {
+                "key": "enter"
+            },
+            "wait_after": 3
+        }
+    ]
+)

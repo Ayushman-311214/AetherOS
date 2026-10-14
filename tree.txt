@@ -1,0 +1,350 @@
+AetherOS
+├── docs
+│   ├── diagams
+│   │   └── architecture.md
+│   ├── modules
+│   │   ├── agents.md
+│   │   ├── api.md
+│   │   ├── automation.md
+│   │   ├── browser.md
+│   │   ├── core.md
+│   │   ├── dashboard.md
+│   │   ├── database.md
+│   │   ├── desktop.md
+│   │   ├── llm.md
+│   │   ├── logging.md
+│   │   ├── memory.md
+│   │   ├── planner.md
+│   │   ├── reasoning.md
+│   │   ├── testing.md
+│   │   ├── trading.md
+│   │   └── vision.md
+│   ├── ROADMAP
+│   │   ├── PHASE_01_FOUNDATION.md
+│   │   ├── PHASE_02_LLM.md
+│   │   ├── PHASE_03_TOOLS.md
+│   │   ├── PHASE_04_DESKTOP.md
+│   │   ├── PHASE_05_VISION.md
+│   │   ├── PHASE_06_MEMORY.md
+│   │   └── PHASE_07_AGENTS.md
+│   ├── 00_INTRODUCTION.md
+│   ├── 01_VISION.md
+│   ├── 02_ARCHITECTURE_01.md
+│   ├── 02_ARCHITECTURE_02.md
+│   ├── 02_ARCHITECTURE_03.md
+│   ├── 02_ARCHITECTURE_04.md
+│   ├── 03_TECH_STACK.md
+│   ├── 04_PROJECT_STRUCTURE_01.md
+│   ├── 04_PROJECT_STRUCTURE_02.md
+│   ├── 04_PROJECT_STRUCTURE_03.md
+│   ├── 04_PROJECT_STRUCTURE_04.md
+│   ├── 04_PROJECT_STRUCTURE_05.md
+│   ├── 04_PROJECT_STRUCTURE_06.md
+│   ├── 04_PROJECT_STRUCTURE_07.md
+│   ├── 04_PROJECT_STRUCTURE_08.md
+│   ├── 04_PROJECT_STRUCTURE_09.md
+│   ├── 04_PROJECT_STRUCTURE_10.md
+│   ├── 05_RUNTIME_FLOW_01.md
+│   ├── 05_RUNTIME_FLOW_02.md
+│   ├── 05_RUNTIME_FLOW_03.md
+│   ├── 05_RUNTIME_FLOW_04.md
+│   ├── 05_RUNTIME_FLOW_05.md
+│   ├── 05_RUNTIME_FLOW_06.md
+│   ├── 05_RUNTIME_FLOW_07.md
+│   ├── 05_RUNTIME_FLOW_08.md
+│   ├── 05_RUNTIME_FLOW_09.md
+│   ├── 05_RUNTIME_FLOW_10.md
+│   ├── 05_RUNTIME_FLOW_11.md
+│   ├── 05_RUNTIME_FLOW_12.md
+│   ├── ARCHITECTURE_AUDIT.md
+│   ├── codebase-guide.md
+│   ├── DEVELOPMENT_PLAN.md
+│   └── GUIDE.md
+├── src
+│   └── aetheros
+│       ├── .cache
+│       ├── agents
+│       │   ├── planner
+│       │   │   ├── __init__.py
+│       │   │   ├── actions.py
+│       │   │   ├── goal.py
+│       │   │   └── planner.py
+│       │   ├── __init__.py
+│       │   ├── context.py
+│       │   ├── execution.py
+│       │   └── state.py
+│       ├── bootstrap
+│       │   ├── __init__.py
+│       │   ├── application.py
+│       │   ├── bootstrapper.py
+│       │   ├── lifecycle.py
+│       │   └── test.txt
+│       ├── browser
+│       │   ├── providers
+│       │   │   ├── base.py
+│       │   │   └── playwright_provider.py
+│       │   ├── controller.py
+│       │   └── tools.py
+│       ├── cli
+│       │   ├── __init__.py
+│       │   ├── commands.py
+│       │   ├── main.py
+│       │   ├── parser.py
+│       │   ├── test.txt
+│       │   ├── tool_commands.py
+│       │   └── ui.py
+│       ├── config
+│       │   ├── config_loader.py
+│       │   ├── constants.py
+│       │   ├── env.py
+│       │   └── settings.py
+│       ├── core
+│       │   ├── container
+│       │   │   ├── __init__.py
+│       │   │   ├── container.py
+│       │   │   └── registry.py
+│       │   ├── errors
+│       │   │   ├── agent_error.py
+│       │   │   ├── base_error.py
+│       │   │   ├── browser_error.py
+│       │   │   ├── desktop_error.py
+│       │   │   ├── hud_error.py
+│       │   │   ├── llm_error.py
+│       │   │   ├── tool_error.py
+│       │   │   ├── vision_error.py
+│       │   │   └── voice_error.py
+│       │   ├── interfaces
+│       │   │   ├── clipboard_controller.py
+│       │   │   ├── file_controller.py
+│       │   │   ├── keyboard_controller.py
+│       │   │   ├── llm_provider.py
+│       │   │   ├── memory_provider.py
+│       │   │   ├── mouse_controller.py
+│       │   │   ├── process_controller.py
+│       │   │   ├── screen_controller.py
+│       │   │   ├── speech_to_text.py
+│       │   │   ├── text_to_speech.py
+│       │   │   ├── vision_provider.py
+│       │   │   ├── voice_activator.py
+│       │   │   └── window_controller.py
+│       │   ├── logging
+│       │   │   ├── __init__.py
+│       │   │   ├── formatter.py
+│       │   │   ├── handlers.py
+│       │   │   ├── logger.py
+│       │   │   └── logging.py
+│       │   ├── tools
+│       │   └── application.py
+│       ├── data
+│       ├── desktop
+│       │   ├── application
+│       │   │   ├── __init__.py
+│       │   │   ├── controller.py
+│       │   │   ├── resolver.py
+│       │   │   └── tools.py
+│       │   ├── automation
+│       │   │   ├── __init__.py
+│       │   │   ├── engine.py
+│       │   │   ├── example.text
+│       │   │   ├── recovery.py
+│       │   │   ├── tools.py
+│       │   │   └── workflow.py
+│       │   ├── clipboard
+│       │   │   ├── __init__.py
+│       │   │   ├── controller.py
+│       │   │   ├── pyautogui_backend.py
+│       │   │   └── tools.py
+│       │   ├── keyboard
+│       │   │   ├── __init__.py
+│       │   │   ├── controller.py
+│       │   │   ├── pyautogui_backend.py
+│       │   │   └── tools.py
+│       │   ├── mouse
+│       │   │   ├── __init__.py
+│       │   │   ├── controller.py
+│       │   │   ├── pyautogui_backend.py
+│       │   │   └── tools.py
+│       │   ├── process
+│       │   │   ├── __init__.py
+│       │   │   ├── controller.py
+│       │   │   ├── psutil_backend.py
+│       │   │   ├── terminal.py
+│       │   │   └── tools.py
+│       │   ├── safety
+│       │   │   ├── __init__.py
+│       │   │   ├── paths.py
+│       │   │   └── policy.py
+│       │   ├── screen
+│       │   │   ├── __init__.py
+│       │   │   ├── controller.py
+│       │   │   ├── mss_backend.py
+│       │   │   └── tools.py
+│       │   ├── verification
+│       │   │   ├── __init__.py
+│       │   │   ├── result.py
+│       │   │   ├── strategy.py
+│       │   │   ├── tools.py
+│       │   │   └── verifier.py
+│       │   └── window
+│       │       ├── __init__.py
+│       │       ├── controller.py
+│       │       ├── models.py
+│       │       ├── tools.py
+│       │       └── win32_backend.py
+│       ├── hud
+│       │   ├── layers
+│       │   │   ├── __init__.py
+│       │   │   ├── base.py
+│       │   │   ├── core.py
+│       │   │   ├── particles.py
+│       │   │   ├── rings.py
+│       │   │   ├── text.py
+│       │   │   └── waveform.py
+│       │   ├── __init__.py
+│       │   ├── app.py
+│       │   ├── config.py
+│       │   ├── demo.py
+│       │   ├── paint.py
+│       │   ├── pipe.py
+│       │   ├── process.py
+│       │   ├── protocol.py
+│       │   ├── renderer.py
+│       │   ├── scene.py
+│       │   ├── service.py
+│       │   ├── state.py
+│       │   ├── theme.py
+│       │   └── window.py
+│       ├── llm
+│       │   ├── providers
+│       │   │   └── openai_compatible.py
+│       │   ├── agent_loop.py
+│       │   ├── config.py
+│       │   ├── engine.py
+│       │   ├── manager.py
+│       │   ├── tool_calls.py
+│       │   └── tool_schema.py
+│       ├── logs
+│       │   ├── app.log
+│       │   ├── debug.log
+│       │   ├── error.log
+│       │   ├── events.json
+│       │   └── events.jsonl
+│       ├── memory
+│       ├── runtime
+│       │   └── events
+│       │       ├── __init__.py
+│       │       ├── event_bus.py
+│       │       ├── events.py
+│       │       ├── publisher.py
+│       │       └── subscriber.py
+│       ├── scripts
+│       ├── tools
+│       │   ├── __init__.py
+│       │   ├── annotations.py
+│       │   ├── discovery.py
+│       │   ├── executor.py
+│       │   ├── registry.py
+│       │   ├── schema.py
+│       │   ├── tool.py
+│       │   └── validator.py
+│       ├── vision
+│       │   ├── models
+│       │   │   ├── __init__.py
+│       │   │   ├── detection.py
+│       │   │   ├── match.py
+│       │   │   └── text.py
+│       │   ├── providers
+│       │   │   ├── __init__.py
+│       │   │   ├── base.py
+│       │   │   ├── opencv_provider.py
+│       │   │   ├── paddleocr_provider.py
+│       │   │   ├── template_provider.py
+│       │   │   └── yolo_provider.py
+│       │   ├── __init__.py
+│       │   ├── controller.py
+│       │   ├── image.py
+│       │   ├── main.py
+│       │   ├── README.md
+│       │   ├── selfcheck.py
+│       │   ├── test.png
+│       │   └── tools.py
+│       ├── voice
+│       │   ├── stt
+│       │   │   ├── __init__.py
+│       │   │   ├── faster_whisper_stt.py
+│       │   │   └── null_stt.py
+│       │   ├── tts
+│       │   │   ├── __init__.py
+│       │   │   ├── decode.py
+│       │   │   ├── edge_tts_provider.py
+│       │   │   ├── null_tts.py
+│       │   │   └── sapi_tts.py
+│       │   ├── __init__.py
+│       │   ├── activation.py
+│       │   ├── audio.py
+│       │   ├── config.py
+│       │   ├── events.py
+│       │   ├── pipeline.py
+│       │   ├── reasoner.py
+│       │   ├── service.py
+│       │   └── state.py
+│       └── __init__.py
+├── tests
+│   ├── agents
+│   │   ├── test_agent_context.py
+│   │   ├── test_agent_execution.py
+│   │   ├── test_agent_planner.py
+│   │   └── test_agent_state.py
+│   ├── bootstrap
+│   │   └── test_wiring.py
+│   ├── cli
+│   │   ├── test_cli.py
+│   │   └── test_ui.py
+│   ├── desktop
+│   │   ├── test_automation.py
+│   │   └── test_input.py
+│   ├── hud
+│   │   ├── conftest.py
+│   │   ├── support.py
+│   │   └── test_hud_service.py
+│   ├── llm
+│   │   ├── conftest.py
+│   │   ├── test_agent_loop_hooks.py
+│   │   ├── test_agent_loop.py
+│   │   ├── test_llm.py
+│   │   └── test_tool_calls.py
+│   ├── tools
+│   │   ├── test_tool_executor.py
+│   │   ├── test_tool_schema.py
+│   │   └── test_tool_surface.py
+│   ├── vision
+│   │   ├── conftest.py
+│   │   ├── test_bootstrap.py
+│   │   ├── test_image.py
+│   │   ├── test_integration.py
+│   │   ├── test_providers.py
+│   │   ├── test_screen.py
+│   │   ├── test_service.py
+│   │   ├── test_tools.py
+│   │   └── test_vision_engine.py
+│   ├── voice
+│   │   └── test_reasoner.py
+│   ├── conftest.py
+│   ├── hud_support.py
+│   └── test_interface_contracts.py
+├── .env
+├── .gitignore
+├── .graphifyignore
+├── .python-version
+├── claude.md
+├── hud_states.png
+├── hud_textonly.png
+├── hud_zoom.png
+├── Inspection done — nothing changed on dis.md
+├── main.py
+├── pyproject.toml
+├── README.md
+├── requirements.txt
+├── tree.txt
+├── uv.lock
+└── yolo11n.pt

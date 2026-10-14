@@ -216,3 +216,37 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- AetherOS project-specific ---
+# Secrets / env
+.env
+
+# IDE / tooling
+.idea/
+.vscode/
+.claude/
+
+# Virtual envs
+venv/
+venv*/
+
+# Pytest
+.pytest_cache/
+
+# Logs
+*.log
+
+# Runtime/generated files
+src/aetheros/logs/
+logs/
+
+# Generated live-execution traces (never commit)
+src/aetheros/logs/traces/
+logs/traces/
+
+# Runtime data / dbs
+src/aetheros/data/*.db
+
+# Archives / test artifacts / caches
+*.zip
+**/cache/

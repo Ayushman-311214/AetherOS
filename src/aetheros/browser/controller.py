@@ -1,0 +1,246 @@
+from __future__ import annotations
+
+from ..core.logging import get_logger
+from .providers.base import BrowserProvider
+
+
+class BrowserService:
+    """
+    High-level browser service.
+
+    Responsible for coordinating browser operations.
+    Delegates all browser interactions to the configured
+    BrowserProvider implementation.
+    """
+
+    def __init__(
+        self,
+        provider: BrowserProvider,
+    ) -> None:
+
+        self._provider = provider
+        self._logger = get_logger("browser")
+
+        # Tracked so shutdown can tell "never launched" from "still open" without
+        # asking the provider, which raises once its page is gone.
+        self._launched = False
+
+    # ==========================================================
+    # Lifecycle
+    # ==========================================================
+
+    async def launch(
+        self,
+        *,
+        headless: bool = False,
+    ) -> None:
+
+        self._logger.info("Launching browser.")
+
+        await self._provider.launch(
+            headless=headless,
+        )
+
+        self._launched = True
+
+    async def close(self) -> None:
+
+        self._logger.info("Closing browser.")
+
+        await self._provider.close()
+
+        self._launched = False
+
+    async def shutdown(self) -> None:
+        """
+        Release the browser if one is still open.
+
+        Called from ``Bootstrapper._shutdown_browser``. Without it a session that
+        called ``open_browser`` and never ``close_browser`` left a Chromium
+        process and its user-data directory behind after the application exited.
+        """
+
+        if not self._launched:
+            return
+
+        try:
+            await self.close()
+
+        except Exception:
+            # Shutdown continues regardless: a browser that refuses to close
+            # must not stop the remaining subsystems from tearing down. Logged
+            # rather than swallowed, so the leaked process is diagnosable.
+            self._logger.exception(
+                "Browser did not close cleanly during shutdown."
+            )
+
+    def is_open(self) -> bool:
+        """
+        Whether a browser is currently launched.
+
+        Reads the service's own ``_launched`` bookkeeping rather than asking the
+        provider -- the same source ``shutdown`` trusts, and the only one that
+        answers before any browser exists (the provider raises once its page is
+        gone). A pure in-memory read, so it is synchronous and never fails: an
+        agent can ask "is a browser open?" at any point, including before the
+        first ``launch``.
+        """
+
+        return self._launched
+
+    # ==========================================================
+    # Navigation
+    # ==========================================================
+
+    async def goto(
+        self,
+        url: str,
+    ) -> None:
+
+        # bind(), not %-style args: loguru formats with str.format, so
+        # logger.info("Navigating to %s", url) silently dropped the url.
+        self._logger.bind(url=url).info("Navigating.")
+
+        await self._provider.goto(url)
+
+    async def back(self) -> None:
+        await self._provider.back()
+
+    async def forward(self) -> None:
+        await self._provider.forward()
+
+    async def reload(self) -> None:
+        await self._provider.reload()
+
+    async def wait_for_load(self) -> None:
+        await self._provider.wait_for_load()
+
+    # ==========================================================
+    # DOM
+    # ==========================================================
+
+    async def click(
+        self,
+        selector: str,
+    ) -> None:
+
+        await self._provider.click(selector)
+
+    async def fill(
+        self,
+        selector: str,
+        text: str,
+    ) -> None:
+
+        await self._provider.fill(
+            selector,
+            text,
+        )
+
+    async def press(
+        self,
+        selector: str,
+        key: str,
+    ) -> None:
+
+        await self._provider.press(
+            selector,
+            key,
+        )
+
+    async def hover(
+        self,
+        selector: str,
+    ) -> None:
+
+        await self._provider.hover(selector)
+
+    # ==========================================================
+    # Information
+    # ==========================================================
+
+    async def title(self) -> str:
+        return await self._provider.title()
+
+    async def url(self) -> str:
+        return await self._provider.url()
+
+    async def html(self) -> str:
+        return await self._provider.html()
+
+    async def text(
+        self,
+        selector: str,
+    ) -> str:
+
+        return await self._provider.text(selector)
+
+    async def page_text(self) -> str:
+        """
+        The visible text of the whole page.
+
+        Reuses the provider's existing element-text seam against ``body`` rather
+        than widening the ``BrowserProvider`` interface: every backend already
+        has to answer ``text(selector)``, and ``body`` is the one selector that
+        is always present once a page has loaded. This is what a spoken or typed
+        "read me the page" resolves to, and it is far cheaper on the model's
+        context than ``html()``.
+        """
+
+        return await self._provider.text("body")
+
+    async def find_text(
+        self,
+        query: str,
+    ) -> bool:
+        """
+        Whether ``query`` appears in the visible text of the current page.
+
+        A deterministic, case-insensitive substring search over ``page_text()``.
+        It reuses the same whole-page ``body`` seam rather than widening the
+        provider interface, and it does the matching in Python -- no locator
+        heuristics or backend-specific text queries -- so the answer is
+        reproducible for a given page. This is what "is X on the page?" resolves
+        to for the agent; the empty query is treated as not found rather than as
+        a match on every page.
+        """
+
+        if not query:
+            return False
+
+        haystack = await self.page_text()
+
+        return query.casefold() in (haystack or "").casefold()
+
+    # ==========================================================
+    # Waiting
+    # ==========================================================
+
+    async def wait_for_selector(
+        self,
+        selector: str,
+    ) -> None:
+
+        await self._provider.wait_for_selector(selector)
+
+    # ==========================================================
+    # Screenshots
+    # ==========================================================
+
+    async def screenshot(
+        self,
+        path: str,
+    ) -> None:
+
+        await self._provider.screenshot(path)
+
+    # ==========================================================
+    # JavaScript
+    # ==========================================================
+
+    async def evaluate(
+        self,
+        script: str,
+    ):
+
+        return await self._provider.evaluate(script)

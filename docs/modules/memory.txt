@@ -1,0 +1,95 @@
+                         AetherOS
+                            │
+                            ▼
+                    ┌───────────────┐
+                    │ Trading API   │
+                    │ analyze()     │
+                    │ scan()        │
+                    │ signal()      │
+                    │ backtest()    │
+                    │ paper_trade() │
+                    │ execute()     │
+                    │ portfolio()   │
+                    │ journal()     │
+                    └───────┬───────┘
+                            │
+             ┌──────────────┴──────────────┐
+             ▼                             ▼
+      ┌─────────────┐               ┌─────────────┐
+      │ Market Data │               │ News/Event  │
+      │ CCXT/APIs   │               │ Calendar    │
+      └──────┬──────┘               └──────┬──────┘
+             │                             │
+             └──────────────┬──────────────┘
+                            ▼
+                   ┌─────────────────┐
+                   │  Chart Engine   │
+                   │ candles/TF/etc. │
+                   └────────┬────────┘
+                            ▼
+                   ┌─────────────────┐
+                   │ Analysis Engine │
+                   │ Trend/Structure │
+                   │ Volume/Liquidity │
+                   │ Volatility       │
+                   │ Momentum         │
+                   └────────┬────────┘
+                            │
+              ┌─────────────┴─────────────┐
+              ▼                           ▼
+        ┌───────────┐               ┌───────────┐
+        │ SMC Engine│               │ ICT Engine │
+        │ BOS/CHoCH │               │ Bias/OTE   │
+        │ OB/FVG    │               │ Killzones  │
+        │ Liquidity │               │ PO3/etc.   │
+        └─────┬─────┘               └─────┬─────┘
+              └─────────────┬─────────────┘
+                            ▼
+                   ┌─────────────────┐
+                   │ Strategy Engine │
+                   │ SMC / ICT /     │
+                   │ Trend / Breakout│
+                   │ Swing / Scalping│
+                   └────────┬────────┘
+                            ▼
+                   ┌─────────────────┐
+                   │ Signal Engine   │
+                   │ BUY/SELL/EXIT   │
+                   │ confidence      │
+                   │ evidence        │
+                   └────────┬────────┘
+                            ▼
+                   ┌─────────────────┐
+                   │  Risk Manager   │
+                   │ position size   │
+                   │ SL / TP / RR     │
+                   │ exposure limits │
+                   └────────┬────────┘
+                            ▼
+                   ┌─────────────────┐
+                   │ Decision Engine │
+                   └────────┬────────┘
+                            │
+                 ┌──────────┴──────────┐
+                 ▼                     ▼
+          ┌─────────────┐       ┌─────────────┐
+          │ Paper Trade │       │ Live Broker │
+          │ Simulation  │       │ IB/CCXT/etc │
+          └──────┬──────┘       └──────┬──────┘
+                 └──────────┬──────────┘
+                            ▼
+                   ┌─────────────────┐
+                   │ Portfolio       │
+                   │ Positions       │
+                   │ Orders          │
+                   │ PnL             │
+                   └────────┬────────┘
+                            ▼
+                   ┌─────────────────┐
+                   │ Trading Journal │
+                   │ Evidence        │
+                   │ Entry/Exit      │
+                   │ Lessons         │
+                   └────────┬────────┘
+                            ▼
+                         Memory

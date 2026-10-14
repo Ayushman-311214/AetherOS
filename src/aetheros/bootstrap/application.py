@@ -1,0 +1,158 @@
+from __future__ import annotations
+
+from ..core.logging import get_logger
+
+from .bootstrapper import Bootstrapper
+from ..cli.main import CLIRuntime
+
+import asyncio
+from ..tools.registry import tool_registry
+from ..core.container import container
+
+class Application:
+    """
+    Main AetherOS application.
+
+    Responsible for managing the application's lifecycle.
+
+    Startup logic lives inside Bootstrapper.
+    """
+
+    def __init__(self) -> None:
+        self._logger = get_logger("application")
+        self._bootstrapper = Bootstrapper()
+        self._cli = None
+        self._running = False
+
+    # ==========================================================
+    # Properties
+    # ==========================================================
+
+    @property
+    def is_running(self) -> bool:
+        """
+        Returns whether the application is running.
+        """
+        return self._running
+
+    # ==========================================================
+    # Lifecycle
+    # ==========================================================
+
+    async def start(self) -> None:
+        """
+        Start the application.
+        """
+
+        if self._running:
+            self._logger.warning("Application already running.")
+            return
+
+        self._logger.info("Starting AetherOS...")
+
+        # ----------------------------------------------
+        # Bootstrap EVERYTHING first
+        # ----------------------------------------------
+
+        await self._bootstrapper.start()
+
+        # ----------------------------------------------
+        # Now create CLI
+        # ----------------------------------------------
+        from ..cli import CLIRuntime
+
+        # The agent core drives `ask` (it owns orchestration); the loop is kept
+        # as a fallback, and `llm` reports the provider's name and model, which
+        # neither exposes.
+        llm_provider = container.resolve(
+            "llm_provider"
+        )
+
+        tool_loop = container.resolve(
+            "llm_tool_loop"
+        )
+
+        agent_core = container.resolve(
+            "agent_core"
+        )
+
+        # The live trace recorder, so the CLI `trace` command can inspect and
+        # control it at runtime. Optional: resolve defensively so a runtime
+        # wired without the trace subsystem still starts.
+        trace_recorder = (
+            container.resolve("trace_recorder")
+            if container.has("trace_recorder")
+            else None
+        )
+
+        # The unified entry every terminal `ask` runs through, and the shared
+        # EventBus the CLI subscribes to. With both, the terminal is a renderer
+        # of the one agent's lifecycle -- it submits a source-tagged turn and
+        # observes the same trace events the HUD does, rather than printing a
+        # returned string in isolation. Resolved defensively so a runtime wired
+        # without them still starts (the CLI falls back to the direct path).
+        interaction_gateway = (
+            container.resolve("interaction_gateway")
+            if container.has("interaction_gateway")
+            else None
+        )
+
+        event_bus = (
+            container.resolve("event_bus")
+            if container.has("event_bus")
+            else None
+        )
+
+        self._cli = CLIRuntime(
+            tool_registry=self._bootstrapper.tool_registry,
+            llm_service=llm_provider,
+            tool_loop=tool_loop,
+            agent=agent_core,
+            trace=trace_recorder,
+            gateway=interaction_gateway,
+            event_bus=event_bus,
+        )
+
+        self._running = True
+
+        self._logger.info("AetherOS started successfully.")
+
+    async def run(self) -> None:
+        if not self._running:
+            raise RuntimeError(
+                "Application has not been started."
+            )
+
+        self._logger.info(
+            "Application is running..."
+        )
+
+        await self._cli.start()
+
+    async def stop(self) -> None:
+        if not self._running:
+            return
+
+        self._logger.info(
+            "Stopping AetherOS..."
+        )
+
+        await self._cli.stop()
+        await self._bootstrapper.shutdown()
+
+        self._running = False
+
+        self._logger.info(
+            "Application stopped."
+        )
+
+    async def restart(self) -> None:
+        """
+        Restart the application.
+        """
+
+        self._logger.info("Restarting AetherOS...")
+
+        await self.stop()
+
+        await self.start()

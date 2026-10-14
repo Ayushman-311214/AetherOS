@@ -1,0 +1,41 @@
+# Virtual environments
+.venv/
+venv/
+venv312/
+env/
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Build/output
+build/
+dist/
+*.egg-info/
+
+# Node
+node_modules/
+
+# Graphify output
+graphify-out/
+
+# IDE
+.vscode/
+.idea/
+
+# Tests / temporary
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Logs
+*.log
+
+# Generated files
+generated/
+
+.claude/
+.pytest_cache/
+docs/
+*.md
+*.txt

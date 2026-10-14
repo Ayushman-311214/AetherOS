@@ -1,0 +1,254 @@
+[build-system]
+requires = ["hatchling>=1.27.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "AetherOS"
+version = "0.1.0"
+description = "Autonomous AI Computer Operator"
+readme = "README.md"
+requires-python = ">=3.12"
+license = { text = "MIT" }
+
+authors = [
+    { name = "Ayushman" }
+]
+
+keywords = [
+    "ai",
+    "llm",
+    "automation",
+    "desktop",
+    "computer-use",
+    "vision",
+    "voice",
+    "agents"
+]
+
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Developers",
+    "Programming Language :: Python :: 3.12",
+    "Operating System :: Microsoft :: Windows",
+    "License :: OSI Approved :: MIT License"
+]
+
+dependencies = [
+
+    # ----------------------------
+    # Configuration
+    # ----------------------------
+    "python-dotenv>=1.1.0",
+    "pydantic>=2.11.0",
+    "pydantic-settings>=2.10.0",
+
+    # ----------------------------
+    # Logging
+    # ----------------------------
+    "loguru>=0.7.3",
+    "rich>=14.1.0",
+
+    # ----------------------------
+    # HTTP
+    # ----------------------------
+    "httpx>=0.28.1",
+    "requests>=2.32.4",
+
+    # ----------------------------
+    # LLM
+    # ----------------------------
+    "openai>=1.100.0",
+    "ollama>=0.5.3",
+
+    # ----------------------------
+    # Async
+    # ----------------------------
+    "anyio>=4.10.0",
+
+    # ----------------------------
+    # JSON
+    # ----------------------------
+    "orjson>=3.11.0",
+
+    # ----------------------------
+    # CLI
+    # ----------------------------
+    "typer>=0.17.0",
+
+    # ----------------------------
+    # Desktop Automation
+    # ----------------------------
+    "pyautogui>=0.9.54",
+    "pynput>=1.8.1",
+    "pyperclip>=1.9.0",
+    "keyboard>=0.13.5",
+    "mouse>=0.7.1",
+    "psutil>=7.0.0",
+    "pywin32>=311",
+
+    # ----------------------------
+    # Images / Vision
+    # ----------------------------
+    "opencv-python>=4.12.0",
+    "numpy>=2.3.2",
+    "Pillow>=11.3.0",
+    "mss>=10.1.0",
+    "paddleocr>=3.2.0",
+    "paddlepaddle>=3.1.1",
+
+    # ----------------------------
+    # Voice
+    # ----------------------------
+    "sounddevice>=0.5.2",
+    "scipy>=1.16.1",
+    "faster-whisper>=1.2.0",
+    "silero-vad>=6.0.0",
+    "torch>=2.8.0",
+    "torchaudio>=2.8.0",
+
+    # ----------------------------
+    # Utilities
+    # ----------------------------
+    "tqdm>=4.67.1",
+    "pyyaml>=6.0.2"
+    
+
+]
+
+[project.optional-dependencies]
+
+browser = [
+    "playwright>=1.55.0"
+]
+
+# The ccxt market-data provider (crypto/forex candles, quotes, order books,
+# trade ticks) behind the MarketDataProvider interface. Optional exactly like
+# browser/hud: the trading core runs on mock+yahoo without it, and selecting
+# MARKET_DATA_PROVIDER=ccxt without the package falls back loudly to mock.
+market = [
+    "ccxt>=4.0.0"
+]
+
+# The HUD overlay runs in a child process (`python -m aetheros.hud.app --ipc`)
+# that imports Qt at module level. Kept optional rather than required because
+# Qt is a large download that a headless or server install has no use for:
+# `aetheros.hud` itself is deliberately Qt-free, so configuration, state and
+# the service are importable and testable without this extra installed.
+hud = [
+    "PySide6>=6.7.0"
+]
+
+dev = [
+    "pytest>=8.4.1",
+
+    # Declared because the whole async surface of the suite depends on it.
+    # Every async test carries an explicit @pytest.mark.asyncio (there is no
+    # asyncio_mode set below), so without this plugin those tests do not fail —
+    # they are collected, skipped with an "unknown mark" warning, and the run
+    # still reports green. It was already present in the working venv, which is
+    # exactly why the omission went unnoticed; a fresh `pip install -e .[dev]`
+    # would have produced a suite that silently stopped testing the executor,
+    # the verifier and the automation engine.
+    "pytest-asyncio>=0.24.0",
+
+    "pytest-cov>=6.2.1",
+    "black>=25.1.0",
+    "ruff>=0.12.8",
+    "mypy>=1.17.1",
+    "pre-commit>=4.3.0"
+]
+
+[project.scripts]
+aether = "aetheros.__main__:main"
+
+# ============================================================
+# BLACK
+# ============================================================
+
+[tool.black]
+line-length = 88
+target-version = ["py312"]
+
+# ============================================================
+# RUFF
+# ============================================================
+
+[tool.ruff]
+line-length = 88
+target-version = "py312"
+
+[tool.ruff.lint]
+select = [
+    "E",
+    "F",
+    "I",
+    "UP",
+    "B",
+]
+
+ignore = [
+    "E501"
+]
+
+# ============================================================
+# MYPY
+# ============================================================
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+# ============================================================
+# PYTEST
+# ============================================================
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests"
+]
+
+python_files = [
+    "test_*.py"
+]
+
+addopts = "-ra -q"
+
+# The package lives at src/aetheros, so `import aetheros` only resolves once
+# src/ is on sys.path. Setting it here means the suite runs from a clean
+# checkout without an editable install — and, more importantly, that it always
+# imports the *working tree* rather than a stale copy in site-packages.
+pythonpath = [
+    "src"
+]
+
+# Registered so that a genuine typo in a marker name still raises a warning
+# instead of being lost among "unknown mark" noise.
+markers = [
+    "integration: exercises a real backend (OCR model, display) rather than a fake",
+    "real_embeddings: opt-in; talks to a real embedding daemon (Ollama). Skipped unless AETHEROS_MEMORY_TEST_OLLAMA=1.",
+]
+
+# ============================================================
+# COVERAGE
+# ============================================================
+
+[tool.coverage.run]
+source = [
+    "src/aetheros"
+]
+
+# ============================================================
+# HATCH
+# ============================================================
+
+[tool.hatch.build.targets.wheel]
+# The distribution is the single `aetheros` package under src/. The previous
+# list named eleven top-level directories (core, desktop, vision, ...) that do
+# not exist at the repository root, so the built wheel contained no Python
+# modules at all and `import aetheros` failed after installation.
+packages = [
+    "src/aetheros"
+]
