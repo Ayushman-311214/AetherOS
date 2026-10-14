@@ -404,6 +404,38 @@ class ReportRecommendation(str, Enum):
         return cls.NO_TRADE
 
 
+class DecisionAction(str, Enum):
+    """
+    The four-valued decision outcome for one analysis request (spec section 13).
+
+    This is the user-facing vocabulary the spec's pipeline terminates in:
+    BUY / SELL / WAIT / NO_TRADE. It is *distinct from* :class:`Direction` (which
+    leans a market, incl. SIDEWAYS/UNKNOWN) and from :class:`ReportRecommendation`
+    (the critic's approval verdict projected onto a report). A WAIT is an
+    affirmative "hold — conditions are tradable but not yet justified" and is
+    deliberately *not* folded into NO_TRADE: NO_TRADE means "insufficient /
+    invalid evidence" while WAIT means "a sound directional read whose geometry
+    or context says stand down for now" (a WAIT never fabricates an action).
+
+    Projection from the deterministic pipeline: BUY when the side is UP and the
+    critic approved an actionable plan; SELL for DOWN; WAIT when there is a
+    directional read but the recommendation is REJECTED (a judged, wanting
+    setup) or a thin-but-usable read; NO_TRADE when the recommendation is
+    NO_TRADE (insufficient/mock/unusable evidence) or there is no directional
+    side at all.
+    """
+
+    BUY = "buy"
+    SELL = "sell"
+    WAIT = "wait"
+    NO_TRADE = "no_trade"
+
+    @property
+    def is_entry(self) -> bool:
+        """Whether the action commits capital (only a directional entry does)."""
+        return self in (DecisionAction.BUY, DecisionAction.SELL)
+
+
 class TradeAction(str, Enum):
     """A requested action on a position or instrument."""
 

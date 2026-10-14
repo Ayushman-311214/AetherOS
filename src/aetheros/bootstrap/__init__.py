@@ -1,9 +1,10 @@
-def __init__(self) -> None:
-    setup_logging(console=False)
+"""AetherOS bootstrap package.
 
-    self._logger = get_logger("bootstrapper")
+Logging is initialized lazily on first ``get_logger``/``setup_logging`` call
+(see ``aetheros.core.logging.logger``), so importing this package creates no
+run directory and installs no sinks.
+"""
 
-    self._started = False
+from __future__ import annotations
 
-    self._container = None
-    self._event_bus = None
+__all__: list[str] = []

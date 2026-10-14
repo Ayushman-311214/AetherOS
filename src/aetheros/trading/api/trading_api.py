@@ -35,24 +35,33 @@ from ..brokers.base import BrokerProvider
 from ..domain.backtest import BacktestResult
 from ..domain.enums import Direction
 from ..domain.execution import ExecutionRequest, ExecutionResult
+from ..domain.health import TradingHealth
 from ..domain.instrument import Instrument
 from ..domain.journal import JournalEntry
+from ..domain.kill_switch import KillScope, KillSwitch
 from ..domain.market_data import MarketData
 from ..domain.portfolio import PortfolioCandidate, PortfolioRiskPlan
+from ..domain.reconciliation import ReconciliationReport
 from ..domain.report import TradingReport
 from ..domain.risk_limits import AccountSnapshot
 from ..domain.scan import ScanResult
 from ..domain.signal import SignalEvaluation
 from ..domain.simulation import SimulationReport
+from ..domain.trade import Position
 from ..errors import TradingError
 from ..execution.engine import ExecutionEngine
 from ..services.analysis_service import AnalysisService
 from ..services.backtest_service import BacktestService
+from ..production.health_service import TradingHealthService
 from ..services.journal_service import JournalService
 from ..services.journal_store import JournalStore
+from ..production.kill_switch_service import KillSwitchService
+from ..production.lifecycle_service import SignalLifecycleService
 from ..services.market_data_service import MarketDataService
 from ..services.orchestration_service import OrchestrationService
 from ..services.portfolio_service import PortfolioRiskService
+from ..production.position_service import PositionBookService
+from ..production.reconciliation_service import ReconciliationService
 from ..services.risk_service import RiskService
 from ..services.scan_service import WatchlistScanService
 from ..services.signal_service import SignalService
@@ -85,6 +94,11 @@ class TradingAPI:
         risk: RiskService,
         strategy: StrategyService,
         journal_store: JournalStore | None = None,
+        positions: PositionBookService | None = None,
+        reconciliation: ReconciliationService | None = None,
+        kill_switches: KillSwitchService | None = None,
+        health: TradingHealthService | None = None,
+        lifecycle: SignalLifecycleService | None = None,
     ) -> None:
         self._orchestration = orchestration
         self._scan = scan
@@ -98,6 +112,13 @@ class TradingAPI:
         self._analysis = analysis
         self._risk = risk
         self._strategy = strategy
+        # Phase 2 production services -- optional so a minimal wiring keeps the
+        # pre-existing surface; when present they power positions/health/etc.
+        self._positions = positions
+        self._reconciliation = reconciliation
+        self._kill_switches = kill_switches
+        self._health = health
+        self._lifecycle = lifecycle
         # Optional durable sink for journal entries (spec Phase 27). When wired,
         # the journal path persists each entry it builds so the trail survives
         # the process (spec sections 15, 28); when absent the facade behaves
@@ -417,6 +438,73 @@ class TradingAPI:
         return await self._journal_store.list_entries(
             instrument_key=instrument_key, limit=limit
         )
+
+    # ------------------------------------------------------------------
+    # Phase 2 -- production lifecycle surface
+    # ------------------------------------------------------------------
+
+    def positions(self) -> tuple[Position, ...]:
+        """Every position currently open in the tracked book (spec Phase 2)."""
+        if self._positions is None:
+            return ()
+        return self._positions.open_positions()
+
+    def account_snapshot(self) -> AccountSnapshot | None:
+        """The live account state built from the real book (spec Phase 2)."""
+        if self._positions is None:
+            return None
+        return self._positions.snapshot()
+
+    async def reconcile(self) -> ReconciliationReport:
+        """Diff local state against the venue; report every divergence."""
+        if self._reconciliation is None:
+            raise TradingError(
+                "Reconciliation is not wired into this build.",
+                hint="Register ReconciliationService in the container.",
+            )
+        return await self._reconciliation.reconcile()
+
+    async def health(self) -> TradingHealth:
+        """The aggregate SAFE / DEGRADED / BLOCKED desk verdict."""
+        if self._health is None:
+            raise TradingError(
+                "Trading health is not wired into this build.",
+                hint="Register TradingHealthService in the container.",
+            )
+        return await self._health.status()
+
+    def trip_kill_switch(
+        self, scope: str, target: str = "", *, reason: str = "manual halt"
+    ) -> KillSwitch:
+        """Trip a scoped halt on order admission (global/strategy/broker/symbol)."""
+        if self._kill_switches is None:
+            raise TradingError(
+                "Kill switches are not wired into this build.",
+                hint="Register KillSwitchService in the container.",
+            )
+        return self._kill_switches.trip(
+            KillSwitch(scope=KillScope(scope), target=target, reason=reason)
+        )
+
+    def clear_kill_switch(self, scope: str, target: str = "") -> bool:
+        """Explicitly clear a tripped switch; False when none was armed."""
+        if self._kill_switches is None:
+            raise TradingError(
+                "Kill switches are not wired into this build.",
+                hint="Register KillSwitchService in the container.",
+            )
+        return self._kill_switches.clear(KillScope(scope), target)
+
+    def signal_lifecycle(self, signal_id: str) -> dict:
+        """The audited lifecycle record of one signal (spec Phase 2)."""
+        if self._lifecycle is None:
+            return {"signal_id": signal_id, "state": None, "transitions": []}
+        record = self._lifecycle.get(signal_id)
+        return record.to_dict() if record is not None else {
+            "signal_id": signal_id,
+            "state": None,
+            "transitions": [],
+        }
 
     # ------------------------------------------------------------------
     # internals

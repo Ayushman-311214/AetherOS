@@ -27,7 +27,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from typing import Any
 
-from .enums import Confidence, Direction, ReportRecommendation
+from .enums import Confidence, DecisionAction, Direction, ReportRecommendation
 from .explanation import EvidenceReason
 from .instrument import Instrument
 from .provenance import DataQuality, Provenance
@@ -82,6 +82,32 @@ class TradingDecision:
         if not self.invalidation.strip():
             raise ValueError("A decision requires an invalidation condition.")
 
+    @property
+    def action(self) -> DecisionAction:
+        """
+        The four-valued user-facing outcome (spec section 13).
+
+        Projected deterministically from ``direction`` + ``recommendation``: a
+        directional side the critic approved (and that is actionable) is BUY/SELL;
+        a directional read the critic rejected is WAIT (a sound setup held back);
+        a NO_TRADE recommendation or no directional side is NO_TRADE. The action
+        is never more confident than the report it derives from.
+        """
+        if self.direction not in (Direction.UP, Direction.DOWN):
+            return DecisionAction.NO_TRADE
+        if (
+            self.recommendation is ReportRecommendation.APPROVED
+            and self.is_actionable
+        ):
+            return (
+                DecisionAction.BUY
+                if self.direction is Direction.UP
+                else DecisionAction.SELL
+            )
+        if self.recommendation is ReportRecommendation.REJECTED:
+            return DecisionAction.WAIT
+        return DecisionAction.NO_TRADE
+
     def to_dict(self) -> dict[str, Any]:
         return {
             "instrument": self.instrument.to_dict(),
@@ -93,6 +119,7 @@ class TradingDecision:
             "direction": self.direction.value,
             "confidence": self.confidence.value,
             "recommendation": self.recommendation.value,
+            "action": self.action.value,
             "is_actionable": self.is_actionable,
             "supporting": [r.to_dict() for r in self.supporting],
             "contradictory": [r.to_dict() for r in self.contradictory],

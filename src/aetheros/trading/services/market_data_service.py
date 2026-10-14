@@ -33,7 +33,12 @@ from ..domain.instrument import Instrument
 from ..domain.market_data import MarketData, Quote
 from ..domain.provenance import DataQuality
 from ..errors import InsufficientDataError, InvalidSymbolError, MarketDataError
-from ..events import CandleClosed, MarketDataReceived, MarketDataUpdated
+from ..events import (
+    CandleClosed,
+    DataQualityDegraded,
+    MarketDataReceived,
+    MarketDataUpdated,
+)
 from ..providers.base import MarketDataProvider
 
 logger = get_logger("trading.market_data")
@@ -58,6 +63,9 @@ class MarketDataService:
         self._candle_cache: TTLCache[MarketData] = TTLCache(
             default_ttl=settings.TRADING_CACHE_TTL_CANDLES
         )
+        # Last-seen quality band per instrument+timeframe, so a worsening is
+        # announced once as DataQualityDegraded rather than on every fetch.
+        self._last_quality: dict[str, DataQualityStatus] = {}
 
     @property
     def provider_name(self) -> str:
@@ -102,6 +110,7 @@ class MarketDataService:
         data = self._assess_quality(data, requested=n)
         self._candle_cache.set(cache_key, data)
 
+        await self._emit_quality_transition(data)
         await self._emit_updated(data)
         return data
 
@@ -164,6 +173,10 @@ class MarketDataService:
                 issues.append("Inconsistent OHLC (low above other prices).")
                 status = DataQualityStatus.INVALID
                 break
+            if min(c.open, c.high, c.low, c.close) <= 0:
+                issues.append("Non-positive OHLC price in candle series.")
+                status = DataQualityStatus.INVALID
+                break
             if c.volume < 0:
                 issues.append("Negative volume in candle series.")
                 status = DataQualityStatus.INVALID
@@ -182,6 +195,48 @@ class MarketDataService:
                 f"Requested {requested} candles, received {len(candles)}."
             )
             if status == DataQualityStatus.OK:
+                status = DataQualityStatus.PARTIAL
+
+        # Future-dated / drifting last bar (spec section 3 -- timestamp drift).
+        # A last bar far ahead of wall-clock is a feed defect, never a fresh one;
+        # it must not be read as "new data". Freshness below also guards staleness.
+        if status not in (DataQualityStatus.INVALID, DataQualityStatus.MISSING):
+            drift = self._future_drift_seconds(data.timeframe, timestamps[-1])
+            if drift is not None and drift > 0:
+                issues.append(
+                    f"Last bar is {drift:.0f}s in the future "
+                    f"(beyond the timeframe's tolerance)."
+                )
+                status = DataQualityStatus.INVALID
+
+        # Internal gaps: a bar missing mid-series is a partial feed defect, not a
+        # silent hole. For sub-daily data we expect the next bar to be within two
+        # timeframe steps; for daily/weekly/monthly data, session closures,
+        # weekends and holidays make calendar gaps legitimate, so do not flag
+        # them without an exchange-session calendar to compare against.
+        if (
+            status not in (DataQualityStatus.INVALID, DataQualityStatus.MISSING)
+            and data.timeframe in (Timeframe.M1, Timeframe.M5, Timeframe.M15, Timeframe.M30, Timeframe.H1, Timeframe.H4)
+        ):
+            gap = self._largest_gap_multiple(data.timeframe, timestamps)
+            if gap is not None and gap >= 2.0:
+                issues.append(
+                    f"Series has a gap: two adjacent bars are ~{gap:.1f}x the "
+                    f"expected {data.timeframe.value} spacing apart."
+                )
+                if status is DataQualityStatus.OK:
+                    status = DataQualityStatus.PARTIAL
+
+        # Abnormal price/volume magnitudes: a single bar orders of magnitude off
+        # its neighbours is almost always a feed glitch (a bad print or a unit
+        # error), not a real move. We compare each bar to the median of the
+        # series -- never to a fabricated "expected" price -- and only flag a
+        # value that is implausible relative to the instrument's own range, so a
+        # genuine crash or a low-priced instrument is not mislabelled.
+        if status is DataQualityStatus.OK:
+            outlier = self._abnormal_magnitude(candles)
+            if outlier is not None:
+                issues.append(outlier)
                 status = DataQualityStatus.PARTIAL
 
         # Freshness.
@@ -203,6 +258,88 @@ class MarketDataService:
         if last_ts.tzinfo is None:
             last_ts = last_ts.replace(tzinfo=UTC)
         return max(0.0, (datetime.now(UTC) - last_ts).total_seconds())
+
+    @staticmethod
+    def _future_drift_seconds(tf: Timeframe, last_ts: datetime) -> float | None:
+        """
+        How far *ahead of now* the last bar sits, as a positive number of seconds
+        beyond the timeframe's own tolerance. None when the last bar is not ahead.
+        A small lead is legitimate (a bar that *just* opened), so the tolerance is
+        one timeframe step -- only a larger jump is a feed/timestamp defect.
+        """
+        if last_ts.tzinfo is None:
+            last_ts = last_ts.replace(tzinfo=UTC)
+        ahead = (last_ts - datetime.now(UTC)).total_seconds()
+        return ahead - tf.seconds if ahead > 0 else None
+
+    @staticmethod
+    def _largest_gap_multiple(tf: Timeframe, timestamps: list[datetime]) -> float | None:
+        """
+        The largest ratio between an adjacent-bar gap and the median gap.
+
+        Sub-daily series can legitimately skip a bar (a halt); a daily+ series
+        has weekend/holiday spacing *baked into* the median, so a true mid-series
+        hole shows as an unusually large gap relative to the series' own rhythm
+        -- never to a fixed calendar assumption. None when fewer than 2 bars.
+        """
+        if len(timestamps) < 2:
+            return None
+        deltas = [
+            (b - a).total_seconds()
+            for a, b in zip(timestamps, timestamps[1:])
+        ]
+        deltas = [d for d in deltas if d > 0]
+        if not deltas:
+            return None
+        median = sorted(deltas)[len(deltas) // 2]
+        if median <= 0:
+            return None
+        return max(deltas) / median
+
+    @staticmethod
+    def _abnormal_magnitude(candles) -> str | None:
+        """
+        Flag a single bar whose close or volume is implausible vs the series
+        median -- a classic feed glitch (a bad print, a units error, a decimal
+        shift). The bar must be many orders of magnitude off *and* the rest of
+        the series must be internally consistent, so a real crash or a
+        low-priced instrument is not mislabelled. Returns a human-readable
+        issue string, or None when nothing is out of line.
+        """
+        if len(candles) < 4:
+            return None
+        closes = sorted(c.close for c in candles)
+        volumes = sorted(c.volume for c in candles)
+        mid = len(candles) // 2
+        med_close = closes[mid] or 0.0
+        med_volume = volumes[mid] or 0.0
+
+        # A non-positive close can never be a real traded price; it is always a
+        # defect worth flagging (a valid OHLC would have been caught already).
+        if any(c.close <= 0 for c in candles):
+            return "A candle has a non-positive close; price data is corrupt."
+
+        # Volume of exactly zero across an entire equity feed is suspicious but
+        # common for thin/illiquid data, so only flag when it's the *outlier*:
+        # a lone non-zero bar inside an otherwise zero series (or vice-versa)
+        # is a broken print, not a real market.
+        if med_close > 0:
+            for c in candles:
+                ratio = c.close / med_close if med_close else 0.0
+                if ratio >= 1e3 or (0 < ratio <= 1e-3):
+                    return (
+                        f"A bar close ({c.close:g}) is ~{max(ratio, 1 / ratio):.0f}x "
+                        "the series median; a probable bad print."
+                    )
+        if med_volume > 0:
+            for c in candles:
+                ratio = c.volume / med_volume if med_volume else 0.0
+                if ratio >= 1e4:
+                    return (
+                        f"A bar volume ({c.volume:g}) is ~{ratio:.0f}x the series "
+                        "median; a probable bad print."
+                    )
+        return None
 
     @staticmethod
     def _with_quality(
@@ -260,6 +397,51 @@ class MarketDataService:
                 "limit must be a positive integer.", context={"limit": limit}
             )
         return min(limit, self._settings.TRADING_MAX_CANDLES)
+
+    async def _emit_quality_transition(self, data: MarketData) -> None:
+        """
+        Announce a worsening of the data-quality band for this instrument+tf.
+
+        The last-seen status is kept per key so a *transition* (e.g. OK ->
+        PARTIAL, or anything -> INVALID) is published once rather than on every
+        refresh. The first observation is recorded silently -- a service that
+        has never seen a feed cannot assert a *change*, so an initial OK or an
+        initial PARTIAL emits nothing (spec section 3/17: emit on a real
+        worsening transition, never a fabricated baseline).
+        """
+        key = f"{data.instrument.key}:{data.timeframe.value}"
+        prev = self._last_quality.get(key)
+        self._last_quality[key] = data.quality.status
+        if self._event_bus is None or prev is None or prev == data.quality.status:
+            return
+        if not self._degraded(prev, data.quality.status):
+            return
+        try:
+            await self._event_bus.publish(
+                DataQualityDegraded(
+                    instrument_key=data.instrument.key,
+                    timeframe=data.timeframe.value,
+                    previous_status=prev.value,
+                    status=data.quality.status.value,
+                    issues=data.quality.issues,
+                    is_mock=data.provenance.is_mock,
+                    source_tier=data.provenance.tier.value,
+                )
+            )
+        except Exception:
+            logger.exception("Failed to publish DataQualityDegraded")
+
+    @staticmethod
+    def _degraded(before: DataQualityStatus, after: DataQualityStatus) -> bool:
+        """Whether the band worsened (a stricter ordering than "changed")."""
+        order = {
+            DataQualityStatus.OK: 0,
+            DataQualityStatus.PARTIAL: 1,
+            DataQualityStatus.STALE: 2,
+            DataQualityStatus.MISSING: 3,
+            DataQualityStatus.INVALID: 4,
+        }
+        return order[after] > order[before]
 
     async def _emit_updated(self, data: MarketData) -> None:
         if self._event_bus is None:

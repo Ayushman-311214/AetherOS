@@ -863,6 +863,248 @@ class MarketRegimeChanged(Event):
 
 
 @dataclass(frozen=True, slots=True)
+class VolatilityChanged(Event):
+    """
+    The *realised* volatility character of an instrument changed bands.
+
+    Distinct from ``MarketRegimeChanged`` (which is the broader character of the
+    market: trend+volatility+the 6-state tracker). ``VolatilityChanged`` is the
+    narrower, more actionable signal the spec's event vocabulary reserves (spec
+    section 17): realised volatility crossing a band boundary -- calm -> normal
+    -> elevated -- so a subscriber can re-check sizing/exposure without
+    re-reading the regime. It is emitted only on a *genuine* band transition,
+    never on a within-band wobble, and only when the producer holds a prior
+    volatility read to diff against (the stateless detector alone cannot assert
+    a change). ``previous_band`` is the settled prior band; ``band`` is the new
+    one. ``is_reliable`` follows the read's own gate so a mock or thin read
+    never announces a real shift (CLAUDE.md sections 5, 28).
+    """
+
+    instrument_key: str = ""
+    timeframe: str = ""
+    previous_band: str = ""
+    band: str = ""
+    atr_pct: float | None = None  # realised volatility as a fraction of price
+    is_reliable: bool = False
+    source_tier: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "instrument_key": self.instrument_key,
+            "timeframe": self.timeframe,
+            "previous_band": self.previous_band,
+            "band": self.band,
+            "atr_pct": self.atr_pct,
+            "is_reliable": self.is_reliable,
+            "source_tier": self.source_tier,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class LiquidityChanged(Event):
+    """
+    The resting-liquidity picture for an instrument changed materially.
+
+    The liquidity tracker already publishes the *granular* zone lifecycle events
+    (``LiquidityZoneCreated`` / ``LiquiditySwept`` / ``LiquidityAbsorbed`` / ...).
+    This is the section-17 roll-up: the net resting-liquidity picture shifted --
+    e.g. resting supply grew/shrank past a threshold, or a tracked zone was
+    consumed/created so the available liquidity at price changed -- announced as
+    a single state change rather than as ten micro-events. ``previous_state`` /
+    ``state`` carry a compact descriptor ("deeper"/"thinner"/"swept"/"stable")
+    rather than the full zone model so a subscriber can react to the *change*,
+    not re-derive it. Only emitted on a real state transition the tracker
+    measured, never on a flicker (CLAUDE.md sections 5, 28).
+    """
+
+    instrument_key: str = ""
+    timeframe: str = ""
+    previous_state: str = ""
+    state: str = ""
+    detail: str = ""
+    is_reliable: bool = False
+    source_tier: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "instrument_key": self.instrument_key,
+            "timeframe": self.timeframe,
+            "previous_state": self.previous_state,
+            "state": self.state,
+            "detail": self.detail,
+            "is_reliable": self.is_reliable,
+            "source_tier": self.source_tier,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class SignalInvalidated(Event):
+    """
+    A previously-fired (or pending) signal / prediction was invalidated.
+
+    A signal's ``invalidation`` field names the condition under which its thesis
+    no longer holds (e.g. "close below the structural stop"). When the market
+    later shows that condition met -- the predicted entry was breached, the
+    predicted direction is now contradicted by realised price, or the data the
+    signal rested on went stale -- the signal is *invalidated*, not silently
+    left standing. This event is that announcement. ``signal_id`` /
+    ``prediction_id`` identify the cancelled call so a subscriber can reconcile
+    the audit trail; ``reason`` names the invalidation condition that fired
+    (spec sections 15, 17, 28). Never emitted for a signal that simply resolved
+    (that is ``PredictionResolved``) -- only for one whose *basis* broke before
+    horizon.
+    """
+
+    instrument_key: str = ""
+    timeframe: str = ""
+    signal_id: str = ""
+    prediction_id: str = ""
+    reason: str = ""
+    invalidation: str = ""
+    is_mock: bool = False
+    source_tier: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "instrument_key": self.instrument_key,
+            "timeframe": self.timeframe,
+            "signal_id": self.signal_id,
+            "prediction_id": self.prediction_id,
+            "reason": self.reason,
+            "invalidation": self.invalidation,
+            "is_mock": self.is_mock,
+            "source_tier": self.source_tier,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class DataQualityDegraded(Event):
+    """
+    The market-data quality for an instrument degraded below usable.
+
+    ``MarketDataService`` already downgrades a series to STALE / PARTIAL /
+    MISSING / INVALID and carries it in ``DataQuality``. This event announces
+    the *transition into a worse quality band* -- e.g. a previously-OK feed
+    returning PARTIAL or STALE data, or a feed that degraded to INVALID -- so
+    a downstream consumer (signal gating, execution admission, monitoring) can
+    *react* to the degradation instead of only seeing it embedded in the next
+    read. ``previous_status`` / ``status`` carry the band names; ``issues`` is
+    the human-readable reason. Only emitted on a genuine worsening transition,
+    never on a transient blip or a fetch that was already bad (spec section 3 /
+    17's "BAD_DATA must be able to block signals").
+    """
+
+    instrument_key: str = ""
+    timeframe: str = ""
+    previous_status: str = ""
+    status: str = ""
+    issues: tuple[str, ...] = ()
+    is_mock: bool = False
+    source_tier: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "instrument_key": self.instrument_key,
+            "timeframe": self.timeframe,
+            "previous_status": self.previous_status,
+            "status": self.status,
+            "issues": list(self.issues),
+            "is_mock": self.is_mock,
+            "source_tier": self.source_tier,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class NewsImpactDetected(Event):
+    """
+    A high-impact news item or scheduled event was detected for an instrument.
+
+    ``NewsSentimentAnalyzed`` reports the aggregate sentiment read;
+    ``MarketEventsDetected`` reports the calendar lookup. This event is the
+    narrower *actionable* announcement the spec's vocabulary reserves (section
+    17): a single high-impact item (an ``EventImpact.HIGH`` calendar event, or a
+    headline whose scoring produced a strong catalyst) that a desk would page
+    on, surfaced as one event rather than buried in a batch. ``kind`` names the
+    class ("economic_release", "earnings", "dividend", "headline"); ``title``
+    is the item; ``direction`` is the directional lean of the news (never a
+    probability). Only emitted for a genuinely high-impact item on a
+    non-mock read (CLAUDE.md sections 5, 28).
+    """
+
+    instrument_key: str = ""
+    kind: str = ""
+    title: str = ""
+    scheduled_at: str = ""
+    direction: str = ""
+    is_reliable: bool = False
+    source_tier: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "instrument_key": self.instrument_key,
+            "kind": self.kind,
+            "title": self.title,
+            "scheduled_at": self.scheduled_at,
+            "direction": self.direction,
+            "is_reliable": self.is_reliable,
+            "source_tier": self.source_tier,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class RiskStateChanged(Event):
+    """
+    The account-level risk state crossed a threshold (the section-17 event).
+
+    ``RiskAssessed`` reports a *per-trade* risk plan; ``RiskLimitReached``
+    reports a limit breach. ``RiskStateChanged`` is the state-transition
+    announcement: the account's aggregate risk posture moved into a new band --
+    e.g. daily realised loss approaching / breaching the configured limit, or
+    open exposure crossing the cap -- so a subscriber can stop new entries
+    *before* a hard breach, not only after. ``kind`` names which state
+    ("daily_loss", "max_exposure"); ``previous_state`` / ``state`` carry
+    "within" / "approaching" / "breached"; ``utilisation`` is the fraction of
+    the configured limit consumed. Only emitted on a genuine band transition,
+    fail-closed (an unknown input reads as a state change, not silence).
+    """
+
+    kind: str = ""
+    previous_state: str = ""
+    state: str = ""
+    utilisation: float | None = None
+    detail: str = ""
+    is_mock: bool = False
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "kind": self.kind,
+            "previous_state": self.previous_state,
+            "state": self.state,
+            "utilisation": self.utilisation,
+            "detail": self.detail,
+            "is_mock": self.is_mock,
+        }
+
+
+@dataclass(frozen=True, slots=True)
 class FeatureUpdated(Event):
     """
     A feature vector for the quant layer was recomputed for an instrument.
@@ -1039,3 +1281,132 @@ LIQUIDITY_EVENT_TYPES: dict[str, type[LiquidityEvent]] = {
         LiquidityZoneInvalidated,
     )
 }
+
+
+# ----------------------------------------------------------------------
+# Phase 2 -- production lifecycle events
+# ----------------------------------------------------------------------
+
+
+@dataclass(frozen=True, slots=True)
+class SignalStateChanged(Event):
+    """A signal advanced one legal step in its lifecycle (spec Phase 2)."""
+
+    signal_id: str = ""
+    instrument_key: str = ""
+    from_state: str = ""
+    to_state: str = ""
+    reason: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "signal_id": self.signal_id,
+            "instrument_key": self.instrument_key,
+            "from_state": self.from_state,
+            "to_state": self.to_state,
+            "reason": self.reason,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class PositionOpened(Event):
+    """A fill opened a new position in the tracked book (spec Phase 2)."""
+
+    position_id: str = ""
+    instrument_key: str = ""
+    direction: str = ""
+    quantity: float = 0.0
+    entry_price: float = 0.0
+    provider: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "position_id": self.position_id,
+            "instrument_key": self.instrument_key,
+            "direction": self.direction,
+            "quantity": self.quantity,
+            "entry_price": self.entry_price,
+            "provider": self.provider,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class KillSwitchTripped(Event):
+    """A scoped kill switch halted order admission (spec Phase 2)."""
+
+    scope: str = ""
+    target: str = ""
+    reason: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "scope": self.scope,
+            "target": self.target,
+            "reason": self.reason,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class KillSwitchCleared(Event):
+    """A tripped kill switch was explicitly cleared for recovery (spec Phase 2)."""
+
+    scope: str = ""
+    target: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "scope": self.scope,
+            "target": self.target,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class ReconciliationMismatchDetected(Event):
+    """Local and venue state diverged on one leg of the book (spec Phase 2)."""
+
+    kind: str = ""
+    detail: str = ""
+    order_id: str = ""
+    position_id: str = ""
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "kind": self.kind,
+            "detail": self.detail,
+            "order_id": self.order_id,
+            "position_id": self.position_id,
+        }
+
+
+@dataclass(frozen=True, slots=True)
+class TradingHealthChanged(Event):
+    """The aggregate trading-health status moved to a new band (spec Phase 2)."""
+
+    previous_state: str = ""
+    state: str = ""
+    reasons: tuple[str, ...] = ()
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "event_id": self.event_id,
+            "timestamp": self.timestamp.isoformat(),
+            "name": self.name,
+            "previous_state": self.previous_state,
+            "state": self.state,
+            "reasons": list(self.reasons),
+        }

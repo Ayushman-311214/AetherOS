@@ -121,7 +121,7 @@
 
 from loguru import logger
 
-from .handlers import configure_handlers
+from .handlers import configure_handlers, current_run_dir, set_console, trace_dir
 
 _CONFIGURED = False
 
@@ -138,18 +138,25 @@ def setup_logging(
     delegates here so that only one set of loguru sinks is ever installed;
     two independent configurations would each call ``logger.remove()`` and
     silently discard the other's handlers.
+
+    Returns the process's run directory (the ``logs/run_.../`` folder every
+    sink and trace writes into). The same directory is returned on every
+    call -- a second call reuses the run, it never mints a new folder.
     """
 
     global _CONFIGURED
 
     if _CONFIGURED and not force:
-        return logger
+        # Already configured: a console request just toggles that one sink;
+        # the run directory is returned unchanged.
+        set_console(console)
+        return current_run_dir() or logger
 
     run_dir = configure_handlers(console=console)
 
     _CONFIGURED = True
 
-    return logger
+    return run_dir
 
 
 def get_logger(module: str):
@@ -168,18 +175,16 @@ def get_logger(module: str):
 
 def enable_console_logging() -> None:
     """
-    Re-configure logging with a stderr console sink attached.
+    Attach the stderr console sink, without rebuilding the run or its sinks.
     """
-
-    setup_logging(console=True, force=False)
+    set_console(True)
 
 
 def disable_console_logging() -> None:
     """
-    Re-configure logging with file sinks only.
+    Detach the stderr console sink, leaving the run's file sinks untouched.
     """
-
-    setup_logging(console=False, force=True)
+    set_console(False)
 
 
 __all__ = [
@@ -187,4 +192,6 @@ __all__ = [
     "setup_logging",
     "enable_console_logging",
     "disable_console_logging",
+    "current_run_dir",
+    "trace_dir",
 ]

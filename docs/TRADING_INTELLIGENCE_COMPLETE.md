@@ -147,6 +147,33 @@ A provider that cannot serve books or trades **degrades honestly** — the servi
 returns a typed refusal or "no flow", it never fabricates a wall. Stale,
 incomplete or invalid data is surfaced through `DataQuality`, never silently used.
 
+### 3.1 Data-quality checks
+
+`MarketDataService._assess_quality` re-derives `DataQuality` from the candles
+themselves (independent of the provider's own optimism). The checks run in
+order and each appends a human-readable issue that reaches the report as a
+limitation — BAD_DATA can always block the pipeline to NO_TRADE:
+
+- **missing** — an empty series → `MISSING`.
+- **structural** — a non-finite OHLCV value, `high` below any price, `low` above
+  any price, or a negative volume → `INVALID`.
+- **ordering** — timestamps not strictly increasing (out-of-order or duplicate
+  bars) → `INVALID`.
+- **future-dated / timestamp drift** — the last bar sits ahead of wall-clock by
+  more than one timeframe step → `INVALID`.
+- **internal gaps** — a mid-series hole where an adjacent-bar gap is ≥ ~2× the
+  series' own median spacing → `PARTIAL`.
+- **abnormal magnitude** — a close or volume orders-of-magnitude off the series
+  median (a bad print / unit error) → `PARTIAL`.
+- **partial** — fewer candles than requested → `PARTIAL`.
+- **stale** — the last bar is older than `timeframe ×
+  TRADING_STALE_MULTIPLIER` → `STALE`.
+
+`MarketData` carries the resulting `status` + `issues`; `Evidence.is_reliable`
+and every downstream layer only weights data whose `usable` flag holds
+(anything but `MISSING`/`INVALID`). A worsening of the band between successive
+fetches is announced as `DataQualityDegraded` (§6).
+
 ---
 
 ## 4. The pipeline, stage by stage
@@ -277,6 +304,58 @@ the durable store (`services/prediction_store.py`, JSONL at
   walk-forward validation.
 
 Deep-dive: `docs/trading-intelligence/backtest/`.
+
+### 4.10 Decision layer — `services/decision_service.py`
+
+`TradingDecision` is the structured, explainable product of the decision layer:
+market view, setup, direction, confidence, supporting and contradictory
+evidence, entry/stop/target/R:R/invalidation, reasoning, uncertainty and
+provenance. It assembles; it computes nothing — every number is lifted verbatim
+from the deterministic report, so a decision can never be more confident than
+the report it derives from. A honest no-decision is first-class: when the
+evidence does not resolve to a tradable side the record says so, never a
+fabricated side.
+
+`DecisionAction` is the four-valued user-facing outcome the spec's pipeline
+terminates in (spec section 13): **BUY / SELL / WAIT / NO_TRADE**. It is
+projected deterministically from the decision's `direction` +
+`recommendation`: a directional side the critic approved (and that is
+actionable) is BUY/SELL; a directional read the critic rejected is WAIT (a
+sound setup held back); a NO_TRADE recommendation or no directional side is
+NO_TRADE. `WAIT` is deliberately not folded into `NO_TRADE` — a judged-but-
+wanting case is different from "insufficient evidence". The action is a
+projection, never a probability and never an order.
+
+### 4.11 Decision snapshot — `domain/snapshot.py`
+
+`DecisionSnapshot` is the reproducible reconstruction of one decision: the
+content-addressed `decision_id`, the action/direction/recommendation verbatim,
+the evidence-ledger ids (`ev_...`), the critic verdict trail, a *data
+fingerprint* (a SHA-1 over instrument+timeframe+bar-timestamps+closes+volumes
+— never the raw series), and the `component_versions` manifest. Where
+`PredictionRecord` flattens a *report* into the §8 contract, a snapshot
+captures the *decision* (incl. the setup and hybrid visual note) plus the
+data/version provenance needed to reproduce *why it decided what it did*
+(spec sections 15/16). The same decision over the same data and the same
+versions rebuilds to the same `ds_...` id; a changed version, changed data or
+changed decision yields a different one.
+
+`DecisionService.decide_snapshot` produces a decision plus its snapshot. The
+snapshot fingerprint is taken from a fresh canonical `MarketData` read after the
+existing report/panel composition; it is explicitly a fingerprint of the
+supplied replay data, never a fabricated substitute for hidden internal inputs.
+`snapshot_for` assembles one from a finished decision — pure, no I/O.
+
+### 4.12 Component versions — `domain/versions.py`
+
+`ComponentVersions` is the single manifest of every component that can change
+a decision: pipeline, indicators, smc_ict rules, strategy rules, probability
+model, calibration, risk model, critic rules, risk policy, decision engine,
+data schema, config, provider. It is a *label* of the rule set, not a second
+configuration system (the numeric values stay in `Settings`). `default_versions`
+returns the build's current revisions; a rule/model/config change is a one-line
+edit to the manifest and every subsequent record inherits it — the spec's
+"versioned anything that changes decision behaviour".
 
 ---
 

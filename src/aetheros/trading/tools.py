@@ -58,6 +58,11 @@ from .services.news_service import NewsSentimentService
 from .services.orchestration_service import OrchestrationService
 from .services.outcome_store import OutcomeStore
 from .services.performance_service import PredictionPerformanceService
+from .production.health_service import TradingHealthService
+from .production.kill_switch_service import KillSwitchService
+from .production.lifecycle_service import SignalLifecycleService
+from .production.position_service import PositionBookService
+from .production.reconciliation_service import ReconciliationService
 from .services.portfolio_service import PortfolioRiskService
 from .services.prediction_store import PredictionStore
 from .services.probability_service import ProbabilityService
@@ -182,6 +187,26 @@ def _journal_store() -> JournalStore:
 
 def _journal_analytics() -> JournalAnalyticsService:
     return container.resolve(JournalAnalyticsService)
+
+
+def _positions() -> PositionBookService:
+    return container.resolve(PositionBookService)
+
+
+def _reconciliation() -> ReconciliationService:
+    return container.resolve(ReconciliationService)
+
+
+def _kill_switches() -> KillSwitchService:
+    return container.resolve(KillSwitchService)
+
+
+def _health() -> TradingHealthService:
+    return container.resolve(TradingHealthService)
+
+
+def _lifecycle() -> SignalLifecycleService:
+    return container.resolve(SignalLifecycleService)
 
 
 def _alerts() -> AlertService:
@@ -2152,3 +2177,128 @@ async def watch_price(
     result["alert"] = alert.to_dict()
     result["deliveries"] = [d.to_dict() for d in deliveries]
     return result
+
+
+# ----------------------------------------------------------------------
+# Phase 2 -- production lifecycle tools
+# ----------------------------------------------------------------------
+
+
+@tool(
+    category="trading.production",
+    description=(
+        "List every position currently open in the tracked book. Returns the "
+        "positions the paper venue's fills opened -- the live account side of "
+        "the execution path -- with each position's instrument, side, size, "
+        "entry and stop/target. An empty list is the honest answer when the "
+        "book is flat; it is never a fabricated position."
+    ),
+)
+async def open_positions() -> dict[str, Any]:
+    positions = _positions().open_positions()
+    return {
+        "count": len(positions),
+        "exposure_notional": _positions().open_exposure(),
+        "positions": [p.to_dict() for p in positions],
+    }
+
+
+@tool(
+    category="trading.production",
+    description=(
+        "The live account snapshot the risk gate judges: equity, today's "
+        "realised PnL and gross open exposure, built from the tracked position "
+        "book rather than a fabricated number. This is the input the "
+        "account-level risk limits consume before a new order is admitted."
+    ),
+)
+async def account_snapshot() -> dict[str, Any]:
+    snap = _positions().snapshot()
+    return snap.to_dict()
+
+
+@tool(
+    category="trading.production",
+    description=(
+        "Reconcile local order/position state against the venue's own records. "
+        "Diffs the orders the venue reports against the position book and "
+        "flags every missing, unexpected, quantity-mismatched or "
+        "status-mismatched leg. A clean report means the two ledgers agree; "
+        "any mismatch is listed with its kind and the values that diverged. "
+        "Never fabricates agreement -- a leg it cannot account for is a "
+        "mismatch, not a pass."
+    ),
+)
+async def reconcile_broker() -> dict[str, Any]:
+    report = await _reconciliation().reconcile()
+    return report.to_dict()
+
+
+@tool(
+    category="trading.production",
+    description=(
+        "The aggregate trading-health verdict: SAFE, DEGRADED or BLOCKED, "
+        "folded from data quality, kill switches, positions, broker "
+        "reachability and reconciliation drift. The band is the worst signal "
+        "present -- a tripped kill switch or unusable data forces BLOCKED, a "
+        "degraded feed or a reconciliation mismatch forces DEGRADED. Each "
+        "input's contribution is listed so the verdict is auditable."
+    ),
+)
+async def trading_health() -> dict[str, Any]:
+    health = await _health().status()
+    return health.to_dict()
+
+
+@tool(
+    category="trading.production",
+    description=(
+        "Trip a scoped kill switch that halts new order admission. 'scope' is "
+        "one of global / strategy / broker / symbol; 'target' names the "
+        "strategy id, broker name or instrument key (empty for global). A "
+        "tripped switch blocks every order it covers until explicitly cleared; "
+        "it does not close positions or fabricate a recovery."
+    ),
+)
+async def trip_kill_switch(
+    scope: str, target: str = "", reason: str = "manual halt"
+) -> dict[str, Any]:
+    from .domain.kill_switch import KillScope, KillSwitch
+
+    switch = _kill_switches().trip(
+        KillSwitch(scope=KillScope(scope), target=target, reason=reason)
+    )
+    return {"tripped": True, "switch": switch.to_dict()}
+
+
+@tool(
+    category="trading.production",
+    description=(
+        "Explicitly clear a tripped kill switch to resume order admission. "
+        "'scope'/'target' name the switch exactly as tripped. Returns whether "
+        "one was actually armed and cleared -- clearing a switch that does not "
+        "exist returns cleared=False rather than fabricating a recovery."
+    ),
+)
+async def clear_kill_switch(scope: str, target: str = "") -> dict[str, Any]:
+    from .domain.kill_switch import KillScope
+
+    cleared = _kill_switches().clear(KillScope(scope), target)
+    return {"cleared": cleared, "scope": scope, "target": target}
+
+
+@tool(
+    category="trading.production",
+    description=(
+        "The audited lifecycle of one signal: its current state and every "
+        "validated transition that took it there (CREATED, VALIDATING, "
+        "APPROVED/INVALIDATED, EXECUTED/PARTIALLY_FILLED/CLOSED, EVALUATED). "
+        "Returns the full transition trail; an untracked signal returns a "
+        "null state rather than an invented one."
+    ),
+)
+async def signal_lifecycle(signal_id: str) -> dict[str, Any]:
+    record = _lifecycle().get(signal_id)
+    if record is None:
+        return {"signal_id": signal_id, "state": None, "transitions": []}
+    return record.to_dict()

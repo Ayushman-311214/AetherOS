@@ -40,6 +40,9 @@ class EvidenceReason:
     direction: Direction
     weight: float
     is_reliable: bool
+    # The content-addressed id of the underlying Evidence item (``ev_...``), so a
+    # reason can be traced back to the exact claim it condenses (spec section 15).
+    reason_id: str = ""
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -48,6 +51,7 @@ class EvidenceReason:
             "direction": self.direction.value,
             "weight": self.weight,
             "is_reliable": self.is_reliable,
+            "reason_id": self.reason_id,
         }
 
 

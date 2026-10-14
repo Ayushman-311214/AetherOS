@@ -22,6 +22,7 @@ from .enums import (
     Assertion,
     Confidence,
     DataQualityStatus,
+    DecisionAction,
     Direction,
     EvidenceType,
     ICTConcept,
@@ -65,14 +66,23 @@ from .ict import (
 )
 from .instrument import Instrument
 from .journal import JournalEntry
+from .kill_switch import KillScope, KillSwitch
+from .lifecycle import LifecycleTransition, SignalLifecycle, SignalState
 from .liquidity import LiquidityAnalysis
 from .market_data import Candle, MarketData, Quote
 from .order_book import OrderBook, OrderBookLevel, TradeTick
 from .policy import PolicyCheck, PolicyVerdict
+from .health import HealthBand, HealthSignal, TradingHealth
+from .reconciliation import (
+    MismatchKind,
+    ReconciliationMismatch,
+    ReconciliationReport,
+)
 from .provenance import DataQuality, Provenance
 from .risk_limits import AccountSnapshot, RiskLimitOutcome, RiskLimitsVerdict
 from .signal import SignalCandidate, SignalEvaluation
 from .simulation import SimulatedTrade, SimulationExitReason, SimulationReport
+from .snapshot import DecisionSnapshot
 from .smc import (
     DealingRange,
     LiquidityEvent,
@@ -98,6 +108,7 @@ from .technical import (
 )
 from .trade import Order, Portfolio, Position, RiskProfile, Strategy, TradeSignal
 from .tradingview import TradingViewChartState, chart_url
+from .versions import ComponentVersions, default_versions
 from .visual import VisualObservation
 
 __all__ = [
@@ -106,6 +117,7 @@ __all__ = [
     "Assertion",
     "Confidence",
     "DataQualityStatus",
+    "DecisionAction",
     "Direction",
     "EvidenceType",
     "ICTConcept",
@@ -142,6 +154,18 @@ __all__ = [
     "TradeTick",
     # journal
     "JournalEntry",
+    # Phase 2 -- production lifecycle domain objects
+    "KillScope",
+    "KillSwitch",
+    "LifecycleTransition",
+    "SignalLifecycle",
+    "SignalState",
+    "HealthBand",
+    "HealthSignal",
+    "TradingHealth",
+    "MismatchKind",
+    "ReconciliationMismatch",
+    "ReconciliationReport",
     # technical
     "BollingerReading",
     "SuperTrendReading",
@@ -194,6 +218,7 @@ __all__ = [
     "SimulatedTrade",
     "SimulationExitReason",
     "SimulationReport",
+    "DecisionSnapshot",
     # account-level risk limits and execution record
     "AccountSnapshot",
     "RiskLimitOutcome",
@@ -215,6 +240,9 @@ __all__ = [
     # tradingview chart state
     "TradingViewChartState",
     "chart_url",
+    # component versioning
+    "ComponentVersions",
+    "default_versions",
     # charts
     "ChartAnnotation",
     "ChartAnnotationKind",

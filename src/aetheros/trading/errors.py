@@ -170,3 +170,21 @@ class LiquidityError(TradingError):
     """A liquidity-observation, zone or microstructure operation failed."""
 
     default_code = "TRADING_LQ_001"
+
+
+class LifecycleError(TradingError):
+    """A signal lifecycle was asked to make an illegal state transition."""
+
+    default_code = "TRADING_LC_001"
+
+
+class KillSwitchError(TradingError):
+    """A kill-switch scope or recovery operation was invalid."""
+
+    default_code = "TRADING_KS_001"
+
+
+class ReconciliationError(TradingError):
+    """Local and venue state could not be reconciled honestly."""
+
+    default_code = "TRADING_RC_001"

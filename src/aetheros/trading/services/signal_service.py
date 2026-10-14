@@ -37,6 +37,7 @@ from ...core.logging import get_logger
 from ...runtime.events.event_bus import EventBus
 from ..domain.analysis import TradingAnalysis
 from ..domain.market_data import MarketData
+from ..domain.lifecycle import SignalState
 from ..domain.signal import SignalCandidate, SignalEvaluation
 from ..domain.strategy import StrategySetup
 from ..domain.trade import TradeSignal
@@ -44,6 +45,7 @@ from ..errors import SignalError
 from ..events import SignalGenerated
 from ..signals.gates import evaluate_candidate
 from .critic_service import CriticService
+from ..production.lifecycle_service import SignalLifecycleService
 from .market_data_service import MarketDataService
 from .risk_service import RiskService
 from .strategy_service import StrategyService
@@ -63,6 +65,7 @@ class SignalService:
         settings: Settings,
         *,
         event_bus: EventBus | None = None,
+        lifecycle: SignalLifecycleService | None = None,
     ) -> None:
         self._strategy = strategy
         self._risk = risk
@@ -70,6 +73,10 @@ class SignalService:
         self._market_data = market_data
         self._settings = settings
         self._event_bus = event_bus
+        # Optional lifecycle tracker: when wired, each candidate advances a
+        # signal's state so the CREATED → VALIDATING → APPROVED/INVALIDATED
+        # trail is a first-class, audited record rather than an implicit one.
+        self._lifecycle = lifecycle
 
     # ------------------------------------------------------------------
     # Panel run
@@ -152,6 +159,7 @@ class SignalService:
                 risk_pct=risk_pct,
             )
             candidates.append(candidate)
+            self._track_lifecycle(candidate)
             if candidate.signal is not None:
                 fired_signals.append(candidate.signal)
 
@@ -234,6 +242,52 @@ class SignalService:
         if signal is not None:
             await self._emit(signal)
         return candidate
+
+    def _track_lifecycle(self, candidate: SignalCandidate) -> None:
+        """
+        Advance the candidate's lifecycle through the gates it just passed.
+
+        Every candidate is CREATED and moved to VALIDATING the moment it is
+        judged; a fired signal then advances to APPROVED (it cleared every
+        gate), while a candidate the gates stopped is INVALIDATED with the
+        gate's own reason. Best-effort: a lifecycle edge case logs, never
+        breaks the panel run.
+        """
+        if self._lifecycle is None:
+            return
+        instrument_key = candidate.instrument.key
+        # The signal_id is the stable identity the whole lifecycle shares. A
+        # fired candidate uses its TradeSignal's id; a non-fired candidate's
+        # content-addressed candidate_id stands in so the trail still tracks.
+        signal_id = (
+            candidate.signal.signal_id
+            if candidate.signal is not None
+            else candidate.candidate_id
+        )
+        self._lifecycle.open(
+            signal_id, instrument_key=instrument_key, reason="signal generated"
+        )
+        self._lifecycle.try_advance(
+            signal_id,
+            SignalState.VALIDATING,
+            reason="candidate judged through the gate sequence",
+            instrument_key=instrument_key,
+        )
+        if candidate.signal is not None:
+            self._lifecycle.try_advance(
+                signal_id,
+                SignalState.APPROVED,
+                reason="passed every signal gate",
+                instrument_key=instrument_key,
+            )
+        else:
+            self._lifecycle.try_advance(
+                signal_id,
+                SignalState.INVALIDATED,
+                reason="; ".join(candidate.rejections)
+                or "the gate sequence declined the proposal",
+                instrument_key=instrument_key,
+            )
 
     async def _emit(self, signal) -> None:
         if self._event_bus is None:

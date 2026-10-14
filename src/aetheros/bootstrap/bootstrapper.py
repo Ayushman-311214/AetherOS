@@ -324,9 +324,13 @@ class Bootstrapper:
 
         # Persistence is opt-out via TRACE_PERSIST. The writer opens its per-run
         # JSONL lazily on the first kept event, so an idle run leaves no file.
+        # The trace dir is inside the active run folder (logs/run_x/traces), so a
+        # run's traces live beside its logs rather than in a top-level folder.
+        from ..core.logging.logger import trace_dir
+
         writer = None
         if settings.TRACE_PERSIST:
-            writer = TraceFileWriter(settings.LOG_DIR / "traces")
+            writer = TraceFileWriter(trace_dir())
 
         recorder = TraceRecorder(
             event_bus=self._event_bus,
@@ -1524,6 +1528,7 @@ class Bootstrapper:
                 self._container.resolve(MarketDataService),
                 get_settings(),
                 event_bus=self._container.resolve(EventBus),
+                lifecycle=self._container.resolve(SignalLifecycleService),
             ),
         )
 
@@ -1547,13 +1552,85 @@ class Bootstrapper:
         # configured provider against virtual money -- the spec's definition of
         # paper trading. It re-validates the §9 execution record at the venue
         # boundary, so an under-specified or incoherent order cannot be filled
-        # even if it somehow bypassed the engine.
+        # even if it somehow bypassed the engine. When the position book is
+        # wired (below), each fill is also reported into the tracked account.
         from ..trading.brokers.paper_provider import PaperTradingProvider
 
         self._container.register_singleton(
             PaperTradingProvider,
             lambda: PaperTradingProvider(
                 self._container.resolve(MarketDataService),
+                positions=self._container.resolve(PositionBookService),
+            ),
+        )
+
+        # Position book (spec Phase 2): the single source of truth for open
+        # positions, realised PnL and gross exposure. The paper venue reports
+        # every fill into it so AccountSnapshot, PositionClosed and the
+        # reconciliation input are all real state, not reconstructed guesses.
+        from ..trading.production.position_service import PositionBookService
+
+        self._container.register_singleton(
+            PositionBookService,
+            lambda: PositionBookService(
+                event_bus=self._container.resolve(EventBus)
+            ),
+        )
+
+        # Kill switches (spec Phase 2): scoped order-admission halts --
+        # global / strategy / broker / symbol. The engine consults this before
+        # any order reaches a venue; a trip blocks new orders and optionally
+        # cancels resting ones, preserving the book and requiring an explicit
+        # clear to recover.
+        from ..trading.production.kill_switch_service import KillSwitchService
+
+        self._container.register_singleton(
+            KillSwitchService,
+            lambda: KillSwitchService(
+                event_bus=self._container.resolve(EventBus)
+            ),
+        )
+
+        # Signal lifecycle (spec Phase 2): the validated CREATED → ... →
+        # EVALUATED state machine, tracked per signal so every transition is
+        # audited and illegal jumps are refused loudly. Shared across the
+        # signal engine, execution engine and prediction evaluator.
+        from ..trading.production.lifecycle_service import SignalLifecycleService
+
+        self._container.register_singleton(
+            SignalLifecycleService,
+            lambda: SignalLifecycleService(
+                event_bus=self._container.resolve(EventBus)
+            ),
+        )
+
+        # Reconciliation (spec Phase 2): diffs the venue's reported orders and
+        # positions against the local book, flagging missing/mismatched legs.
+        from ..trading.production.reconciliation_service import ReconciliationService
+
+        self._container.register_singleton(
+            ReconciliationService,
+            lambda: ReconciliationService(
+                self._container.resolve(PaperTradingProvider),
+                self._container.resolve(PositionBookService),
+                event_bus=self._container.resolve(EventBus),
+            ),
+        )
+
+        # Trading health (spec Phase 2): folds data quality, kill switches,
+        # positions, broker reachability and reconciliation drift into one
+        # SAFE / DEGRADED / BLOCKED verdict, announced on genuine transitions.
+        from ..trading.production.health_service import TradingHealthService
+
+        self._container.register_singleton(
+            TradingHealthService,
+            lambda: TradingHealthService(
+                self._container.resolve(MarketDataService),
+                self._container.resolve(PositionBookService),
+                self._container.resolve(KillSwitchService),
+                self._container.resolve(PaperTradingProvider),
+                reconciliation=self._container.resolve(ReconciliationService),
+                event_bus=self._container.resolve(EventBus),
             ),
         )
 
@@ -1585,6 +1662,8 @@ class Bootstrapper:
                 self._container.resolve(RiskLimitsService),
                 get_settings(),
                 policy=self._container.resolve(ExecutionPolicyService),
+                kill_switches=self._container.resolve(KillSwitchService),
+                lifecycle=self._container.resolve(SignalLifecycleService),
                 event_bus=self._container.resolve(EventBus),
             ),
         )
@@ -1732,6 +1811,7 @@ class Bootstrapper:
             lambda: PredictionEvaluator(
                 get_settings(),
                 market_data=self._container.resolve(MarketDataService),
+                lifecycle=self._container.resolve(SignalLifecycleService),
                 event_bus=self._container.resolve(EventBus),
             ),
         )
@@ -2004,6 +2084,11 @@ class Bootstrapper:
                 risk=self._container.resolve(RiskService),
                 strategy=self._container.resolve(StrategyService),
                 journal_store=self._container.resolve(JournalStore),
+                positions=self._container.resolve(PositionBookService),
+                reconciliation=self._container.resolve(ReconciliationService),
+                kill_switches=self._container.resolve(KillSwitchService),
+                health=self._container.resolve(TradingHealthService),
+                lifecycle=self._container.resolve(SignalLifecycleService),
             ),
         )
 

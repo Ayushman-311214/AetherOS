@@ -168,9 +168,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/bootstrap/bootstrapper.py": {
-    "mtime": 1791695393.7093604,
-    "seen": 1791706690.4578512,
-    "ast_hash": "05def140bcf03b660bc674e9655c7463",
+    "mtime": 1791946960.9829938,
+    "seen": 1791947904.5313666,
+    "ast_hash": "0493ccd1e41f3590d417c5bee6e04ce3",
     "semantic_hash": ""
   },
   "src/aetheros/bootstrap/lifecycle.py": {
@@ -258,9 +258,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/config/settings.py": {
-    "mtime": 1791708980.8334796,
-    "seen": 1791709748.1617334,
-    "ast_hash": "1487d2cb14815d99f1ac95f8bb76a846",
+    "mtime": 1791947200.3765533,
+    "seen": 1791947904.531414,
+    "ast_hash": "d00a31f68f83a9a21f77a3639acf6871",
     "semantic_hash": ""
   },
   "src/aetheros/core/application.py": {
@@ -1770,9 +1770,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/domain/__init__.py": {
-    "mtime": 1791710615.1563616,
-    "seen": 1791711425.3541842,
-    "ast_hash": "2d6767b23b03627f838ac32c1ca4960c",
+    "mtime": 1791947062.7995448,
+    "seen": 1791947904.5320673,
+    "ast_hash": "64c881697834ab4b0e1a979443798ba3",
     "semantic_hash": ""
   },
   "src/aetheros/trading/domain/analysis.py": {
@@ -1782,9 +1782,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/domain/enums.py": {
-    "mtime": 1791710149.8379965,
-    "seen": 1791711425.3542016,
-    "ast_hash": "3329803872b400b17d6e223e803ea17e",
+    "mtime": 1791879973.880263,
+    "seen": 1791881520.403597,
+    "ast_hash": "25acbf63263c889120a0ca98515f0205",
     "semantic_hash": ""
   },
   "src/aetheros/trading/domain/evidence.py": {
@@ -1824,15 +1824,15 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/errors.py": {
-    "mtime": 1791691320.4659672,
-    "seen": 1791692904.8394477,
-    "ast_hash": "97cd87602e2217ca8640b8b85066bf1e",
+    "mtime": 1791887353.3389835,
+    "seen": 1791947904.532261,
+    "ast_hash": "40cdc1e97b6df8f7518f9abcde47b27d",
     "semantic_hash": ""
   },
   "src/aetheros/trading/events.py": {
-    "mtime": 1791639907.5275204,
-    "seen": 1791642367.7206573,
-    "ast_hash": "48e1b600ede873f607e2eabb47a1cb8a",
+    "mtime": 1791887374.14395,
+    "seen": 1791947904.5322647,
+    "ast_hash": "938c91fec57b96a4da04aca3dafc5948",
     "semantic_hash": ""
   },
   "src/aetheros/trading/indicators/__init__.py": {
@@ -1884,9 +1884,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/services/market_data_service.py": {
-    "mtime": 1791710149.8465824,
-    "seen": 1791711425.3543496,
-    "ast_hash": "195cb6e36ff088ead444b79da24f0f56",
+    "mtime": 1791881980.9494889,
+    "seen": 1791882668.4952629,
+    "ast_hash": "c6ee2373f18c53e2250ad858673f87c4",
     "semantic_hash": ""
   },
   "src/aetheros/trading/services/market_structure_service.py": {
@@ -1902,9 +1902,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/tools.py": {
-    "mtime": 1791695866.7542262,
-    "seen": 1791706690.459132,
-    "ast_hash": "d13120dd50d6d1a216c7e36878171f9f",
+    "mtime": 1791947171.0909042,
+    "seen": 1791947904.53377,
+    "ast_hash": "66b1ab80c5e79297c62360d4f628a432",
     "semantic_hash": ""
   },
   "tests/trading/__init__.py": {
@@ -2154,9 +2154,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/services/calendar_service.py": {
-    "mtime": 1791710149.8475814,
-    "seen": 1791711425.3543296,
-    "ast_hash": "fa0edb420bd44fdac2150e8142437913",
+    "mtime": 1791880443.894578,
+    "seen": 1791881520.4037337,
+    "ast_hash": "8cb869b8447b5161684293213117518d",
     "semantic_hash": ""
   },
   "tests/trading/test_calendar.py": {
@@ -2250,9 +2250,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/services/prediction_evaluator.py": {
-    "mtime": 1791710149.8433683,
-    "seen": 1791711425.3543622,
-    "ast_hash": "5a38640c0435612a240c1b14c621a4f5",
+    "mtime": 1791947003.113829,
+    "seen": 1791947904.5335946,
+    "ast_hash": "bb4c09f8157e459bc05f54d11bcaca7f",
     "semantic_hash": ""
   },
   "tests/trading/test_prediction_evaluator.py": {
@@ -2472,15 +2472,15 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/domain/explanation.py": {
-    "mtime": 1791710149.8413424,
-    "seen": 1791711425.3542068,
-    "ast_hash": "8288aac4c2c5e900bfa6407ae5de8260",
+    "mtime": 1791880072.8008428,
+    "seen": 1791881520.403602,
+    "ast_hash": "ff91b735b41f3f2391fb80c111c1c08b",
     "semantic_hash": ""
   },
   "src/aetheros/trading/services/explanation_service.py": {
-    "mtime": 1790863664.6892722,
-    "seen": 1790864308.8582697,
-    "ast_hash": "e706277359adc5d0a0c7602f7160733b",
+    "mtime": 1791880085.8788123,
+    "seen": 1791881520.403748,
+    "ast_hash": "d7fa47f88a4250b88be9eb5f9cee96ce",
     "semantic_hash": ""
   },
   "tests/trading/test_explanation.py": {
@@ -3234,9 +3234,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/services/signal_service.py": {
-    "mtime": 1791351998.6014094,
-    "seen": 1791372799.9661224,
-    "ast_hash": "34a45a5866935492122e0fb010a7f4de",
+    "mtime": 1791947003.1128201,
+    "seen": 1791947904.5336254,
+    "ast_hash": "ad73c87e6dd1496f14638b6ee0226729",
     "semantic_hash": ""
   },
   "src/aetheros/trading/signals/__init__.py": {
@@ -3270,9 +3270,9 @@
     "semantic_hash": ""
   },
   "run-claude.sh": {
-    "mtime": 1791366974.237607,
-    "seen": 1791372799.965364,
-    "ast_hash": "314b52d86f90af1be01afc9dc9449d46",
+    "mtime": 1791813572.1638808,
+    "seen": 1791881520.403267,
+    "ast_hash": "07562541334a3a6c443623bcb923ffab",
     "semantic_hash": ""
   },
   "src/aetheros/memory/domain/content_policy.py": {
@@ -3318,9 +3318,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/brokers/paper_provider.py": {
-    "mtime": 1791452227.4315462,
-    "seen": 1791454309.5889397,
-    "ast_hash": "33ae3878587915f88ca4d49d91cc7659",
+    "mtime": 1791946960.9860907,
+    "seen": 1791947904.5320506,
+    "ast_hash": "7209e8771ae321fb82266fc160b90ad4",
     "semantic_hash": ""
   },
   "src/aetheros/trading/brokers/price_source.py": {
@@ -3342,9 +3342,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/domain/execution.py": {
-    "mtime": 1791547579.6956134,
-    "seen": 1791615716.643709,
-    "ast_hash": "7f01c028dd937167dab0d968463ed873",
+    "mtime": 1791887532.0343578,
+    "seen": 1791947904.5321267,
+    "ast_hash": "f3b882e7cf3b5103674292ef2ba84ebd",
     "semantic_hash": ""
   },
   "src/aetheros/trading/domain/risk_limits.py": {
@@ -3366,9 +3366,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/execution/engine.py": {
-    "mtime": 1791692571.3771794,
-    "seen": 1791692904.8394508,
-    "ast_hash": "831953f92a776a28888335496c7ed248",
+    "mtime": 1791947636.6544867,
+    "seen": 1791947904.5322704,
+    "ast_hash": "043a0c2d37c9a627ed8a70fb5d876ded",
     "semantic_hash": ""
   },
   "src/aetheros/trading/risk/__init__.py": {
@@ -3378,9 +3378,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/risk/limits_service.py": {
-    "mtime": 1791547579.6966348,
-    "seen": 1791615716.64389,
-    "ast_hash": "8c34801959f36f00f15ed35a72816aad",
+    "mtime": 1791880340.8476899,
+    "seen": 1791881520.4037251,
+    "ast_hash": "fdb4cf635b0ac3eca57a5a5cba5f4a9e",
     "semantic_hash": ""
   },
   "src/aetheros/trading/services/simulation_service.py": {
@@ -3966,15 +3966,15 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/domain/decision.py": {
-    "mtime": 1791636579.8803217,
-    "seen": 1791637297.5655324,
-    "ast_hash": "9bc790084a4bd963e3149847227b89c2",
+    "mtime": 1791880519.5446703,
+    "seen": 1791881520.403595,
+    "ast_hash": "be16da81182ed2b7bb757612015010a4",
     "semantic_hash": ""
   },
   "src/aetheros/trading/services/decision_service.py": {
-    "mtime": 1791636696.0667336,
-    "seen": 1791637297.5657847,
-    "ast_hash": "301f5aa8e04552969390d78423d7024e",
+    "mtime": 1791882025.2695854,
+    "seen": 1791882668.4952402,
+    "ast_hash": "2bd1cd3166bcbeefc5e281e958700d02",
     "semantic_hash": ""
   },
   "tests/memory/test_trading_history.py": {
@@ -4080,9 +4080,9 @@
     "semantic_hash": ""
   },
   "src/aetheros/trading/api/trading_api.py": {
-    "mtime": 1791695384.3236768,
-    "seen": 1791706690.4584112,
-    "ast_hash": "2dd553e8878948cfde9393b1fa23b783",
+    "mtime": 1791946960.9829938,
+    "seen": 1791947904.5320127,
+    "ast_hash": "5b0b0147d3d06d1a3930254a8864768a",
     "semantic_hash": ""
   },
   "tests/trading/test_trading_api.py": {
@@ -4131,6 +4131,150 @@
     "mtime": 1791693739.36732,
     "seen": 1791706690.4595015,
     "ast_hash": "c6682b3fdafd7e7f153b42fbe39664fb",
+    "semantic_hash": ""
+  },
+  "_launch_probe.py": {
+    "mtime": 1791875261.547628,
+    "seen": 1791881520.4032602,
+    "ast_hash": "652c18512c4353794888e71d9cc3e83a",
+    "semantic_hash": ""
+  },
+  "_repro_logging.py": {
+    "mtime": 1791868899.7648957,
+    "seen": 1791881520.4032624,
+    "ast_hash": "9b50ff9faa3c9d21e326807930eddd99",
+    "semantic_hash": ""
+  },
+  "src/aetheros/trading/domain/snapshot.py": {
+    "mtime": 1791880725.8740537,
+    "seen": 1791881520.4036398,
+    "ast_hash": "fb4d6b9c49dc5184b1573ccf65f82220",
+    "semantic_hash": ""
+  },
+  "src/aetheros/trading/domain/versions.py": {
+    "mtime": 1791880046.9721189,
+    "seen": 1791881520.403647,
+    "ast_hash": "bad3e9fbed1fafe59a1e993e38cf3772",
+    "semantic_hash": ""
+  },
+  "tests/trading/test_decision_snapshot.py": {
+    "mtime": 1791880702.7718024,
+    "seen": 1791881520.404035,
+    "ast_hash": "6c9e2646de9e7e373b872049005cf6e6",
+    "semantic_hash": ""
+  },
+  "tests/trading/test_quality_transition_events.py": {
+    "mtime": 1791880850.98172,
+    "seen": 1791881520.4040895,
+    "ast_hash": "1ccd4730aa87a512e01046c8d55f698a",
+    "semantic_hash": ""
+  },
+  "src/aetheros/trading/analytics/counterfactual.py": {
+    "mtime": 1791947092.7385805,
+    "seen": 1791947904.531992,
+    "ast_hash": "448da089f77c95ed4cc5cf9eb8a42126",
+    "semantic_hash": ""
+  },
+  "src/aetheros/trading/domain/health.py": {
+    "mtime": 1791887665.6199749,
+    "seen": 1791947904.5321367,
+    "ast_hash": "ff607282cde5ecf869488ede9ea79932",
+    "semantic_hash": ""
+  },
+  "src/aetheros/trading/domain/kill_switch.py": {
+    "mtime": 1791947374.2660365,
+    "seen": 1791947904.5321565,
+    "ast_hash": "e0c67e75a95deb023f32b31911abbd4e",
+    "semantic_hash": ""
+  },
+  "src/aetheros/trading/domain/lifecycle.py": {
+    "mtime": 1791887348.4853773,
+    "seen": 1791947904.5321598,
+    "ast_hash": "01b88ff5fd12ba92596df463b421469b",
+    "semantic_hash": ""
+  },
+  "src/aetheros/trading/domain/reconciliation.py": {
+    "mtime": 1791887596.4812503,
+    "seen": 1791947904.5322058,
+    "ast_hash": "a4da774dc9b040b84ffbb3cc38e59d3a",
+    "semantic_hash": ""
+  },
+  "src/aetheros/trading/production/__init__.py": {
+    "mtime": 1791947012.2659345,
+    "seen": 1791947904.5323803,
+    "ast_hash": "708407b95633141077f826a41cd62f53",
+    "semantic_hash": ""
+  },
+  "src/aetheros/trading/production/health_service.py": {
+    "mtime": 1791946931.5464554,
+    "seen": 1791947904.532383,
+    "ast_hash": "b2b07150346272da382d82cf776d1172",
+    "semantic_hash": ""
+  },
+  "src/aetheros/trading/production/kill_switch_service.py": {
+    "mtime": 1791887655.8522198,
+    "seen": 1791947904.532386,
+    "ast_hash": "a3d1fe0c4f32a58518a68e11f14d10a0",
+    "semantic_hash": ""
+  },
+  "src/aetheros/trading/production/lifecycle_service.py": {
+    "mtime": 1791887764.9136722,
+    "seen": 1791947904.5323894,
+    "ast_hash": "039c0b4451db44d61dabee54cb6ae3b6",
+    "semantic_hash": ""
+  },
+  "src/aetheros/trading/production/position_service.py": {
+    "mtime": 1791887622.4473896,
+    "seen": 1791947904.5323913,
+    "ast_hash": "908dc5c2759dbb5afc91fe3114320e99",
+    "semantic_hash": ""
+  },
+  "src/aetheros/trading/production/reconciliation_service.py": {
+    "mtime": 1791887628.426046,
+    "seen": 1791947904.5323932,
+    "ast_hash": "2852d9970ef0537a3199c3d2a6acc356",
+    "semantic_hash": ""
+  },
+  "tests/trading/test_counterfactual.py": {
+    "mtime": 1791947309.431389,
+    "seen": 1791947904.5342956,
+    "ast_hash": "d1c32e2914a793669064cfc68efbd610",
+    "semantic_hash": ""
+  },
+  "tests/trading/test_idempotent_execution.py": {
+    "mtime": 1791947260.802752,
+    "seen": 1791947904.5343628,
+    "ast_hash": "a062c4c98f4321a1bf6d10d3aaf6f178",
+    "semantic_hash": ""
+  },
+  "tests/trading/test_kill_switch.py": {
+    "mtime": 1791947271.2440188,
+    "seen": 1791947904.5343854,
+    "ast_hash": "e12aa32dd04338f54bc464b864a92a01",
+    "semantic_hash": ""
+  },
+  "tests/trading/test_position_book.py": {
+    "mtime": 1791947244.315387,
+    "seen": 1791947904.534455,
+    "ast_hash": "da8d7094fbd02b10d2be69cc8b2413aa",
+    "semantic_hash": ""
+  },
+  "tests/trading/test_reconciliation.py": {
+    "mtime": 1791947395.014563,
+    "seen": 1791947904.5344818,
+    "ast_hash": "8a57b00f0b78562a46db9333e65812e6",
+    "semantic_hash": ""
+  },
+  "tests/trading/test_signal_lifecycle.py": {
+    "mtime": 1791947232.0747404,
+    "seen": 1791947904.5345194,
+    "ast_hash": "d72204dc6b3cc397bd430dbec7ae77d4",
+    "semantic_hash": ""
+  },
+  "tests/trading/test_trading_health.py": {
+    "mtime": 1791947298.222545,
+    "seen": 1791947904.5345838,
+    "ast_hash": "c33b88d68acbf86a1b4f576e071ca7b7",
     "semantic_hash": ""
   }
 }

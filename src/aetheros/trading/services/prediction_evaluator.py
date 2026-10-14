@@ -41,11 +41,13 @@ from ...config.settings import Settings
 from ...core.logging import get_logger
 from ...runtime.events.event_bus import EventBus
 from ..domain.enums import Direction, PredictionOutcomeStatus
+from ..domain.lifecycle import SignalState
 from ..domain.market_data import MarketData
 from ..domain.outcome import PredictionOutcome
 from ..domain.prediction import PredictionRecord
 from ..errors import PredictionError
 from ..events import PredictionResolved
+from ..production.lifecycle_service import SignalLifecycleService
 from .market_data_service import MarketDataService
 
 logger = get_logger("trading.evaluator")
@@ -66,10 +68,14 @@ class PredictionEvaluator:
         settings: Settings,
         *,
         market_data: MarketDataService | None = None,
+        lifecycle: SignalLifecycleService | None = None,
         event_bus: EventBus | None = None,
     ) -> None:
         self._settings = settings
         self._market_data = market_data
+        # Optional lifecycle tracker: resolving a prediction advances the
+        # signal it embodies to EVALUATED, closing the production loop.
+        self._lifecycle = lifecycle
         self._event_bus = event_bus
 
     async def resolve(
@@ -108,6 +114,7 @@ class PredictionEvaluator:
         outcome = self._resolve(record, data)
         if outcome.is_resolved:
             await self._emit(outcome)
+            self._advance_lifecycle(record, outcome)
         return outcome
 
     async def resolve_latest(self, record: PredictionRecord) -> PredictionOutcome:
@@ -313,3 +320,23 @@ class PredictionEvaluator:
             )
         except Exception:
             logger.exception("Failed to publish PredictionResolved")
+
+    def _advance_lifecycle(
+        self, record: PredictionRecord, outcome: PredictionOutcome
+    ) -> None:
+        """
+        Move the signal the prediction embodies to EVALUATED.
+
+        A resolved prediction is the signal's terminal score; the advance is
+        best-effort so an evaluation never fails the resolve it just completed.
+        """
+        if self._lifecycle is None:
+            return
+        self._lifecycle.try_advance(
+            record.id,
+            SignalState.EVALUATED,
+            reason=(
+                f"prediction resolved {outcome.realized_direction.value if outcome.realized_direction else 'unknown'}"
+            ),
+            instrument_key=record.instrument_key,
+        )

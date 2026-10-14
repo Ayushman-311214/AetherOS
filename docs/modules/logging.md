@@ -729,3 +729,86 @@ The Logging module is complete when:
 * ✅ Audit logs ensure accountability and security.
 
 The **Logging** module is the **observability backbone** of AetherOS. It provides complete insight into system behavior through structured logs, metrics, traces, alerts, and analytics, enabling developers and users to monitor, debug, optimize, and audit every aspect of the autonomous operating system.
+
+---
+
+# Run Directories & Retention (implemented)
+
+How the current build actually lays out a run's logs on disk, where traces
+live, and how many runs are kept. Everything below is driven by
+`aetheros.core.logging.handlers` / `logger.py` — the single logging entry
+point. Do not call `logger.remove()`/`logger.add()`/`create_run_directory()`
+from other modules; they are the one authoritative setup path.
+
+## One run folder per process
+
+A single AetherOS startup produces **exactly one** run directory, named with
+the wall-clock timestamp **and the process id** so two startups in the same
+second can never collide:
+
+```text
+logs/
+└── run_YYYYMMDD_HHMMSS_<pid>/
+    ├── app.log          # INFO+
+    ├── error.log        # ERROR+ (backtraces, no variable dumps)
+    ├── debug.log        # DEBUG+
+    ├── events.jsonl     # structured, one JSON object per line
+    └── traces/          # this run's trace/diagnostic artifacts
+        └── <run_id>.jsonl
+```
+
+Initialization is **lazy and idempotent**. `get_logger(module)` lazily calls
+`setup_logging()` on first use, which runs `configure_handlers()` once and
+records the run in `_ACTIVE_RUN`. Every later `setup_logging()` call returns
+the *same* run directory and reuses the existing sinks — repeated imports,
+bootstrap components, services, or threads never mint a second folder and
+never stack duplicate sinks. A module merely importing the logging package
+creates **no** directory.
+
+## Traces belong to the run
+
+`trace_dir()` resolves to `<active_run>/traces`, derived from the live run
+directory rather than a fresh timestamp. Trace/debug/diagnostic artifacts are
+written beside the run's own logs — **never** a top-level `logs/traces/`
+folder shared across runs. `TraceFileWriter` opens its per-run `.jsonl`
+lazily on the first event, so an idle run leaves no empty file.
+
+## Retention
+
+After a new run folder is created, `cleanup_old_runs()` prunes the oldest
+`run_*` directories so at most the configured count remains:
+
+- **Default: 3 runs** (`LOG_RUNS_TO_KEEP = 3`).
+- Configurable via `LOG_RETENTION_RUNS` (primary), `AETHEROS_LOG_RUNS_TO_KEEP`,
+  or `LOG_RUNS_TO_KEEP` — all map to the same setting.
+- The **live run is never deleted**, even if its mtime would sort it out of
+  the newest-N (a long process can't age out its own folder).
+- Only `run_*` folders under `LOG_DIR` are touched; nothing outside the
+  run-log directories is removed. Retention applies after crashes/restarts
+  too — a fresh startup re-evaluates the whole `logs/` tree.
+
+## Console sink
+
+The stderr console sink is **off by default** (the CLI renders its own UI;
+interleaved log lines would corrupt it). `enable_console_logging()` /
+`disable_console_logging()` toggle exactly that one sink idempotently — they
+never re-run the file-sink setup or create a new run.
+
+## Configuration keys
+
+| Key | Default | Purpose |
+|-----|---------|---------|
+| `LOG_DIR` | `<root>/logs` | Root directory for all run folders |
+| `LOG_LEVEL` | `INFO` | Console sink level |
+| `LOG_ROTATION` | `10 MB` | Per-file rotation size |
+| `LOG_COMPRESSION` | `zip` | Rotated-file compression |
+| `LOG_RETENTION_RUNS` / `LOG_RUNS_TO_KEEP` | `3` | Completed run folders retained |
+| `TRACE_LEVEL` | `verbose` | Live trace dashboard verbosity |
+| `TRACE_PERSIST` | `False` | Persist each run's trace under `run_*/traces/` |
+
+## Startup ordering
+
+Logging initializes on the first `get_logger`/`setup_logging` call — early
+enough to capture startup errors, but only ever once. Importing the bootstrap
+or a service does not create a run; the folder appears when the first log
+record is actually needed.

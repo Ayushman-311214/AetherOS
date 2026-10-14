@@ -1,11 +1,14 @@
 """
 Persist a run's trace as JSON Lines.
 
-One file per run at ``LOG_DIR/traces/<run_id>.jsonl``, one :class:`TraceEvent`
-per line via its ``to_dict()`` projection. Append-only and flushed per line so a
-crash mid-run still leaves a readable, ordered record -- the same "a trace that
-can be edited after the fact is not an audit trail" reasoning that keeps the
-event immutable (CLAUDE.md 8/19).
+One file per run inside the active run folder (``logs/run_.../traces/<run_id>.jsonl``),
+one :class:`TraceEvent` per line via its ``to_dict()`` projection. The directory
+is supplied by the caller (``bootstrapper`` passes ``logging.trace_dir()``, which
+resolves inside the current run folder), so a run's traces live beside its logs
+rather than in a top-level ``logs/traces`` folder. Append-only and flushed per
+line so a crash mid-run still leaves a readable, ordered record -- the same "a
+trace that can be edited after the fact is not an audit trail" reasoning that
+keeps the event immutable (CLAUDE.md 8/19).
 
 The writer is deliberately dumb: it does not filter by level (the recorder
 already decided what to hand it) and it never raises into the caller. A trace
@@ -21,7 +24,13 @@ from typing import TextIO
 from ..logging import get_logger
 from .events import TraceEvent
 
-logger = get_logger("trace.persistence")
+# Lazy: binding the module logger at import time would create a run directory
+# the moment this file is imported (get_logger configures logging on first
+# call). A run folder must be created on first *use*, not on import -- so the
+# logger is resolved lazily inside the methods that need it.
+def _logger():
+    return get_logger("trace.persistence")
+
 
 # Runs without a correlation id still need somewhere to go rather than being
 # dropped or crashing on a ``None`` filename.
@@ -52,7 +61,7 @@ class TraceFileWriter:
         except Exception:
             # Persistence is best-effort; a full disk or a bad path must not
             # break the run being traced.
-            logger.exception("Failed to persist trace event")
+            _logger().exception("Failed to persist trace event")
 
     def _handle_for(self, run_id: str) -> TextIO:
         handle = self._handles.get(run_id)
@@ -76,7 +85,7 @@ class TraceFileWriter:
                 handle.flush()
                 handle.close()
             except Exception:
-                logger.exception("Failed to close a trace file")
+                _logger().exception("Failed to close a trace file")
         self._handles.clear()
 
 

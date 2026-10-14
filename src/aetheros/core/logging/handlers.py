@@ -129,13 +129,14 @@
 #         enqueue=True,
 #     )
 
+import os
 import shutil
 import sys
+import threading
 from pathlib import Path
 
 from loguru import logger
 from datetime import datetime
-import os
 
 # from aetheros.config.config_loader import get_settings
 from ...config.config_loader import get_settings
@@ -143,51 +144,95 @@ from ...config.config_loader import get_settings
 settings = get_settings()
 
 LOG_DIR = settings.LOG_DIR
-# LOG_DIR.mkdir(exist_ok=True)
 
 DEFAULT_ROTATION = settings.LOG_ROTATION  # "10 MB"
-# DEFAULT_RETENTION = settings.LOG_RETENTION  # "14 days"
 LOG_RUNS_TO_KEEP = settings.LOG_RUNS_TO_KEEP
 DEFAULT_COMPRESSION = settings.LOG_COMPRESSION  # "zip"
+
+# ---------------------------------------------------------------------------
+# Single-run tracking
+#
+# A run directory is created exactly once per process. The first
+# ``configure_handlers`` call creates it and records it in ``_ACTIVE_RUN``;
+# every subsequent call reuses that same directory and never removes/recreates
+# the sinks a second time. The lock makes the create-or-reuse step atomic so a
+# bootstrap component and a service resolving logging on two threads cannot
+# each mint their own run folder.
+# ---------------------------------------------------------------------------
+
+_ACTIVE_RUN: Path | None = None
+_RUN_LOCK = threading.Lock()
+# Handler id of the optional stderr console sink (None = not attached). Tracked
+# so enable/disable_console_logging toggles exactly that one sink instead of
+# re-running the whole file-sink setup.
+_CONSOLE_SINK_ID: int | None = None
+
+
+def current_run_dir() -> Path | None:
+    """The directory this process's run writes into, or None before init."""
+    return _ACTIVE_RUN
+
+
+def trace_dir() -> Path:
+    """
+    The directory this run's trace/diagnostic artifacts belong in.
+
+    Always inside the active run directory (``<run>/traces``), never a
+    top-level ``logs/traces`` -- a run's traces must live beside its logs so a
+    single run folder holds everything that run produced. Before the first
+    ``configure_handlers`` there is no run, so this falls back to the shared
+    parent to stay import-time safe; in practice the bootstrap creates the run
+    before any trace is written.
+    """
+    if _ACTIVE_RUN is not None:
+        return _ACTIVE_RUN / "traces"
+    return LOG_DIR / "traces"
 
 
 def create_run_directory() -> Path:
     """
     Create a unique directory for the current AetherOS execution.
 
-    Example:
+    The name carries the process id so two startups in the same wall-clock
+    second can never collide:
+
         logs/run_20261004_122130_12345/
     """
 
     LOG_DIR.mkdir(parents=True, exist_ok=True)
 
-    timestamp = datetime.now().strftime("%Y-%m-%d_%H%M%S")
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    pid = os.getpid()
 
-    run_dir = LOG_DIR / f"run_{timestamp}"
+    run_dir = LOG_DIR / f"run_{timestamp}_{pid}"
 
     run_dir.mkdir(parents=True, exist_ok=False)
 
     return run_dir
 
 
-def cleanup_old_runs() -> None:
+def cleanup_old_runs(*, keep: int = LOG_RUNS_TO_KEEP, current: Path | None = None) -> None:
     """
-    Keep only the newest LOG_RUNS_TO_KEEP application runs.
+    Keep only the newest ``keep`` completed application runs.
 
-    Each run is represented by a directory:
+    Each run is represented by a directory::
 
         logs/
             run_20261004_122130_12345/
             run_20261003_184512_11872/
 
-    Older run directories are completely removed.
+    Older run directories are completely removed. The currently-active run is
+    never deleted even if its mtime sorts it out of the newest-N (a long-running
+    process does not age out its own live folder).
     """
 
-    if LOG_RUNS_TO_KEEP < 1:
+    if keep < 1:
         raise ValueError("LOG_RUNS_TO_KEEP must be at least 1")
 
     if not LOG_DIR.exists():
         return
+
+    current = current if current is not None else _ACTIVE_RUN
 
     run_directories = [
         path
@@ -201,9 +246,11 @@ def cleanup_old_runs() -> None:
         reverse=True,
     )
 
-    old_runs = run_directories[LOG_RUNS_TO_KEEP:]
+    old_runs = run_directories[keep:]
 
     for run_dir in old_runs:
+        if current is not None and run_dir == current:
+            continue  # never delete the live run
         try:
             shutil.rmtree(run_dir)
         except OSError:
@@ -219,7 +266,11 @@ def configure_handlers(
     console: bool = False,
 ) -> Path:
     """
-    Configure every AetherOS log sink.
+    Configure every AetherOS log sink and create this process's run directory.
+
+    Idempotent and process-safe: the first call creates the run directory and
+    installs the sinks; every later call returns the same run directory without
+    touching the sinks (no duplicate ``logger.add`` calls, no second folder).
 
     Parameters
     ----------
@@ -237,31 +288,31 @@ def configure_handlers(
     API key into ``error.log``.
     """
 
-    # Remove Loguru's default handler and any previous handlers.
+    global _ACTIVE_RUN
+
+    # Remove Loguru's default handler once; we own every sink from here on.
     logger.remove()
 
-    # Create a directory for this execution.
-    run_dir = create_run_directory()
+    # One run directory per process: reuse the existing one if already created.
+    with _RUN_LOCK:
+        run_dir = _ACTIVE_RUN
+        if run_dir is None:
+            run_dir = create_run_directory()
+            _ACTIVE_RUN = run_dir
 
-    # Remove runs older than the newest LOG_RUNS_TO_KEEP runs.
-    cleanup_old_runs()
+        # Remove runs older than the newest LOG_RUNS_TO_KEEP runs. The live run
+        # is excluded by ``cleanup_old_runs`` itself.
+        cleanup_old_runs(current=run_dir)
 
-    # Console (opt-in, stderr, never stdout)
-    if console:
-        logger.add(
-            sink=sys.stderr,
-            colorize=True,
-            level=settings.LOG_LEVEL,
-            backtrace=False,
-            diagnose=False,
-            enqueue=True,
-        )
+    # Console (opt-in, stderr, never stdout). Idempotent: attaching it a second
+    # time removes the prior console sink first so a re-configure never stacks
+    # duplicate console handlers.
+    set_console(console)
 
     # Application log
     logger.add(
         run_dir / "app.log",
         rotation=DEFAULT_ROTATION,
-        # retention=DEFAULT_RETENTION,
         compression=DEFAULT_COMPRESSION,
         enqueue=True,
         level="INFO",
@@ -273,7 +324,6 @@ def configure_handlers(
     logger.add(
         run_dir / "error.log",
         rotation=DEFAULT_ROTATION,
-        # retention=DEFAULT_RETENTION,
         compression=DEFAULT_COMPRESSION,
         enqueue=True,
         level="ERROR",
@@ -286,7 +336,6 @@ def configure_handlers(
     logger.add(
         run_dir / "debug.log",
         rotation=DEFAULT_ROTATION,
-        # retention=DEFAULT_RETENTION,
         compression=DEFAULT_COMPRESSION,
         enqueue=True,
         level="DEBUG",
@@ -300,7 +349,6 @@ def configure_handlers(
         serialize=True,
         enqueue=True,
         rotation=DEFAULT_ROTATION,
-        # retention=DEFAULT_RETENTION,
         compression=DEFAULT_COMPRESSION,
         encoding="utf-8",
         diagnose=False,
@@ -312,3 +360,29 @@ def configure_handlers(
     )
 
     return run_dir
+
+
+def set_console(enabled: bool) -> None:
+    """
+    Attach or detach the optional stderr console sink, idempotently.
+
+    ``configure_handlers`` records the sink's handler id, so toggling adds or
+    removes exactly that one sink -- never re-running the file-sink setup and
+    never stacking duplicate console handlers.
+    """
+    global _CONSOLE_SINK_ID
+    if enabled and _CONSOLE_SINK_ID is None:
+        _CONSOLE_SINK_ID = logger.add(
+            sink=sys.stderr,
+            colorize=True,
+            level=settings.LOG_LEVEL,
+            backtrace=False,
+            diagnose=False,
+            enqueue=True,
+        )
+    elif not enabled and _CONSOLE_SINK_ID is not None:
+        try:
+            logger.remove(_CONSOLE_SINK_ID)
+        except ValueError:
+            pass  # already gone
+        _CONSOLE_SINK_ID = None

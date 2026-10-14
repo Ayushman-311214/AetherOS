@@ -49,6 +49,9 @@ if TYPE_CHECKING:
     # pulls in ``services/__init__`` which re-imports this module (a cycle).
     # The instance is only ever passed to ``LiveCandlePriceSource``.
     from ..services.market_data_service import MarketDataService
+    # The position book the venue reports fills to; imported lazily to avoid
+    # the same services/ cycle ``market_data`` already dodges.
+    from ..production.position_service import PositionBookService
 
 logger = get_logger("trading.brokers.paper")
 
@@ -68,6 +71,10 @@ class _PaperAccount:
     balance: float
     orders: dict[str, Order] = field(default_factory=dict)
     requests: dict[str, ExecutionRequest] = field(default_factory=dict)
+    # Client-order-id -> broker order-id: the idempotency ledger. A repeated
+    # submission under one key resolves to the order already placed, so a
+    # retried or re-issued request can never double-fill (spec Phase 2).
+    idempotency: dict[str, str] = field(default_factory=dict)
 
     def equity(self) -> float:
         """Cash balance (positions are recorded, not yet marked to market)."""
@@ -88,6 +95,7 @@ class PaperTradingProvider(BrokerProvider):
         *,
         initial_balance: float = DEFAULT_INITIAL_BALANCE,
         price_source: PriceSource | None = None,
+        positions: PositionBookService | None = None,
     ) -> None:
         if not math.isfinite(initial_balance) or initial_balance <= 0:
             raise ValueError("The initial paper balance must be positive.")
@@ -102,6 +110,15 @@ class PaperTradingProvider(BrokerProvider):
                 )
             price_source = LiveCandlePriceSource(market_data)
         self._price_source = price_source
+        # The position book is optional: a standalone venue (unit tests, a
+        # bare replay) keeps the pre-book behaviour when none is injected, so
+        # wiring stays additive and nothing is forced to track positions it did
+        # not ask for. When wired, fills are reported so positions/AccountSnapshot
+        # exist. The book is seeded with the starting balance so ``snapshot()``
+        # can report an equity the venue genuinely starts with.
+        self._positions = positions
+        if self._positions is not None:
+            self._positions.record_cash(initial_balance)
         self._account = _PaperAccount(balance=initial_balance)
 
     @property
@@ -125,6 +142,20 @@ class PaperTradingProvider(BrokerProvider):
         if rejection is not None:
             return self._reject(request, rejection)
 
+        # Idempotent submission (spec Phase 2): a request that arrives under a
+        # client-order-id the venue has already seen resolves to the order it
+        # placed, never a second fill. This is what makes the engine's retry
+        # safe -- a retried transport fault cannot double-execute the order.
+        prior = self._account.idempotency.get(request.idempotency_key)
+        if prior is not None:
+            existing = self._account.orders.get(prior)
+            if existing is not None:
+                return self._report(
+                    existing,
+                    "Idempotent replay: the client-order-id was already "
+                    "submitted; returning the order it placed.",
+                )
+
         # A price outage is a venue outage: the request is neither filled nor
         # rejected, it failed to reach the market. BrokerError propagates so the
         # execution engine's retry policy can decide what to do about it.
@@ -137,6 +168,7 @@ class PaperTradingProvider(BrokerProvider):
         order = self._open_order(request, status=OrderStatus.SUBMITTED)
         self._account.orders[order.order_id] = order
         self._account.requests[order.order_id] = request
+        self._account.idempotency[request.idempotency_key] = order.order_id
         return await self._settle(order, trigger)
 
     # ------------------------------------------------------------------
@@ -210,6 +242,22 @@ class PaperTradingProvider(BrokerProvider):
 
     async def account_equity(self) -> float:
         return self._account.equity()
+
+    # ------------------------------------------------------------------
+    # Reconciliation reads (spec Phase 2)
+    # ------------------------------------------------------------------
+
+    def venue_orders(self) -> dict[str, Order]:
+        """A read view of the orders the venue is tracking, by broker order id."""
+        return dict(self._account.orders)
+
+    def venue_requests(self) -> dict[str, ExecutionRequest]:
+        """The live request behind each tracked order, by broker order id."""
+        return dict(self._account.requests)
+
+    def venue_balance(self) -> float:
+        """The venue's own cash figure, for balance reconciliation."""
+        return self._account.balance
 
     # ------------------------------------------------------------------
     # Order-type semantics
@@ -316,6 +364,17 @@ class PaperTradingProvider(BrokerProvider):
         )
         self._account.orders[order.order_id] = filled
         self._account.balance -= cost
+        # Report the fill to the position book so an open/close is recorded and
+        # the account snapshot reflects it. Reporting is a side effect on the
+        # wired book; with no book wired the venue behaves exactly as before.
+        if self._positions is not None:
+            self._positions.record_fill(
+                request,
+                fill_price=price,
+                fill_quantity=filled.quantity,
+                provider=self.name,
+            )
+            self._positions.record_cash(self._account.balance)
         logger.info(
             "Paper fill: %s %s %.4f %s @ %.4f",
             filled.order_id,
@@ -369,6 +428,10 @@ class PaperTradingProvider(BrokerProvider):
         )
         self._account.orders[order.order_id] = order
         self._account.requests[order.order_id] = request
+        # Index the resting order under its client-order-id too, so a repeat
+        # submission of the same request resolves to it rather than resting a
+        # duplicate working order.
+        self._account.idempotency[request.idempotency_key] = order.order_id
         reason = (
             f"Resting at the venue: {request.order_type.value} terms are not met "
             f"at the live price {price:.4f}."

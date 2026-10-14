@@ -48,6 +48,7 @@ class ExplanationService:
                 direction=e.direction,
                 weight=e.weight,
                 is_reliable=e.is_reliable,
+                reason_id=e.id,
             )
             # Only reliable, directional evidence is placed for/against; it is the
             # only evidence allowed to move the net weight (spec section 28).

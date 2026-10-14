@@ -33,7 +33,7 @@ from ..domain.event_calendar import (
 from ..domain.instrument import Instrument
 from ..domain.provenance import DataQuality, Provenance
 from ..errors import CalendarError
-from ..events import MarketEventsDetected
+from ..events import MarketEventsDetected, NewsImpactDetected
 from ..providers.calendar_base import CalendarProvider
 
 logger = get_logger("trading.calendar")
@@ -71,6 +71,9 @@ class EventCalendarService:
         self._provider = provider
         self._settings = settings
         self._event_bus = event_bus
+        # Ids of high-impact events already announced as NewsImpactDetected, so
+        # a repeated lookup re-announces a *new* event, never the same page twice.
+        self._announced: set[str] = set()
 
     @property
     def provider_name(self) -> str:
@@ -262,3 +265,37 @@ class EventCalendarService:
             )
         except Exception:  # event delivery must never break the lookup
             logger.exception("Failed to publish MarketEventsDetected")
+
+        # Announce each genuinely high-impact event once, as its own pageable
+        # item rather than buried inside the batch. Mock data is excluded so a
+        # synthetic entry can never trigger a real alert.
+        if not calendar.is_reliable:
+            return
+        for event in calendar.events:
+            if not event.is_high_impact or event.id in self._announced:
+                continue
+            self._announced.add(event.id)
+            try:
+                await self._event_bus.publish(
+                    NewsImpactDetected(
+                        instrument_key=calendar.instrument.key,
+                        kind=self._kind_label(event),
+                        title=event.title,
+                        scheduled_at=event.scheduled_at.isoformat(),
+                        direction="unknown",
+                        is_reliable=True,
+                        source_tier=calendar.provenance.tier.value,
+                    )
+                )
+            except Exception:
+                logger.exception("Failed to publish NewsImpactDetected")
+
+    @staticmethod
+    def _kind_label(event: MarketEvent) -> str:
+        """The news-impact kind for one event, honest about what it is."""
+        if event.event_type is EventType.ECONOMIC:
+            kind = event.macro_kind
+            if kind is not None and kind is not MacroEventKind.UNKNOWN:
+                return kind.value
+            return "economic_release"
+        return event.event_type.value

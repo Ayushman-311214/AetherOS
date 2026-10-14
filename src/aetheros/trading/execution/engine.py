@@ -42,11 +42,15 @@ from ...runtime.events.event_bus import EventBus
 from ..brokers.base import BrokerProvider
 from ..domain.enums import OrderStatus
 from ..domain.execution import ExecutionRequest, ExecutionResult
+from ..domain.kill_switch import KillSwitch
+from ..domain.lifecycle import SignalState
 from ..domain.policy import PolicyVerdict
 from ..domain.risk_limits import AccountSnapshot, RiskLimitsVerdict
 from ..errors import BrokerError, ExecutionError
-from ..events import OrderSubmitted
+from ..events import OrderFilled, OrderSubmitted
 from ..policy.policy_service import ExecutionPolicyService
+from ..production.kill_switch_service import KillSwitchService
+from ..production.lifecycle_service import SignalLifecycleService
 from ..risk.limits_service import RiskLimitsService
 
 logger = get_logger("trading.execution")
@@ -86,6 +90,8 @@ class ExecutionEngine:
         settings: Settings,
         *,
         policy: ExecutionPolicyService | None = None,
+        kill_switches: KillSwitchService | None = None,
+        lifecycle: SignalLifecycleService | None = None,
         event_bus: EventBus | None = None,
         max_retries: int = DEFAULT_MAX_RETRIES,
         retry_backoff_seconds: float = DEFAULT_RETRY_BACKOFF_SECONDS,
@@ -102,6 +108,14 @@ class ExecutionEngine:
         # its own settings, so there is never a path that skips policy by
         # simply forgetting to pass it.
         self._policy = policy or ExecutionPolicyService(settings)
+        # The kill-switch gate runs immediately after policy (spec Phase 2): a
+        # tripped switch blocks the order before the broker is ever consulted.
+        # When none is injected the engine admits freely -- an absent gate
+        # defaults to open, exactly as an absent risk snapshot does.
+        self._kill_switches = kill_switches or KillSwitchService()
+        # Lifecycle tracker: advancing the signal's state as orders move makes
+        # the CREATED → ... → EXECUTED/CLOSED trail a first-class record.
+        self._lifecycle = lifecycle or SignalLifecycleService(event_bus=event_bus)
         self._event_bus = event_bus
         self._max_retries = max_retries
         self._backoff = retry_backoff_seconds
@@ -115,6 +129,11 @@ class ExecutionEngine:
     def policy(self) -> ExecutionPolicyService:
         """The execution-policy gate this engine enforces."""
         return self._policy
+
+    @property
+    def kill_switches(self) -> KillSwitchService:
+        """The kill-switch gate this engine honours before any order."""
+        return self._kill_switches
 
     # ------------------------------------------------------------------
     # Validation
@@ -153,6 +172,26 @@ class ExecutionEngine:
             return ValidationReport(
                 ok=False,
                 reason=f"Blocked by execution policy: {policy_verdict.reason}",
+                policy=policy_verdict,
+            )
+        switch = self._kill_switches.is_blocked(request, self._broker.name)
+        if switch is not None:
+            # Optionally cancel the resting orders the switch covers, so a halt
+            # does not leave a live order working against it (spec Phase 2).
+            if self._settings.TRADING_KILL_CANCEL_RESTING:
+                try:
+                    await self._kill_switches.cancel_resting(self._broker, switch)
+                except Exception:
+                    logger.exception(
+                        "Kill-switch resting cancel failed for %s",
+                        switch.scope_key,
+                    )
+            return ValidationReport(
+                ok=False,
+                reason=(
+                    f"Blocked by kill switch ({switch.scope_key}): "
+                    f"{switch.reason}"
+                ),
                 policy=policy_verdict,
             )
         if account_snapshot is None:
@@ -240,6 +279,20 @@ class ExecutionEngine:
                     status=OrderStatus.REJECTED,
                     reason=f"Blocked by execution policy: {policy_verdict.reason}",
                 )
+            switch = self._kill_switches.is_blocked(request, self._broker.name)
+            if switch is not None:
+                logger.warning(
+                    "Execution blocked by kill switch (validate opted out): %s",
+                    switch.scope_key,
+                )
+                return ExecutionResult(
+                    request_id=request.request_id,
+                    status=OrderStatus.REJECTED,
+                    reason=(
+                        f"Blocked by kill switch ({switch.scope_key}): "
+                        f"{switch.reason}"
+                    ),
+                )
 
         attempts = self._max_retries + 1
         last_error: BrokerError | None = None
@@ -259,6 +312,8 @@ class ExecutionEngine:
                     await asyncio.sleep(self._backoff * (2 ** (attempt - 1)))
                 continue
             await self._emit_submitted(request, result)
+            await self._emit_filled(request, result)
+            self._advance_lifecycle(request, result)
             return result
 
         assert last_error is not None
@@ -328,6 +383,21 @@ class ExecutionEngine:
                     reason=f"Blocked by execution policy: {policy_verdict.reason}",
                     order_id=order_id,
                 )
+            switch = self._kill_switches.is_blocked(request, self._broker.name)
+            if switch is not None:
+                logger.warning(
+                    "Amendment blocked by kill switch (validate opted out): %s",
+                    switch.scope_key,
+                )
+                return ExecutionResult(
+                    request_id=request.request_id,
+                    status=OrderStatus.REJECTED,
+                    reason=(
+                        f"Blocked by kill switch ({switch.scope_key}): "
+                        f"{switch.reason}"
+                    ),
+                    order_id=order_id,
+                )
         try:
             return await self._broker.modify(order_id, request)
         except BrokerError as exc:
@@ -368,3 +438,66 @@ class ExecutionEngine:
             )
         except Exception:
             logger.exception("Failed to publish OrderSubmitted")
+
+    async def _emit_filled(
+        self, request: ExecutionRequest, result: ExecutionResult
+    ) -> None:
+        """Announce a fill so the book/journal/lifecycle layers can observe it."""
+        if self._event_bus is None:
+            return
+        if result.status not in (OrderStatus.FILLED, OrderStatus.PARTIALLY_FILLED):
+            return
+        try:
+            await self._event_bus.publish(
+                OrderFilled(
+                    order_id=result.order_id or "",
+                    instrument_key=request.instrument.key,
+                    filled_quantity=result.filled_quantity,
+                    fill_price=result.average_fill_price or request.entry,
+                    fully_filled=result.status is OrderStatus.FILLED,
+                )
+            )
+        except Exception:
+            logger.exception("Failed to publish OrderFilled")
+
+    def _advance_lifecycle(
+        self, request: ExecutionRequest, result: ExecutionResult
+    ) -> None:
+        """
+        Advance the signal's lifecycle from the venue's verdict.
+
+        A FILLED result moves the signal to EXECUTED; PARTIALLY_FILLED to
+        PARTIALLY_FILLED; a resting SUBMITTED order to ACTIVE (the order is
+        working at the venue). A REJECTED result invalidates the signal. Best
+        effort: a lifecycle edge case logs, never fails the submission.
+        """
+        signal_id = request.signal_id
+        instrument_key = request.instrument.key
+        if result.status is OrderStatus.FILLED:
+            self._lifecycle.try_advance(
+                signal_id,
+                SignalState.EXECUTED,
+                reason="order filled at the venue",
+                instrument_key=instrument_key,
+            )
+        elif result.status is OrderStatus.PARTIALLY_FILLED:
+            self._lifecycle.try_advance(
+                signal_id,
+                SignalState.PARTIALLY_FILLED,
+                reason="order partially filled at the venue",
+                instrument_key=instrument_key,
+            )
+        elif result.status is OrderStatus.SUBMITTED:
+            self._lifecycle.try_advance(
+                signal_id,
+                SignalState.ACTIVE,
+                reason="order resting at the venue",
+                instrument_key=instrument_key,
+            )
+        elif result.status is OrderStatus.REJECTED:
+            self._lifecycle.try_advance(
+                signal_id,
+                SignalState.INVALIDATED,
+                reason=f"order rejected: {result.reason}",
+                instrument_key=instrument_key,
+            )

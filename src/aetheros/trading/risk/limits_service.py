@@ -39,7 +39,7 @@ from ..domain.risk_limits import (
     RiskLimitOutcome,
     RiskLimitsVerdict,
 )
-from ..events import RiskLimitReached
+from ..events import RiskLimitReached, RiskStateChanged
 
 logger = get_logger("trading.risk_limits")
 
@@ -48,6 +48,9 @@ DAILY_LOSS = "daily_loss"
 
 #: Outcome name for the open-exposure check.
 MAX_EXPOSURE = "max_exposure"
+
+#: Utilisation fraction at which a limit reads "approaching" (below a breach).
+_APPROACHING_FRACTION = 0.80
 
 
 class RiskLimitsService:
@@ -61,6 +64,9 @@ class RiskLimitsService:
     ) -> None:
         self._settings = settings
         self._event_bus = event_bus
+        # Last utilisation band per limit-kind, so a band transition is
+        # announced once rather than on every snapshot checked.
+        self._last_band: dict[str, str] = {}
 
     def check(self, snapshot: AccountSnapshot) -> RiskLimitsVerdict:
         """
@@ -82,6 +88,8 @@ class RiskLimitsService:
             equity=snapshot.equity,
             captured_at=snapshot.captured_at,
         )
+        for outcome in outcomes:
+            self._emit_state_transition(outcome)
         for outcome in verdict.breached:
             self._log_and_emit(verdict, outcome)
         return verdict
@@ -169,6 +177,59 @@ class RiskLimitsService:
         )
 
     # ------------------------------------------------------------------
+
+    @staticmethod
+    def _band(outcome: RiskLimitOutcome) -> str:
+        """
+        Map a check outcome onto the state band it now sits in.
+
+        A failed check is "breached" when an observed value broke the limit;
+        when the input was unmeasurable the gate fails closed but the band is
+        honestly "unknown" rather than fabricated as within-limits.
+        """
+        if not outcome.passed:
+            return "unknown" if outcome.observed is None else "breached"
+        if outcome.observed is not None and outcome.limit and outcome.limit > 0:
+            if outcome.observed >= outcome.limit * _APPROACHING_FRACTION:
+                return "approaching"
+        return "within"
+
+    def _emit_state_transition(self, outcome: RiskLimitOutcome) -> None:
+        """
+        Announce a band transition for one limit (within/approaching/breached).
+
+        The previous band is tracked per limit-name so a real state change
+        (e.g. within -> approaching, approaching -> breached) publishes once;
+        the first observation only seeds the tracker -- a service that has not
+        seen a band before cannot assert a *change*, so nothing fires on the
+        first snapshot.
+        """
+        band = self._band(outcome)
+        prev = self._last_band.get(outcome.limit_name)
+        self._last_band[outcome.limit_name] = band
+        if self._event_bus is None or prev is None or prev == band:
+            return
+        try:
+            asyncio.get_running_loop().create_task(
+                self._event_bus.publish(
+                    RiskStateChanged(
+                        kind=outcome.limit_name,
+                        previous_state=prev,
+                        state=band,
+                        utilisation=(
+                            round(outcome.observed / outcome.limit, 6)
+                            if outcome.observed is not None and outcome.limit
+                            else None
+                        ),
+                        detail=outcome.reason,
+                        is_mock=False,
+                    )
+                )
+            )
+        except RuntimeError:
+            pass
+        except Exception:
+            logger.exception("Failed to publish RiskStateChanged")
 
     def _log_and_emit(
         self, verdict: RiskLimitsVerdict, outcome: RiskLimitOutcome

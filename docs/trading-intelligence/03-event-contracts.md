@@ -41,13 +41,51 @@ pseudo-feed.
 | `MonitoringSweepCompleted` | monitoring sweep | one bounded resolve+evaluate pass | swept/resolved/pending/scored, accuracy, `is_reliable` |
 | `OrderSubmitted`/`OrderFilled`/`PositionClosed`/`RiskLimitReached`/`MarketOpened` | execution/risk path | order/lifecycle/limit events | see `events.py` |
 
+## State-change events (spec section 17)
+
+These announce a *transition*, not a state: each producer keeps a small
+last-seen memory keyed on instrument/timeframe (or limit-name) and publishes
+once when the band actually moves, never on a flicker. The first observation
+only seeds the tracker — a service that has never seen a feed/band cannot
+honestly assert a *change*, so nothing fires until there is real history to
+diff against.
+
+| Event | Emitted by | When | Key payload |
+|---|---|---|---|
+| `MarketRegimeChanged` | `MarketIntelService` (6-state tracker) | a confirmed before→after regime transition | `previous_regime` + `regime` + `direction`, `is_reliable` |
+| `VolatilityChanged` | *(contract — needs prior realised-vol band)* | calm→normal→elevated realised-vol crossing | `previous_band`/`band`, `atr_pct`, `is_reliable` |
+| `LiquidityChanged` | *(contract — needs net-liquidity diff)* | resting liquidity at price materially shifted | `previous_state`/`state`, `detail`, `is_reliable` |
+| `SignalInvalidated` | *(contract — needs a signal-state machine)* | a signal's recorded invalidation condition met | `signal_id`/`prediction_id`, `reason`, `invalidation` |
+| `DataQualityDegraded` | `MarketDataService` | quality band worsened (OK→PARTIAL/STALE/INVALID) | `previous_status`/`status`, `issues`, `is_mock` |
+| `NewsImpactDetected` | `EventCalendarService` | a HIGH-impact scheduled event first appears | `kind`, `title`, `scheduled_at`, `is_reliable` |
+| `SignalStateChanged` | `SignalLifecycleService` | a signal advanced one *legal* lifecycle step | `signal_id`, `from_state`, `to_state`, `reason` |
+| `SignalInvalidated` | `SignalLifecycleService` | a signal moved to `INVALIDATED` (basis broke / gate refused) | `signal_id`, `reason`, `invalidation` |
+| `PositionOpened` | `PositionBookService` | a fill opened a tracked position | `position_id`, `direction`, `quantity`, `entry_price` |
+| `PositionClosed` | `PositionBookService` | a fill closed (or reduced) a tracked position | `position_id`, `exit_price`, `realized_pnl` |
+| `KillSwitchTripped` | `KillSwitchService` | a scoped halt armed | `scope`, `target`, `reason` |
+| `KillSwitchCleared` | `KillSwitchService` | a halt explicitly cleared for recovery | `scope`, `target` |
+| `ReconciliationMismatchDetected` | `ReconciliationService` | local and venue state diverged on one leg | `kind`, `detail`, `order_id`, `position_id` |
+| `TradingHealthChanged` | `TradingHealthService` | the desk's aggregate band moved | `previous_state`, `state`, `reasons` |
+| `RiskStateChanged` | `RiskLimitsService.check` | daily-loss/exposure band moves (within→approaching→breached) | `kind`, `previous_state`/`state`, `utilisation` |
+| `PredictionCreated` | `OrchestrationService` | a report was captured as a §8 record | `prediction_id`, recommendation, direction, `probability_up`, `is_mock` |
+
 ## Deliberate absences
 
 - **`CandleUpdated`** — not defined. There is no still-forming bar in a
   pull-based snapshot; inventing one would pretend a granularity the data lacks.
-- **`MarketRegimeChanged` emission** — the *contract* exists, but the stateless
-  `RegimeService` holds no prior regime, so honestly publishing it awaits the
-  deferred memory/state layer. Until then only `MarketRegimeDetected` fires.
+- **`SignalInvalidated`** — now produced by `SignalLifecycleService` when a
+  candidate/signal moves to `INVALIDATED` (a gate refused it, or its basis
+  broke). The earlier "contract without a producer" note is retired.
+- **`VolatilityChanged`, `LiquidityChanged`** — contracts defined, but no
+  honest producer exists yet in this build: realised-vol / net-liquidity
+  *diffs* need a prior-value memory the stateless readers don't carry. They
+  are defined so a later producer can publish without a schema change — never
+  fabricated as pseudo-events.
+- **`MarketRegimeChanged` emission** — the *contract* exists and the
+  `MarketIntelService` 6-state `RegimeTracker` produces real transitions, but
+  it is wired in the `market_intel` package's own service path; the stateless
+  `RegimeService` in the deterministic core still only emits
+  `MarketRegimeDetected`.
 
 ## Ordering guarantee
 

@@ -17,6 +17,7 @@ broker's reason verbatim -- a broker never silently drops an order.
 
 from __future__ import annotations
 
+import hashlib
 import math
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
@@ -43,6 +44,30 @@ def _request_id() -> str:
     _REQUEST_COUNTER += 1
     stamp = _utcnow().timestamp()
     return f"req_{stamp:.0f}_{_REQUEST_COUNTER:06d}"
+
+
+def _idempotency_key(
+    *,
+    signal_id: str,
+    instrument_key: str,
+    direction: Direction,
+    quantity: float,
+) -> str:
+    """
+    The stable client-order id for one request (spec Phase 2 idempotency).
+
+    Content-addressed over the signal it descends from plus the side and size,
+    so re-submitting the *same* logical order -- a retried transport fault, a
+    re-issued decision -- resolves to the same key and dedupes at the venue,
+    while a genuinely different order never collides. The wall clock is
+    excluded for the same reason the signal id excludes it: identity is what
+    the request *is*, not when it was typed.
+    """
+    payload = "|".join(
+        (signal_id, instrument_key, direction.value, f"{quantity:.8f}")
+    )
+    digest = hashlib.sha1(payload.encode("utf-8")).hexdigest()
+    return f"coid_{digest[:16]}"
 
 
 @dataclass(frozen=True, slots=True)
@@ -80,6 +105,7 @@ class ExecutionRequest:
     limit_price: float | None = None
     stop_price: float | None = None
     request_id: str = field(default_factory=_request_id)
+    idempotency_key: str = ""
     created_at: datetime = field(default_factory=_utcnow)
 
     def __post_init__(self) -> None:
@@ -112,6 +138,19 @@ class ExecutionRequest:
             self.risk_reward_ratio
         ):
             raise ValueError("A risk/reward ratio must be finite when present.")
+        if not self.idempotency_key.strip():
+            # A request that did not name a key derives a stable one, so the
+            # venue can always dedupe on it; the wall clock is never an input.
+            object.__setattr__(
+                self,
+                "idempotency_key",
+                _idempotency_key(
+                    signal_id=self.signal_id,
+                    instrument_key=self.instrument.key,
+                    direction=self.direction,
+                    quantity=self.quantity,
+                ),
+            )
         self._validate_order_type()
 
     def _validate_order_type(self) -> None:
@@ -143,6 +182,11 @@ class ExecutionRequest:
     def is_resting(self) -> bool:
         """Whether this request must rest at the venue until its trigger is met."""
         return self.order_type is not OrderType.MARKET
+
+    @property
+    def client_order_id(self) -> str:
+        """The caller-side order id the venue should index for dedupe."""
+        return self.idempotency_key
 
     @classmethod
     def from_signal(
@@ -201,6 +245,7 @@ class ExecutionRequest:
     def to_dict(self) -> dict[str, Any]:
         return {
             "request_id": self.request_id,
+            "idempotency_key": self.idempotency_key,
             "signal_id": self.signal_id,
             "instrument": self.instrument.to_dict(),
             "direction": self.direction.value,

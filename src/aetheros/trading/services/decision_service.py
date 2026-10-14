@@ -33,7 +33,9 @@ from ..domain.enums import Direction, ReportRecommendation
 from ..domain.explanation import Explanation
 from ..domain.hybrid import HybridChartContext
 from ..domain.report import TradingReport
+from ..domain.snapshot import DecisionSnapshot
 from ..domain.strategy import StrategyEvaluation, StrategySetup
+from ..domain.versions import ComponentVersions, default_versions
 from .explanation_service import ExplanationService
 from .market_data_service import MarketDataService
 from .orchestration_service import OrchestrationService
@@ -87,6 +89,77 @@ class DecisionService:
         explanation = self._explanation.explain(report)
         setup = self._pick_setup(report, evaluations)
         return self.assemble(report, explanation, setup, evaluations, hybrid=hybrid)
+
+    async def decide_snapshot(
+        self,
+        symbol: str,
+        *,
+        timeframe: str | None = None,
+        limit: int | None = None,
+        strategy_ids: list[str] | None = None,
+        hybrid: HybridChartContext | None = None,
+        versions: ComponentVersions | None = None,
+    ) -> DecisionSnapshot:
+        """
+        Produce the decision *and* its reproducible reconstruction snapshot.
+
+        The snapshot captures the decision plus the data fingerprint and the
+        component versions that produced it, so a stored decision can later be
+        replayed and audited (spec sections 15/16). The report and panel are
+        composed through the existing orchestrator; the fingerprint is taken
+        from a fresh canonical MarketData read after composition and is never
+        treated as a fabricated substitute for the report's actual inputs.
+        """
+        report = await self._orchestration.generate_report(
+            symbol, timeframe, limit=limit
+        )
+        evaluations = await self._run_panel(
+            symbol, timeframe=timeframe, limit=limit, strategy_ids=strategy_ids
+        )
+        explanation = self._explanation.explain(report)
+        setup = self._pick_setup(report, evaluations)
+        decision = self.assemble(report, explanation, setup, evaluations, hybrid=hybrid)
+
+        try:
+            data = await self._market_data.get_candles(
+                symbol, timeframe, limit=limit
+            )
+        except Exception:
+            logger.exception(
+                "Snapshot fetch failed; fingerprint records no data"
+            )
+            data = None
+        return self.snapshot_for(decision, report, data=data, versions=versions)
+
+    @staticmethod
+    def snapshot_for(
+        decision: TradingDecision,
+        report: TradingReport,
+        *,
+        data,
+        versions: ComponentVersions | None = None,
+    ) -> DecisionSnapshot:
+        """
+        Assemble a DecisionSnapshot from a finished decision plus its inputs.
+
+        Pure: no I/O, no re-analysis. ``data`` is the candle series the report
+        was computed over (so the fingerprint matches the read); when the caller
+        omits the version manifest the build's current revisions are used. The
+        critic verdict is read off the report's own verdict trail.
+        """
+        manifest = versions or default_versions(
+            provider=report.provenance.source or "unknown"
+        )
+        return DecisionSnapshot.build(
+            decision,
+            data=data,
+            versions=manifest,
+            provenance=report.provenance,
+            quality=report.quality,
+            critic_verdict=report.critique.verdict.value,
+            critic_reasons=tuple(report.critique.reasons),
+            limitations=tuple(report.limitations),
+        )
 
     # ------------------------------------------------------------------
 

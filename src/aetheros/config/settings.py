@@ -41,8 +41,17 @@ class Settings(BaseSettings):
 
     LOG_LEVEL: str = "INFO"  # "DEBUG" | "INFO" | "WARNING" | "ERROR" | "CRITICAL"
     LOG_ROTATION: str = "10 MB"
-    # LOG_RETENTION: str = "14 days"
-    LOG_RUNS_TO_KEEP: int = 2
+    # How many completed run folders (logs/run_...) to retain before the oldest
+    # is pruned. Default 3; overridable via LOG_RETENTION_RUNS or
+    # AETHEROS_LOG_RUNS_TO_KEEP. The live run is never deleted.
+    LOG_RUNS_TO_KEEP: int = Field(
+        default=3,
+        validation_alias=AliasChoices(
+            "LOG_RETENTION_RUNS",
+            "AETHEROS_LOG_RUNS_TO_KEEP",
+            "LOG_RUNS_TO_KEEP",
+        ),
+    )
     LOG_COMPRESSION: str = "zip"
 
     # -----------------------
@@ -55,9 +64,9 @@ class Settings(BaseSettings):
     
     TRACE_LEVEL: str = "verbose" # "off" | "error" | "minimal" | "normal" | "debug" | "verbose"
 
-    # Whether each run's trace is persisted as JSONL under LOG_DIR/traces. The
-    # live dashboard is independent of this: turning persistence off still shows
-    # the trace, it just leaves no file behind.
+    # Whether each run's trace is persisted as JSONL inside the active run
+    # folder (logs/run_.../traces). The live dashboard is independent of this:
+    # turning persistence off still shows the trace, it just leaves no file.
     TRACE_PERSIST: bool = False
 
     # -----------------------
@@ -589,6 +598,18 @@ class Settings(BaseSettings):
         validation_alias=AliasChoices(
             "AETHEROS_TRADING_POLICY_ALLOWED_STRATEGIES",
             "TRADING_POLICY_ALLOWED_STRATEGIES",
+        ),
+    )
+
+    # Phase 2 -- production lifecycle safety. When a kill switch trips, whether
+    # the engine may also cancel the resting orders the switch covers (in
+    # addition to blocking new admissions). Defaults to False: a halt blocks
+    # new orders but does not cancel resting ones unless explicitly enabled.
+    TRADING_KILL_CANCEL_RESTING: bool = Field(
+        default=False,
+        validation_alias=AliasChoices(
+            "AETHEROS_TRADING_KILL_CANCEL_RESTING",
+            "TRADING_KILL_CANCEL_RESTING",
         ),
     )
 
